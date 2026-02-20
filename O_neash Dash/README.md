@@ -1,6 +1,6 @@
-# O_neash Dash
+# Mycelium
 
-O_neash Dash is a modular, extensible desktop productivity suite built with React and Tauri. It features a unique homepage "bloom" navigation, always-on-top elements, and a plugin system for research, journaling, mapping, and health tracking.
+Mycelium is a modular, extensible desktop productivity suite built with React and Tauri. It features a unique homepage "bloom" navigation, always-on-top elements, and a plugin system for research, journaling, mapping, and health tracking.
 
 ## Features
 
