@@ -1,0 +1,54 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Tauri specific
+src-tauri/binaries/
+src-tauri/gen/
+
+# Rust artifacts
+/src-tauri/target/
+
+/public/map_tiles/cartoon_tiles/
+/public/map_tiles/maptiles.pmtiles
+/public/map_tiles/cartoontiles.mbtiles
+/public/map_tiles/original_low/
+/public/map_tiles/cartoon_tiles/
+/public/map_tiles/*/
+/public/map_tiles/*/*/
+/public/map_tiles/*/*/*/
+/public/map_tiles/*/*/*/*/
+/public/map_tiles/*/*/*/*/*/
+pnpm-lock.yaml
+build/
+*.tmp
+*.cache
+*.bak
+*.swp
+*.swo
+coverage/
+*.log
+*.pid
+*.seed
+*.pid.lock

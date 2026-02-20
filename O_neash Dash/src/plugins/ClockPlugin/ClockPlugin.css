@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Sans+KR:wght@300;400&display=swap');
+
+.plugin-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.plugin-clock.bios-style {
+  font-family: 'VT323', 'IBM Plex Sans KR', monospace;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  align-items: flex-start;
+  padding: 20px;
+}
+.plugin-clock.bios-style .clock-indicator {
+  width: 8px;
+  height: 12px;
+  margin-bottom: 0px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 0;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+.plugin-clock.bios-style .clock-time {
+  font-size: 3.8rem;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0px;
+  line-height: 1;
+  padding: 0;
+}
+.plugin-clock.bios-style .clock-date {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1.3rem;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 2px;
+  text-transform: lowercase;
+}
+.plugin-clock.bios-style .clock-label {
+  font-size: 0.9rem;
+  opacity: 0.3;
+  margin-bottom: 8px;
+  letter-spacing: 3px;
+}

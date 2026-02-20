@@ -1,0 +1,29 @@
+.always-on-top-home-btn {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.4rem 1.2rem;
+  font-style: normal;
+  font-family: 'VT323', 'IBM Plex Sans KR', monospace;
+  font-size: 1.0rem;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: lowercase;
+  cursor: pointer;
+  border-radius: 0px;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: all 0.16s ease;
+  outline: none;
+}
+
+.always-on-top-home-btn:hover, .always-on-top-home-btn:focus {
+  background: rgba(61, 238, 17, 0.85);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgb(0, 0, 0);
+  box-shadow: 0 4px 16px rgba(255,243,8,0.18);
+}

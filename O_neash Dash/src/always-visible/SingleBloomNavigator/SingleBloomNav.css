@@ -1,0 +1,114 @@
+.single-bloom-container {
+  position: fixed;
+  bottom: 3rem;
+  right: 3rem;
+  z-index: 1000;
+}
+
+.bloom-center {
+  width: 50px;
+  height: 50px;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1002;
+}
+
+.bloom-center:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.1);
+}
+
+.bloom-center.expanded {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.bloom-dot {
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+} @keyframes pulse { 0%, 100% {opacity: 1;} 50% {opacity: 0.3;} }
+
+.bloom-petals {
+  position: absolute;
+  bottom: 64px;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 1001;
+}
+
+.bloom-petal {
+  position: relative;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.4rem 0.8rem;
+  
+  font-style: normal;
+  font-family: 'VT323', 'IBM Plex Sans KR', monospace;
+  font-size: 1.0rem;
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: lowercase;
+  cursor: pointer;
+  border-radius: 0px;
+  white-space: nowrap;
+  opacity: 0;
+  animation: bloom-stack-in 0.3s ease forwards;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  transition: all 0.16s ease;
+}
+
+/* Staggered animation delays */
+.bloom-petal:nth-child(1) { animation-delay: 0s; }
+.bloom-petal:nth-child(2) { animation-delay: 0.05s; }
+.bloom-petal:nth-child(3) { animation-delay: 0.1s; }
+.bloom-petal:nth-child(4) { animation-delay: 0.15s; }
+.bloom-petal:nth-child(5) { animation-delay: 0.2s; }
+.bloom-petal:nth-child(6) { animation-delay: 0.25s; }
+.bloom-petal:nth-child(7) { animation-delay: 0.3s; }
+.bloom-petal:nth-child(8) { animation-delay: 0.35s; }
+.bloom-petal:nth-child(9) { animation-delay: 0.4s; }
+.bloom-petal:nth-child(10) { animation-delay: 0.45s; }
+.bloom-petal:nth-child(11) { animation-delay: 0.5s; }
+.bloom-petal:nth-child(12) { animation-delay: 0.55s; }
+.bloom-petal:nth-child(13) { animation-delay: 0.6s; }
+.bloom-petal:nth-child(14) { animation-delay: 0.65s; }
+.bloom-petal:nth-child(15) { animation-delay: 0.7s; }
+.bloom-petal:nth-child(16) { animation-delay: 0.75s; }
+.bloom-petal:nth-child(17) { animation-delay: 0.8s; }
+.bloom-petal:nth-child(18) { animation-delay: 0.85s; }
+.bloom-petal:nth-child(19) { animation-delay: 0.9s; }
+.bloom-petal:nth-child(20) { animation-delay: 0.95s; }
+
+@keyframes bloom-stack-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bloom-petal:hover {
+  background: rgba(255, 243, 8, 0.833);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgb(0, 0, 0);
+  transform: translateY(-2px) scale(1.02);
+}
