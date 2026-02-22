@@ -4,19 +4,11 @@ import { LaunchMenu } from "../home/LaunchMenu";
 
 function HomePage() {
   return (
-    <div className="home-page">
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 50,
-        }}
-      >
+    <div className="home-page flex flex-col items-center justify-center min-h-screen">
+      <ClockPlugin />
+      <div className="mt-8">
         <LaunchMenu />
       </div>
-      <ClockPlugin />
     </div>
   );
 }

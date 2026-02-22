@@ -5,7 +5,7 @@ import {
   Notes,
   CheckDouble,
   Edit,
-  Menu,
+  Sliders2,
   Trending,
   CoffeeAlt,
   Timeline,
@@ -63,7 +63,7 @@ export function LaunchMenu() {
           <NavigationMenuTrigger>
             <span className="flex items-center gap-2">
               <CornerDownRight size={14} />
-              the TERMINAL
+              BASIC
             </span>
           </NavigationMenuTrigger>
           <NavigationMenuContent align="start">
@@ -99,7 +99,7 @@ export function LaunchMenu() {
               <ListItem
                 title={
                   <span className="flex items-center gap-2">
-                    <Menu size={14} /> Settings
+                    <Sliders2 size={14} /> Settings
                   </span>
                 }
                 whiteText
@@ -171,7 +171,7 @@ export function LaunchMenu() {
           <NavigationMenuTrigger>
             <span className="flex items-center gap-2">
               <Camera size={14} />
-              the DARKROOM
+              the STUDIO
             </span>
           </NavigationMenuTrigger>
           <NavigationMenuContent align="start">
@@ -213,7 +213,7 @@ export function LaunchMenu() {
           <NavigationMenuTrigger>
             <span className="flex items-center gap-2">
               <Human size={14} />
-              the VITALS
+              the CLINIC
             </span>
           </NavigationMenuTrigger>
           <NavigationMenuContent align="start">
