@@ -50,10 +50,10 @@ export async function setupDb() {
         parent_id INTEGER, -- Links subtasks
         group_id INTEGER,
         task TEXT NOT NULL,
+        description TEXT,
+        effort DECIMAL,
         is_completed BOOLEAN DEFAULT 0,
-        priority INTEGER CHECK (priority BETWEEN 1 AND 5),
-        is_urgent BOOLEAN DEFAULT 0, -- For Eisenhower Matrix
-        is_important BOOLEAN DEFAULT 0, -- For Eisenhower Matrix
+        importance INTEGER CHECK (importance BETWEEN 1 AND 5),
         due_date TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (parent_id) REFERENCES todo_items(id) ON DELETE CASCADE,
@@ -137,10 +137,14 @@ export async function setupDb() {
     CREATE INDEX IF NOT EXISTS idx_habit_log_date ON habit_log(log_date);
     CREATE INDEX IF NOT EXISTS idx_trip_pins_id ON trip_pins(trip_id);
     CREATE INDEX IF NOT EXISTS idx_travel_images_pin ON travel_images(pin_id);
+    CREATE INDEX IF NOT EXISTS idx_todo_parent ON todo_items(parent_id);
     CREATE INDEX IF NOT EXISTS idx_todo_group ON todo_items(group_id);
+    CREATE INDEX IF NOT EXISTS idx_todo_completed ON todo_items(is_completed);
+    CREATE INDEX IF NOT EXISTS idx_todo_importance ON todo_items(importance);
+    CREATE INDEX IF NOT EXISTS idx_todo_due_date ON todo_items(due_date);
     CREATE INDEX IF NOT EXISTS idx_notes_group ON notes(group_id);
     `;
-    
+
     // Apply the full schema every time
     await db.execute(schemaSql);
     console.log("Schema applied/updated successfully.");

@@ -6,7 +6,7 @@ function HomePage() {
   return (
     <div className="home-page flex flex-col items-center justify-center min-h-screen">
       <ClockPlugin />
-      <div className="mt-8">
+      <div className="mt-4">
         <LaunchMenu />
       </div>
     </div>
