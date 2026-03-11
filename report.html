@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MYCELIUM — SYSTEM REPORT</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Sans+KR:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#000;--text:#fff;--dim:rgba(255,255,255,0.55);--dimmer:rgba(255,255,255,0.28);
+  --dimmest:rgba(255,255,255,0.1);--border:rgba(255,255,255,0.14);
+  --teal:#2dd4bf;--blue:#64c8ff;--green:#4ade80;
+  --hover-green:rgba(61,238,17,0.85);--yellow:rgba(255,243,8,0.9);
+  --red:#ef4444;--font:'VT323','IBM Plex Sans KR',monospace;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);
+  font-family:var(--font);font-size:18px;overflow:hidden;}
+
+/* scanlines */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);}
+
+/* ── HEADER ── */
+header{position:fixed;top:0;left:0;right:0;height:50px;z-index:1000;
+  background:rgba(0,0,0,0.97);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 2rem;gap:0.8rem;}
+.h-title{font-size:1.55rem;letter-spacing:6px;text-transform:uppercase;}
+.h-sep{color:var(--dimmer);font-size:1.1rem;}
+.h-sub{font-size:1.0rem;letter-spacing:4px;color:var(--dim);text-transform:uppercase;}
+.h-spacer{flex:1;}
+.h-clock{font-size:1.35rem;letter-spacing:3px;color:var(--teal);}
+.blink{display:inline-block;width:9px;height:17px;background:var(--text);
+  vertical-align:middle;margin-left:3px;animation:blink 1s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── LEFT NAV ── */
+.left-nav{position:fixed;top:50px;left:0;width:190px;height:calc(100vh - 50px);
+  border-right:1px solid var(--border);background:rgba(0,0,0,0.97);
+  display:flex;flex-direction:column;padding:1.75rem 0;z-index:900;overflow-y:auto;}
+.nav-label{font-size:0.82rem;letter-spacing:3px;color:var(--dimmer);
+  padding:0 1.4rem 0.9rem;text-transform:uppercase;}
+.nav-item{padding:0.55rem 1.4rem;font-size:1.05rem;letter-spacing:2px;
+  color:var(--dim);text-transform:lowercase;cursor:pointer;border:none;
+  background:transparent;text-align:left;font-family:var(--font);
+  transition:all 0.14s ease;border-left:2px solid transparent;white-space:nowrap;width:100%;}
+.nav-item:hover{background:rgba(255,255,255,0.03);color:var(--text);border-left-color:var(--dimmer);}
+.nav-item.active{color:var(--text);border-left-color:var(--teal);background:rgba(45,212,191,0.05);}
+.nav-divider{margin:1rem 1.4rem 0.4rem;font-size:0.78rem;letter-spacing:2px;
+  color:rgba(255,255,255,0.18);text-transform:uppercase;border-top:1px solid var(--dimmest);
+  padding-top:0.9rem;}
+
+/* ── MAIN ── */
+.main{position:fixed;top:50px;left:190px;right:0;bottom:0;overflow:hidden;}
+
+/* ── SECTIONS ── */
+.section{position:absolute;inset:0;padding:2.2rem 2.8rem;overflow-y:auto;
+  opacity:0;transform:translateY(12px);pointer-events:none;
+  transition:opacity 0.28s ease,transform 0.28s ease;}
+.section.active{opacity:1;transform:translateY(0);pointer-events:all;}
+.section.exit{opacity:0;transform:translateY(-12px);pointer-events:none;}
+.section::-webkit-scrollbar{width:5px;}
+.section::-webkit-scrollbar-track{background:transparent;}
+.section::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.14);}
+
+/* ── HEADINGS ── */
+.sh{font-size:2.2rem;letter-spacing:6px;text-transform:uppercase;margin-bottom:0.2rem;}
+.ss{font-size:0.95rem;letter-spacing:3px;color:var(--dim);text-transform:lowercase;
+  border-bottom:1px solid var(--border);padding-bottom:0.9rem;margin-bottom:2rem;}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;margin-bottom:1.5rem;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);
+  border:1px solid var(--border);margin-bottom:2rem;}
+
+/* ── CARD ── */
+.card{border:1px solid var(--border);background:rgba(255,255,255,0.02);padding:1.25rem 1.4rem;
+  transition:border-color 0.2s,background 0.2s;}
+.card:hover{border-color:rgba(255,255,255,0.28);background:rgba(255,255,255,0.03);}
+.ct{font-size:1.2rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:0.65rem;}
+.cb{font-size:0.98rem;color:var(--dim);line-height:1.75;letter-spacing:0.4px;}
+
+/* ── STAT CELL ── */
+.stat{background:#000;padding:1.1rem 1.4rem;display:flex;flex-direction:column;gap:0.35rem;}
+.sl{font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;}
+.sv{font-size:1.5rem;letter-spacing:2px;color:var(--teal);}
+.sd{font-size:0.85rem;color:var(--dimmer);letter-spacing:0.5px;}
+
+/* ── BADGES ── */
+.badge{display:inline-block;font-size:0.8rem;letter-spacing:2px;padding:0.08rem 0.55rem;
+  border:1px solid;text-transform:uppercase;}
+.b-built{color:var(--green);border-color:var(--green);background:rgba(74,222,128,0.07);}
+.b-scaffold{color:#fbbf24;border-color:#fbbf24;background:rgba(251,191,36,0.07);}
+.b-planned{color:var(--dimmer);border-color:var(--dimmer);}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse;font-size:1.0rem;margin-bottom:1.75rem;}
+.tbl th{text-align:left;padding:0.65rem 0.9rem;font-size:0.82rem;letter-spacing:3px;
+  text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border);font-weight:400;}
+.tbl td{padding:0.6rem 0.9rem;border-bottom:1px solid rgba(255,255,255,0.045);
+  vertical-align:top;letter-spacing:0.4px;}
+.tbl td:first-child{color:var(--teal);}
+.tbl td:last-child{color:var(--dim);font-size:0.92rem;}
+.tbl tr:hover td{background:rgba(255,255,255,0.018);}
+.tbl .cat td{background:rgba(255,255,255,0.02);color:var(--dimmer);font-size:0.8rem;
+  letter-spacing:3px;text-transform:uppercase;padding:0.35rem 0.9rem;
+  border-bottom:1px solid var(--border);}
+
+/* ── TERMINAL BLOCK ── */
+.term{background:rgba(255,255,255,0.018);border:1px solid var(--border);
+  border-left:2px solid var(--teal);padding:1.1rem 1.4rem;font-size:0.98rem;
+  line-height:1.85;color:var(--dim);margin-bottom:1.5rem;letter-spacing:0.4px;}
+.term .p{color:var(--green);}
+.term .k{color:var(--teal);}
+.term .v{color:var(--text);}
+.term .path{color:var(--blue);}
+.term .c{color:rgba(255,255,255,0.24);}
+
+/* ── FLOW DIAGRAM ── */
+.flow{font-size:0.98rem;line-height:2.0;color:var(--dim);letter-spacing:0.4px;
+  padding:1.2rem;border:1px solid var(--border);background:rgba(255,255,255,0.01);margin-bottom:1.5rem;}
+.fn{color:var(--text);background:rgba(255,255,255,0.05);display:inline;
+  padding:0 0.4rem;border:1px solid rgba(255,255,255,0.14);}
+.fa{color:var(--teal);}
+.fc{color:rgba(255,255,255,0.28);font-size:0.9rem;}
+.i1{padding-left:1.8rem;display:block;}
+.i2{padding-left:3.6rem;display:block;}
+.i3{padding-left:5.4rem;display:block;}
+.i4{padding-left:7.2rem;display:block;}
+
+/* ── SWATCH ROW ── */
+.swatches{display:flex;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem;}
+.swatch{flex:1;background:#000;padding:0.9rem 0.65rem;display:flex;flex-direction:column;gap:0.3rem;}
+.sp{width:100%;height:32px;border:1px solid rgba(255,255,255,0.1);margin-bottom:0.2rem;}
+.sn{font-size:0.78rem;letter-spacing:2px;color:var(--dim);text-transform:uppercase;}
+.sx{font-size:0.78rem;color:var(--dimmer);letter-spacing:0.5px;}
+.sr{font-size:0.72rem;color:rgba(255,255,255,0.2);letter-spacing:0.5px;}
+
+/* ── DEMO BUTTONS ── */
+.dbtn{display:inline-block;border:1px solid rgba(255,255,255,0.25);padding:0.3rem 0.9rem;
+  font-family:var(--font);font-size:1.0rem;letter-spacing:2px;text-transform:lowercase;
+  cursor:pointer;background:transparent;color:var(--dim);transition:all 0.15s ease;}
+.dbtn:hover{background:var(--hover-green);color:#000;border-color:rgba(255,255,255,0.5);}
+.dbtn-y:hover{background:var(--yellow);color:#000;}
+
+/* ── ANIM DEMOS ── */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes float-d{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.pdot{width:9px;height:9px;background:rgba(255,255,255,0.7);border-radius:50%;
+  display:inline-block;animation:pulse 2s ease-in-out infinite;}
+.fdot{display:inline-block;animation:float-d 3s ease-in-out infinite;color:var(--teal);font-size:1.2rem;}
+
+/* ── OVERVIEW HERO ── */
+.hero{padding:1.75rem;border:1px solid var(--border);background:rgba(255,255,255,0.01);margin-bottom:1.75rem;}
+.hero-name{font-size:3.6rem;letter-spacing:8px;text-transform:uppercase;line-height:1;}
+.hero-tag{font-size:1.15rem;letter-spacing:3px;color:var(--teal);margin-top:0.5rem;}
+.hero-desc{font-size:1.0rem;color:var(--dim);line-height:1.75;max-width:660px;margin-top:0.65rem;letter-spacing:0.4px;}
+
+/* ── PLUGIN CARD ── */
+.pc{border:1px solid var(--border);background:rgba(255,255,255,0.02);
+  padding:1.15rem 1.3rem;transition:all 0.18s ease;}
+.pc:hover{border-color:rgba(255,255,255,0.28);background:rgba(255,255,255,0.035);transform:translateY(-2px);}
+.pc-name{font-size:1.2rem;letter-spacing:3px;text-transform:uppercase;
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:0.45rem;}
+.pc-desc{font-size:0.93rem;color:var(--dim);line-height:1.7;margin-bottom:0.65rem;letter-spacing:0.3px;}
+.pc-list{list-style:none;display:flex;flex-direction:column;gap:0.18rem;}
+.pc-list li{font-size:0.88rem;color:var(--dimmer);letter-spacing:0.3px;}
+.pc-list li::before{content:'› ';color:var(--teal);}
+
+/* ── BLOOM NAV ── */
+.bloom-wrap{position:fixed;bottom:2.75rem;right:2.75rem;z-index:2000;}
+.bloom-btn{width:48px;height:48px;background:#000;border:1px solid rgba(255,255,255,0.3);
+  border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.28s cubic-bezier(0.4,0,0.2,1);position:relative;z-index:1002;}
+.bloom-btn:hover{border-color:rgba(255,255,255,0.6);transform:scale(1.1);}
+.bloom-btn.open{background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.5);}
+.bloom-inner{width:8px;height:8px;background:rgba(255,255,255,0.7);border-radius:50%;
+  animation:pulse 2s ease-in-out infinite;}
+.bloom-petals{position:absolute;bottom:60px;right:0;display:none;
+  flex-direction:column-reverse;align-items:flex-end;gap:9px;z-index:1001;}
+.bloom-petals.open{display:flex;}
+.bpetal{background:rgba(0,0,0,0.97);border:1px solid rgba(255,255,255,0.24);
+  color:rgba(255,255,255,0.7);padding:0.32rem 0.75rem;font-family:var(--font);
+  font-size:0.98rem;letter-spacing:2px;text-transform:lowercase;cursor:pointer;
+  border-radius:0;white-space:nowrap;opacity:0;
+  animation:bloom-in 0.3s ease forwards;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);transition:all 0.15s ease;}
+.bpetal:nth-child(1){animation-delay:0s}
+.bpetal:nth-child(2){animation-delay:0.05s}
+.bpetal:nth-child(3){animation-delay:0.1s}
+.bpetal:nth-child(4){animation-delay:0.15s}
+.bpetal:nth-child(5){animation-delay:0.2s}
+.bpetal:nth-child(6){animation-delay:0.25s}
+@keyframes bloom-in{from{opacity:0;transform:translateY(18px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.bpetal:hover{background:var(--yellow) !important;border-color:rgba(255,255,255,0.5);
+  color:#000;transform:translateY(-2px) scale(1.02);}
+
+/* ── TAGS ── */
+.tag{display:inline-block;font-size:0.82rem;letter-spacing:1px;padding:0.08rem 0.45rem;
+  border:1px solid rgba(255,255,255,0.14);color:var(--dim);margin:0.15rem 0.2rem 0.15rem 0;}
+.tag-t{border-color:rgba(45,212,191,0.4);color:var(--teal);}
+.tag-b{border-color:rgba(100,200,255,0.4);color:var(--blue);}
+.tag-g{border-color:rgba(74,222,128,0.4);color:var(--green);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <span class="h-title">MYCELIUM</span>
+  <span class="h-sep">//</span>
+  <span class="h-sub">SYSTEM REPORT</span>
+  <span class="blink"></span>
+  <span class="h-spacer"></span>
+  <span class="h-clock" id="clock">00:00:00</span>
+</header>
+
+<!-- LEFT NAV -->
+<nav class="left-nav">
+  <div class="nav-label">navigate</div>
+  <button class="nav-item active" data-section="overview">overview</button>
+  <button class="nav-item" data-section="stack">tech stack</button>
+  <button class="nav-item" data-section="architecture">architecture</button>
+  <button class="nav-item" data-section="features">features</button>
+  <div class="nav-divider">data</div>
+  <button class="nav-item" data-section="database">database</button>
+  <div class="nav-divider">design</div>
+  <button class="nav-item" data-section="design">design system</button>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ══════════════════ OVERVIEW ══════════════════ -->
+  <section class="section active" id="overview">
+    <div class="hero">
+      <div class="hero-name">MYCELIUM</div>
+      <div class="hero-tag">personal productivity terminal</div>
+      <div class="hero-desc">A fullscreen desktop app built with Tauri + React — designed as a plugin host for personal tools. Retro terminal / BIOS aesthetic. Pure black, monospace everything, sharp corners, no scrollbars.</div>
+    </div>
+
+    <div class="g4">
+      <div class="stat"><div class="sl">platform</div><div class="sv">desktop</div><div class="sd">Tauri 2 · macOS / cross-platform</div></div>
+      <div class="stat"><div class="sl">active plugins</div><div class="sv">3</div><div class="sd">notes · geo-portal · todo-list</div></div>
+      <div class="stat"><div class="sl">database</div><div class="sv">SQLite</div><div class="sd">11 tables defined · partially used</div></div>
+      <div class="stat"><div class="sl">ui stack</div><div class="sv">React 19</div><div class="sd">Vite 7 · Tailwind · Framer Motion</div></div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="ct">what it is</div>
+        <div class="cb">A personal productivity suite wrapped in a retro BIOS/terminal interface. The app is a plugin host — a fullscreen black canvas that routes between self-contained tools via a navigation menu and a radial "bloom" button always visible in the corner.</div>
+      </div>
+      <div class="card">
+        <div class="ct">current state</div>
+        <div class="cb">The core shell (plugin host, nav, animations) is solid. The <span style="color:var(--green)">Notes plugin</span> is production-quality. <span style="color:var(--teal)">Geo-Portal</span> is visually complete. Everything else in the menu is a stub. The database schema is forward-looking but mostly unused.</div>
+      </div>
+    </div>
+
+    <div class="term">
+      <div><span class="p">›</span> <span class="k">app.identifier </span> <span class="v">com.oneash.oneash-dash</span></div>
+      <div><span class="p">›</span> <span class="k">app.product    </span> <span class="v">Mycelium</span></div>
+      <div><span class="p">›</span> <span class="k">app.window     </span> <span class="v">fullscreen · data-tauri-drag-region</span></div>
+      <div><span class="p">›</span> <span class="k">app.db         </span> <span class="path">~/Documents/O-neash-data/oneash-DB.db</span></div>
+      <div><span class="p">›</span> <span class="k">app.notes      </span> <span class="path">~/Documents/O-neash-data/notes/{groupId}/{noteId}.json</span></div>
+      <div><span class="p">›</span> <span class="k">dev.port       </span> <span class="v">1420 · hmr: 1421</span></div>
+      <div><span class="p">›</span> <span class="k">pkg.manager    </span> <span class="v">pnpm</span></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ TECH STACK ══════════════════ -->
+  <section class="section" id="stack">
+    <div class="sh">tech stack</div>
+    <div class="ss">all dependencies and their roles</div>
+
+    <table class="tbl">
+      <thead><tr><th>package</th><th>role</th></tr></thead>
+      <tbody>
+        <tr class="cat"><td colspan="2">— frontend core —</td></tr>
+        <tr><td>React 19</td><td>UI component framework</td></tr>
+        <tr><td>Vite 7</td><td>build tool and dev server — port 1420 (strict, Tauri requirement)</td></tr>
+        <tr><td>Tailwind CSS 3</td><td>utility-first styling with tailwindcss-animate plugin</td></tr>
+        <tr><td>Framer Motion 12</td><td>plugin transition animations — AnimatePresence mode="wait"</td></tr>
+        <tr><td>Zustand 5</td><td>global state (active plugin, plugin registry)</td></tr>
+        <tr class="cat"><td colspan="2">— ui components —</td></tr>
+        <tr><td>Radix UI</td><td>headless primitives — NavigationMenu, Slot</td></tr>
+        <tr><td>shadcn/ui</td><td>"new-york" style preset — Button, Input, Textarea, NavigationMenu</td></tr>
+        <tr><td>class-variance-authority</td><td>component variant system</td></tr>
+        <tr><td>clsx + tailwind-merge</td><td>conditional class merging via cn() helper</td></tr>
+        <tr><td>lucide-react</td><td>primary icon set</td></tr>
+        <tr><td>pixelarticons / @nsmr/pixelart-react</td><td>pixel-art icons used throughout LaunchMenu</td></tr>
+        <tr class="cat"><td colspan="2">— maps —</td></tr>
+        <tr><td>MapLibre GL 5</td><td>WebGL interactive map — active in Geo-Portal</td></tr>
+        <tr><td>PMTiles 4</td><td>local map tile format via custom protocol handler</td></tr>
+        <tr><td>react-leaflet / react-map-gl</td><td>imported but not primary — alternative candidates</td></tr>
+        <tr class="cat"><td colspan="2">— backend (rust / tauri) —</td></tr>
+        <tr><td>Tauri 2</td><td>native desktop wrapper, window management, system APIs</td></tr>
+        <tr><td>tauri-plugin-fs</td><td>filesystem read/write — notes JSON files</td></tr>
+        <tr><td>tauri-plugin-sql (SQLite)</td><td>embedded SQLite database with schema init on startup</td></tr>
+        <tr><td>tauri-plugin-opener</td><td>open external URLs</td></tr>
+        <tr><td>serde / serde_json</td><td>Rust serialization</td></tr>
+        <tr class="cat"><td colspan="2">— fonts —</td></tr>
+        <tr><td>VT323</td><td>pixel/terminal display font — primary aesthetic element</td></tr>
+        <tr><td>IBM Plex Sans KR</td><td>clean monospace fallback, Korean-compatible</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════ ARCHITECTURE ══════════════════ -->
+  <section class="section" id="architecture">
+    <div class="sh">architecture</div>
+    <div class="ss">startup flow · plugin system · state management</div>
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="ct">startup flow</div>
+      <div class="flow">
+        <div><span class="fn">index.html</span></div>
+        <span class="i1"><span class="fa">└─</span> splash screen <span class="fc">// animated dot, 2s minimum visible</span></span>
+        <span class="i1"><span class="fa">└─</span> <span class="fn">main.jsx</span> <span class="fc">// React mount, fades splash after 2s</span></span>
+        <span class="i2"><span class="fa">└─</span> <span class="fn">App.jsx</span> <span class="fc">// calls setupDb() on mount</span></span>
+        <span class="i3"><span class="fa">└─</span> <span class="fn">lib/db.js</span> <span class="fc">// connects SQLite, runs CREATE TABLE IF NOT EXISTS for all tables</span></span>
+        <span class="i3"><span class="fa">└─</span> shows "Preparing o_neash..." until DB ready</span>
+        <span class="i3"><span class="fa">└─</span> renders <span class="fn">AppContent</span></span>
+        <span class="i4"><span class="fa">├─</span> <span class="fn">AlwaysOnTop</span> <span class="fc">// z-index:1000 · home btn + bloom nav</span></span>
+        <span class="i4"><span class="fa">└─</span> <span class="fn">PluginBox</span> <span class="fc">// renders active plugin or HomePage</span></span>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="ct">plugin system</div>
+        <div class="cb" style="margin-bottom:0.8rem">Three files form the entire plugin infrastructure:</div>
+        <ul class="pc-list" style="margin-bottom:0.8rem">
+          <li><span style="color:var(--teal)">registry.js</span> — static array of {id, name, component}</li>
+          <li><span style="color:var(--teal)">PluginBox.jsx</span> — looks up active plugin, renders with Framer Motion</li>
+          <li><span style="color:var(--teal)">SingleBloomNav.jsx</span> — reads registry to generate nav petals</li>
+        </ul>
+        <div style="font-size:0.9rem;color:var(--dimmer);letter-spacing:0.3px">Adding a plugin = one line in registry.js. No dynamic imports, no lazy loading, no manifests.</div>
+      </div>
+      <div class="card">
+        <div class="ct">state management</div>
+        <div class="cb" style="margin-bottom:0.8rem">Zustand store (usePluginStore) holds two pieces of state:</div>
+        <ul class="pc-list" style="margin-bottom:0.8rem">
+          <li><span style="color:var(--text)">plugins</span> — array loaded from registry.js</li>
+          <li><span style="color:var(--text)">activePlugin</span> — string ID or null (home)</li>
+        </ul>
+        <div style="font-size:0.9rem;color:var(--dimmer);letter-spacing:0.3px"><span style="color:var(--green)">setActivePlugin(id)</span> is the only action. LaunchMenu, SingleBloomNav, and the home button all consume the store independently.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ct">plugin switching flow</div>
+      <div class="flow" style="border:none;padding:0.4rem 0 0;margin:0">
+        <div>user clicks <span style="color:var(--teal)">LaunchMenu item</span> or <span style="color:var(--teal)">SingleBloomNav petal</span></div>
+        <span class="i1"><span class="fa">→</span> <span style="color:var(--green)">setActivePlugin("notes" | "geo-portal" | "todo-list" | null)</span></span>
+        <span class="i1"><span class="fa">→</span> PluginBox reads activePlugin from Zustand store</span>
+        <span class="i1"><span class="fa">→</span> Framer Motion AnimatePresence <span style="color:var(--dimmer)">(mode="wait")</span></span>
+        <span class="i2"><span class="fa">→</span> old component fades out <span style="color:var(--dimmer)">y:-10, opacity:0 — 300ms</span></span>
+        <span class="i2"><span class="fa">→</span> new component fades in <span style="color:var(--dimmer)">y:10→0, opacity:0→1 — 300ms</span></span>
+        <span class="i1"><span class="fa">→</span> if null → renders <span style="color:var(--teal)">HomePage</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FEATURES ══════════════════ -->
+  <section class="section" id="features">
+    <div class="sh">features</div>
+    <div class="ss">plugin and functionality status</div>
+
+    <div class="g2" style="margin-bottom:1.25rem">
+      <div class="pc">
+        <div class="pc-name">home screen <span class="badge b-built">built</span></div>
+        <div class="pc-desc">Full-screen BIOS-style clock with live HH:MM:SS, day of week, and full date. Categorized dropdown launch menu with pixel-art icons.</div>
+        <ul class="pc-list">
+          <li>live clock — blinking cursor indicator</li>
+          <li>Radix UI NavigationMenu — 4 category dropdowns</li>
+          <li>BASIC / the LAB / the STUDIO / the CLINIC</li>
+          <li>pixelarticons per menu item</li>
+        </ul>
+      </div>
+      <div class="pc">
+        <div class="pc-name">single bloom nav <span class="badge b-built">built</span></div>
+        <div class="pc-desc">Always-visible radial navigation. Fixed bottom-right pulsing dot that expands into staggered plugin petals on click.</div>
+        <ul class="pc-list">
+          <li>dynamically generated from registry.js</li>
+          <li>staggered bloom-stack-in animation (0.05s delay each)</li>
+          <li>yellow hover highlight, Escape to collapse</li>
+          <li>updates automatically when registry changes</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="g2" style="margin-bottom:1.25rem">
+      <div class="pc">
+        <div class="pc-name">notes plugin <span class="badge b-built">built</span></div>
+        <div class="pc-desc">The most complete plugin. Full note management with groups, tagging, and a custom force-directed graph visualization.</div>
+        <ul class="pc-list">
+          <li>groups: default + user-created, persisted as JSON via FS</li>
+          <li>two-column layout: graph/list left · editor right</li>
+          <li>custom canvas force-directed graph — no D3</li>
+          <li>physics sim: 300 iterations, smooth cubic ease camera pan</li>
+          <li>note nodes (white) + tag nodes (blue), hover glow, search dim</li>
+          <li>CRUD: notes + groups with confirmation dialogs</li>
+          <li>#tag support with search filtering by title, content, tags</li>
+        </ul>
+      </div>
+      <div class="pc">
+        <div class="pc-name">geo-portal <span class="badge b-built">built</span></div>
+        <div class="pc-desc">3-page state machine with retro terminal landing, BIOS-style loading sequence, and a fully functional interactive map.</div>
+        <ul class="pc-list">
+          <li>landing: terminal text + spinning earthspin.gif</li>
+          <li>loading: sequential BIOS text with green blinking cursor</li>
+          <li>map: MapLibre GL 5 + custom PMTiles raster tiles</li>
+          <li>zoom 3–10, navigation controls</li>
+          <li>73% map / 27% side panel (placeholder)</li>
+          <li>CSS fade-in/out between all 3 pages</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="g2" style="margin-bottom:1.25rem">
+      <div class="pc">
+        <div class="pc-name">todo list <span class="badge b-scaffold">scaffold</span></div>
+        <div class="pc-desc">Component file exists and is registered. Renders a blank page. Database schema is fully designed.</div>
+        <ul class="pc-list">
+          <li>SQLite: todo_items with parent_id for subtasks</li>
+          <li>importance 1–5 (Eisenhower matrix)</li>
+          <li>due_date, completed fields ready</li>
+          <li>UI not yet built</li>
+        </ul>
+      </div>
+      <div class="pc" style="opacity:0.48">
+        <div class="pc-name">journal · settings · monitor <span class="badge b-planned">planned</span></div>
+        <div class="pc-desc">Present in the BASIC dropdown. Schema exists for journal (mood_rating, energy_level, tags). Not wired to plugin IDs.</div>
+        <ul class="pc-list">
+          <li>journal: mood + energy tracking per entry</li>
+          <li>settings: global key-value config store</li>
+          <li>system resource monitor: hardware metrics</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="pc" style="opacity:0.38">
+        <div class="pc-name">the LAB <span class="badge b-planned">planned</span></div>
+        <div class="pc-desc">Projects, Academic Planner, Protocol Manager, Paper Library — all visible in menu, none wired to plugin IDs.</div>
+      </div>
+      <div class="pc" style="opacity:0.38">
+        <div class="pc-name">the CLINIC <span class="badge b-planned">planned</span></div>
+        <div class="pc-desc">Habits & Health, SleepTracker, Diet Log — habits, habit_log, sleep_log schema exists in SQLite. UI not built.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DATABASE ══════════════════ -->
+  <section class="section" id="database">
+    <div class="sh">database</div>
+    <div class="ss">sqlite schema · ~/documents/o-neash-data/oneash-db.db</div>
+
+    <div class="term">
+      <div><span class="c">// all tables initialized with CREATE TABLE IF NOT EXISTS on app startup</span></div>
+      <div><span class="c">// Notes plugin currently uses tauri-plugin-fs (JSON files) not SQLite</span></div>
+      <div><span class="c">// Rust lib.rs creates ~/Documents/O-neash-data/ before frontend loads</span></div>
+    </div>
+
+    <table class="tbl">
+      <thead><tr><th>table</th><th>columns / purpose</th><th>status</th></tr></thead>
+      <tbody>
+        <tr><td>groups</td><td>id, name, color, emoji, created_at — note group containers</td><td><span class="badge b-built">schema only</span></td></tr>
+        <tr><td>notes</td><td>id, group_id, title, content, created_at, updated_at</td><td><span class="badge b-built">schema only</span></td></tr>
+        <tr><td>tags</td><td>id, name — unique tag strings</td><td><span class="badge b-built">schema only</span></td></tr>
+        <tr><td>junc_note_tags</td><td>many-to-many join: notes ↔ tags</td><td><span class="badge b-built">schema only</span></td></tr>
+        <tr><td>todo_items</td><td>id, parent_id (subtasks), title, importance 1–5, due_date, completed</td><td><span class="badge b-scaffold">schema only</span></td></tr>
+        <tr><td>scratchpad</td><td>id, content, updated_at — freeform scratch space</td><td><span class="badge b-planned">defined</span></td></tr>
+        <tr><td>habits</td><td>id, name, description, frequency, created_at</td><td><span class="badge b-planned">defined</span></td></tr>
+        <tr><td>habit_log</td><td>id, habit_id, date, value, notes — daily check-in</td><td><span class="badge b-planned">defined</span></td></tr>
+        <tr><td>sleep_log</td><td>id, date, bed_time, wake_time, quality 1–5, notes</td><td><span class="badge b-planned">defined</span></td></tr>
+        <tr><td>journal</td><td>id, date, content, mood_rating, energy_level, tags</td><td><span class="badge b-planned">defined</span></td></tr>
+        <tr><td>trips / trip_pins / travel_log / travel_images</td><td>geo-portal travel data: trip records, map pins, log entries, image paths</td><td><span class="badge b-scaffold">defined</span></td></tr>
+        <tr><td>settings</td><td>key, value — global app config store</td><td><span class="badge b-planned">defined</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="card">
+      <div class="ct">filesystem vs sqlite — notes</div>
+      <div class="cb">The Notes plugin uses <span style="color:var(--teal)">tauri-plugin-fs</span> to read/write JSON files at <span style="color:var(--blue)">notes/{groupId}/{noteId}.json</span>. This was intentional for fast iteration. The SQLite notes tables (groups, notes, tags, junc_note_tags) are designed and ready for a future migration if querying or cross-plugin access is needed.</div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DESIGN SYSTEM ══════════════════ -->
+  <section class="section" id="design">
+    <div class="sh">design system</div>
+    <div class="ss">aesthetic · colors · typography · animations · layout rules</div>
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="ct">aesthetic</div>
+      <div class="cb"><span style="color:var(--teal)">retro terminal / BIOS / pixel art.</span> Every decision reinforces this. Pure black canvas, monospace fonts, uppercase labels, lowercase buttons, sharp corners everywhere (border-radius:0), thin 1px borders, letter-spacing 2–6px. No scrollbars. Full-viewport layout. The UI feels like a custom OS shell, not a web app.</div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="ct">color palette</div>
+      <div class="swatches">
+        <div class="swatch"><div class="sp" style="background:#000;border-color:rgba(255,255,255,0.2)"></div><div class="sn">black</div><div class="sx">#000000</div><div class="sr">background</div></div>
+        <div class="swatch"><div class="sp" style="background:#fff"></div><div class="sn">white</div><div class="sx">#ffffff</div><div class="sr">primary text</div></div>
+        <div class="swatch"><div class="sp" style="background:#2dd4bf"></div><div class="sn">teal-400</div><div class="sx">#2dd4bf</div><div class="sr">accents, keys</div></div>
+        <div class="swatch"><div class="sp" style="background:#64c8ff"></div><div class="sn">sky blue</div><div class="sx">#64c8ff</div><div class="sr">dates, tag nodes</div></div>
+        <div class="swatch"><div class="sp" style="background:#4ade80"></div><div class="sn">green-400</div><div class="sx">#4ade80</div><div class="sr">save · add btns</div></div>
+        <div class="swatch"><div class="sp" style="background:rgba(61,238,17,0.85)"></div><div class="sn">hover green</div><div class="sx">rgba(61,238,17,.85)</div><div class="sr">btn hover bg</div></div>
+        <div class="swatch"><div class="sp" style="background:rgba(255,243,8,0.9)"></div><div class="sn">yellow</div><div class="sx">rgba(255,243,8,.9)</div><div class="sr">bloom hover bg</div></div>
+        <div class="swatch"><div class="sp" style="background:#ef4444"></div><div class="sn">red-500</div><div class="sx">#ef4444</div><div class="sr">delete · danger</div></div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div class="card">
+        <div class="ct">typography</div>
+        <div style="display:flex;flex-direction:column;gap:1.1rem;margin-top:0.4rem">
+          <div>
+            <div style="font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;margin-bottom:0.35rem">display — VT323</div>
+            <div style="font-size:2.4rem;letter-spacing:4px">MYCELIUM</div>
+            <div style="font-size:1.35rem;letter-spacing:4px;color:var(--teal)">system report</div>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;margin-bottom:0.35rem">body — 1.0rem · 1px spacing</div>
+            <div style="font-size:1.0rem;color:var(--dim);letter-spacing:0.5px;line-height:1.75">capture thoughts, ideas, and important memos. persistence is key.</div>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;margin-bottom:0.35rem">label — 0.82rem · 3px spacing</div>
+            <div style="font-size:0.82rem;letter-spacing:3px;text-transform:uppercase;color:var(--dimmer)">NAVIGATE · STATUS · PLUGIN</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ct">interactions &amp; animations</div>
+        <div style="display:flex;flex-direction:column;gap:1.2rem;margin-top:0.4rem">
+          <div>
+            <div style="font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;margin-bottom:0.5rem">button hover — green flash (0.16s)</div>
+            <button class="dbtn">hover me</button>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;margin-bottom:0.5rem">bloom petal hover — yellow flash</div>
+            <button class="dbtn dbtn-y">bloom petal</button>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;letter-spacing:3px;color:var(--dimmer);text-transform:uppercase;margin-bottom:0.5rem">live animations</div>
+            <div style="display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:0.5rem"><div class="pdot"></div><span style="font-size:0.82rem;color:var(--dimmer)">pulse</span></div>
+              <div style="display:flex;align-items:center;gap:0.5rem"><div class="fdot">◉</div><span style="font-size:0.82rem;color:var(--dimmer)">float</span></div>
+              <div style="display:flex;align-items:center;gap:0.5rem"><span class="blink" style="width:8px;height:15px"></span><span style="font-size:0.82rem;color:var(--dimmer)">blink cursor</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+      <div class="ct">layout rules</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.5rem">
+        <ul class="pc-list">
+          <li>full-viewport: 100vw / 100vh, overflow: hidden</li>
+          <li>border-radius: 0 everywhere (sharp corners)</li>
+          <li>borders: 1px solid rgba(255,255,255,0.10–0.25)</li>
+          <li>letter-spacing: 2–8px on headings and labels</li>
+          <li>no scrollbars in the app itself</li>
+        </ul>
+        <ul class="pc-list">
+          <li>text-transform: uppercase for labels / headings</li>
+          <li>text-transform: lowercase for all buttons</li>
+          <li>data-tauri-drag-region for native window dragging</li>
+          <li>plugin switches: y-axis slide + opacity (300ms)</li>
+          <li>bloom petals: 0.05s stagger per petal</li>
+        </ul>
+      </div>
+    </div>
+
+  </section>
+</div><!-- end .main -->
+
+<!-- BLOOM NAV -->
+<div class="bloom-wrap">
+  <div class="bloom-petals" id="bloomPetals"></div>
+  <button class="bloom-btn" id="bloomBtn"><div class="bloom-inner"></div></button>
+</div>
+
+<script>
+// clock
+function tick(){
+  const n=new Date(),pad=v=>String(v).padStart(2,'0');
+  document.getElementById('clock').textContent=`${pad(n.getHours())}:${pad(n.getMinutes())}:${pad(n.getSeconds())}`;
+}
+tick(); setInterval(tick,1000);
+
+// section switching
+const navBtns=document.querySelectorAll('.nav-item');
+function go(id){
+  const cur=document.querySelector('.section.active');
+  const nxt=document.getElementById(id);
+  if(!nxt||cur===nxt)return;
+  cur.classList.add('exit');
+  cur.classList.remove('active');
+  setTimeout(()=>{cur.classList.remove('exit');nxt.classList.add('active');},270);
+  navBtns.forEach(b=>b.classList.toggle('active',b.dataset.section===id));
+}
+navBtns.forEach(b=>b.addEventListener('click',()=>go(b.dataset.section)));
+
+// bloom nav
+const bloomData=[
+  {id:'overview',label:'overview'},
+  {id:'stack',label:'tech stack'},
+  {id:'architecture',label:'architecture'},
+  {id:'features',label:'features'},
+  {id:'database',label:'database'},
+  {id:'design',label:'design system'},
+];
+const petalContainer=document.getElementById('bloomPetals');
+bloomData.forEach(({id,label})=>{
+  const btn=document.createElement('button');
+  btn.className='bpetal'; btn.textContent=label;
+  btn.addEventListener('click',()=>{go(id);closeBloom();});
+  petalContainer.appendChild(btn);
+});
+
+let open=false;
+const bloomBtn=document.getElementById('bloomBtn');
+function openBloom(){
+  open=true;
+  petalContainer.classList.add('open');
+  bloomBtn.classList.add('open');
+  petalContainer.querySelectorAll('.bpetal').forEach((p,i)=>{
+    p.style.animation='none';
+    void p.offsetHeight;
+    p.style.animation='';
+    p.style.animationDelay=`${i*0.05}s`;
+  });
+}
+function closeBloom(){open=false;petalContainer.classList.remove('open');bloomBtn.classList.remove('open');}
+bloomBtn.addEventListener('click',()=>open?closeBloom():openBloom());
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeBloom();});
+document.addEventListener('click',e=>{if(!e.target.closest('.bloom-wrap'))closeBloom();});
+</script>
+</body>
+</html>

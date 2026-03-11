@@ -1,0 +1,34 @@
+// Type declarations for packages with missing or incomplete type definitions
+
+declare module "pixelarticons/react" {
+  import * as React from "react";
+
+  export interface PixelIconProps extends React.SVGProps<SVGSVGElement> {
+    size?: number | string;
+  }
+
+  export type PixelIcon = React.FC<PixelIconProps>;
+
+  export const Terminal: PixelIcon;
+  export const Notes: PixelIcon;
+  export const CheckDouble: PixelIcon;
+  export const SettingsCog2: PixelIcon;
+  export const Analytics: PixelIcon;
+  export const TeachSharp: PixelIcon;
+  export const BookOpen: PixelIcon;
+  export const Clipboard: PixelIcon;
+  export const Camera: PixelIcon;
+  export const MapPin: PixelIcon;
+  export const Grid2x22: PixelIcon;
+  export const Human: PixelIcon;
+  export const Trophy: PixelIcon;
+  export const Bed: PixelIcon;
+  export const Fish: PixelIcon;
+  export const PcCase: PixelIcon;
+  export const CoffeeSharp: PixelIcon;
+  export const StickyNoteText: PixelIcon;
+  export const ImageSharp: PixelIcon;
+  // Catch-all for any other icons used in future
+  const _: Record<string, PixelIcon>;
+  export default _;
+}

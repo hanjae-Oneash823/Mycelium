@@ -1,0 +1,8 @@
+.plugin-todolist {
+  padding: 2rem;
+  font-family: inherit;
+  color: #fff;
+  background: #23272f;
+  border-radius: 1rem;
+  min-height: 200px;
+}
