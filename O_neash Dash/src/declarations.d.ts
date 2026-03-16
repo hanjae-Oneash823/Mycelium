@@ -28,6 +28,10 @@ declare module "pixelarticons/react" {
   export const CoffeeSharp: PixelIcon;
   export const StickyNoteText: PixelIcon;
   export const ImageSharp: PixelIcon;
+  export const Zap: PixelIcon;
+  export const Calendar: PixelIcon;
+  export const Target: PixelIcon;
+  export const GitBranch: PixelIcon;
   // Catch-all for any other icons used in future
   const _: Record<string, PixelIcon>;
   export default _;

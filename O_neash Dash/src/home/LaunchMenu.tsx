@@ -20,6 +20,7 @@ import {
   CoffeeSharp,
   StickyNoteText,
   ImageSharp,
+  Zap,
 } from "pixelarticons/react";
 import {
   NavigationMenu,
@@ -93,6 +94,16 @@ export function LaunchMenu() {
                 pluginId="todo-list"
               >
                 track important tasks via a modified eisenhower matrix.
+              </ListItem>
+              <ListItem
+                title={
+                  <span className="flex items-center gap-2">
+                    <Zap size={14} /> Planner
+                  </span>
+                }
+                pluginId="planner"
+              >
+                tasks, deadlines, and project arcs.
               </ListItem>
               <ListItem
                 title={

@@ -1,0 +1,79 @@
+/* ─── Planner Plugin — Phase 1 ─────────────────────────────────────────────── */
+
+/* Dot animations */
+@keyframes urgp {
+  0%,100% { box-shadow: 0 0 9px #ff6b35; }
+  50%      { box-shadow: 0 0 20px #ff6b35, 0 0 28px rgba(255,107,53,.3); }
+}
+
+@keyframes redp {
+  0%,100% { box-shadow: 0 0 10px #ff3b3b; }
+  50%      { box-shadow: 0 0 22px #ff3b3b, 0 0 32px rgba(255,59,59,.22); }
+}
+
+/* System law: no border-radius except .dot */
+.planner-plugin * { border-radius: 0 !important; }
+.dot              { border-radius: 50% !important; }
+
+/* Root layout */
+.planner-plugin {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  color: #fff;
+  font-family: 'VT323', 'IBM Plex Mono', monospace;
+  font-size: 18px;
+  overflow: hidden;
+  padding: 112px 96px 96px 96px; /* top clears go-home btn; sides/bottom add breathing room */
+  box-sizing: border-box;
+}
+
+.planner-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* CSS design tokens (scoped to planner) */
+.planner-plugin {
+  --teal:   #00c4a7;
+  --blue:   #64c8ff;
+  --c2:     #4ade80;
+  --yellow: #f5c842;
+  --c4:     #ff6b35;
+  --cr:     #ff3b3b;
+  --purple: #c084fc;
+  --ce:     #888888;
+
+  --g1: rgba(255,255,255,.055);
+  --b1: rgba(255,255,255,.09);
+  --b2: rgba(255,255,255,.22);
+  --t1: rgba(255,255,255,.35);
+  --t2: rgba(255,255,255,.62);
+  --t3: rgba(255,255,255,.85);
+}
+
+/* Animation utility classes */
+.dot-anim-urgent { animation: urgp 1.8s ease-in-out infinite; }
+.dot-anim-red    { animation: redp 1.6s ease-in-out infinite; }
+
+/* Scrollbar styling */
+.planner-plugin *::-webkit-scrollbar       { width: 5px; height: 5px; }
+.planner-plugin *::-webkit-scrollbar-track { background: transparent; }
+.planner-plugin *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
+.planner-plugin *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+
+/* Input resets */
+.planner-plugin input,
+.planner-plugin textarea,
+.planner-plugin button {
+  font-family: 'VT323', 'IBM Plex Mono', monospace;
+}
+
+.planner-plugin input:focus,
+.planner-plugin textarea:focus {
+  outline: none;
+  border-color: rgba(0,196,167,0.5) !important;
+}
