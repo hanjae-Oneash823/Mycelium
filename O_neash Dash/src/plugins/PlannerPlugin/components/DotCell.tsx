@@ -13,7 +13,7 @@ interface DotCellProps {
 export default function DotCell({ nodeDate, rowId, nodes }: DotCellProps) {
   const { isOver, setNodeRef } = useDroppable({ id: `cell-${rowId}-${nodeDate}` });
   const { completeNode, deleteNode } = usePlannerStore();
-  const { openTaskForm } = useViewStore();
+  const { openTaskForm, openTaskFormEdit } = useViewStore();
 
   const handleDoubleClick = () => {
     const defaults: Partial<CreateNodeData> = {};
@@ -43,14 +43,7 @@ export default function DotCell({ nodeDate, rowId, nodes }: DotCellProps) {
           node={node}
           onComplete={() => completeNode(node.id)}
           onDelete={() => deleteNode(node.id)}
-          onEdit={() => openTaskForm({
-            title: node.title,
-            description: node.description ?? undefined,
-            planned_start_at: node.planned_start_at ?? undefined,
-            due_at: node.due_at ?? undefined,
-            estimated_duration_minutes: node.estimated_duration_minutes ?? undefined,
-            importance_level: node.importance_level,
-          })}
+          onEdit={() => openTaskFormEdit(node)}
         />
       ))}
     </div>

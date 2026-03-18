@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=VT323&family=IBM+Plex+Sans+KR:wght@300;400&display=swap");
 /* stylelint-disable at-rule-no-unknown */
 @tailwind base;
 @tailwind components;
@@ -8,7 +7,7 @@ body {
   margin: 0;
   background-color: #000000; /* Pure black background */
   color: #ffffff; /* White text for contrast */
-  font-family: "VT323", "IBM Plex Sans KR", monospace;
+  font-family: "VT323", "Gowun Dodum", monospace;
   font-weight: 400;
   font-style: normal;
   font-size: 18px; /* Base size for VT323 */

@@ -61,10 +61,16 @@ export interface PlannerNode {
   parent_node_id?: string | null;
   created_at: string;
   updated_at: string;
+  // Recurrence (JSON strings stored in DB)
+  recurrence_rule?: string | null;
+  recurrence_exceptions?: string | null;
   // Computed join fields
   groups?: PlannerGroup[];
   sub_total?: number;
   sub_done?: number;
+  linked_note_count?: number;
+  /** True for virtual instances expanded from a recurring template. Not persisted. */
+  is_virtual?: boolean;
 }
 
 export interface SubTask {
@@ -84,6 +90,16 @@ export interface UserCapacity {
   updated_at: string;
 }
 
+export interface RecurrenceRule {
+  freq: 'daily' | 'weekly' | 'monthly';
+  /** Every N units (1 = every day/week/month, 2 = every other, etc.) */
+  interval: number;
+  /** For weekly: days of week to fire on [0=Sun … 6=Sat]. If omitted, fires on same DOW as first occurrence. */
+  days?: number[];
+  /** YYYY-MM-DD — optional end date (inclusive). If omitted, recurs indefinitely. */
+  until?: string;
+}
+
 export interface CreateNodeData {
   title: string;
   description?: string;
@@ -95,6 +111,7 @@ export interface CreateNodeData {
   project_id?: string;
   arc_id?: string;
   group_ids?: string[];
+  recurrence_rule?: RecurrenceRule | null;
 }
 
 export interface FocusContext {
@@ -111,6 +128,25 @@ export const DOT_COLORS: Record<number, string> = {
 };
 export const DOT_COLOR_OVERDUE = '#ff3b3b';
 export const DOT_COLOR_EVENT   = '#888888';
+
+/** A resolved note reference loaded from the filesystem */
+export interface NoteHit {
+  compositeId: string;   // "${groupId}:${noteId}"
+  groupId: string;
+  groupName: string;
+  groupColor: string;
+  noteId: number;
+  title: string;
+  content: string;
+  updatedAt: number;
+}
+
+/** A raw link row as stored in note_task_links */
+export interface LinkedNoteRef {
+  note_id: string;
+  node_id: string;
+  linked_at: string;
+}
 
 export function getDotDiameter(minutes: number | null | undefined): number {
   const m = minutes ?? 60;

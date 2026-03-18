@@ -1,8 +1,4 @@
 .always-on-top-home-btn {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  z-index: 1000;
   background: rgba(0, 0, 0, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: rgba(255, 255, 255, 0.7);

@@ -296,11 +296,30 @@ export async function setupDb(): Promise<Database> {
   CREATE INDEX IF NOT EXISTS idx_nodes_overdue   ON nodes(is_overdue);
   CREATE INDEX IF NOT EXISTS idx_nodes_parent    ON nodes(parent_node_id);
   CREATE INDEX IF NOT EXISTS idx_projects_arc    ON projects(arc_id);
+
+  CREATE TABLE IF NOT EXISTS note_task_links (
+    note_id   TEXT NOT NULL,
+    node_id   TEXT NOT NULL,
+    linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (note_id, node_id),
+    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_ntl_note ON note_task_links(note_id);
+  CREATE INDEX IF NOT EXISTS idx_ntl_node ON note_task_links(node_id);
     `;
 
     // Apply the full schema every time
     await db.execute(schemaSql);
     console.log("Schema applied/updated successfully.");
+
+    // Column migrations — idempotent (SQLite throws if column already exists)
+    const columnMigrations = [
+      `ALTER TABLE nodes ADD COLUMN recurrence_rule TEXT`,
+      `ALTER TABLE nodes ADD COLUMN recurrence_exceptions TEXT`,
+    ];
+    for (const sql of columnMigrations) {
+      try { await db.execute(sql); } catch { /* column already exists */ }
+    }
 
     return db;
   } catch (error) {

@@ -5,6 +5,7 @@ import NotesList from './NotesList';
 import ConfirmDialog from './ConfirmDialog';
 import { BaseDirectory, readTextFile, writeTextFile, exists, readDir, mkdir, remove } from '@tauri-apps/plugin-fs';
 import type { Note, NoteGroup, NoteData } from '@/types';
+import { deleteAllLinksForNote } from '../PlannerPlugin/lib/noteLinks';
 
 interface NotesViewProps {
   group: NoteGroup;
@@ -148,6 +149,11 @@ function NotesView({ group, onBack }: NotesViewProps) {
         console.error('Failed to delete note:', error);
       }
 
+      // Clean up note-task links for this note
+      try {
+        await deleteAllLinksForNote(`${group.id}:${confirmDelete}`);
+      } catch { /* non-critical */ }
+
       setIsEditorOpen(false);
       setSelectedNote(null);
       setConfirmDelete(null);
@@ -236,6 +242,7 @@ function NotesView({ group, onBack }: NotesViewProps) {
         {isEditorOpen ? (
           <NoteEditor
             note={selectedNote}
+            groupId={group.id}
             onSave={handleSaveNote}
             onDelete={handleDeleteNote}
             onClose={handleCloseEditor}

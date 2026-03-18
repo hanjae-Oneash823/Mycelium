@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { PlannerViewType, FocusContext, CreateNodeData } from '../types';
+import type { PlannerViewType, FocusContext, CreateNodeData, PlannerNode } from '../types';
 
 interface ViewStore {
   activeView: PlannerViewType;
@@ -8,8 +8,13 @@ interface ViewStore {
   setFocusContext: (ctx: FocusContext | null) => void;
   taskFormOpen: boolean;
   taskFormDefaults: Partial<CreateNodeData>;
+  editNode: PlannerNode | null;
   openTaskForm: (defaults?: Partial<CreateNodeData>) => void;
+  openTaskFormEdit: (node: PlannerNode) => void;
   closeTaskForm: () => void;
+  commandPaletteOpen: boolean;
+  openCommandPalette: () => void;
+  closeCommandPalette: () => void;
 }
 
 export const useViewStore = create<ViewStore>((set) => ({
@@ -19,6 +24,11 @@ export const useViewStore = create<ViewStore>((set) => ({
   setFocusContext: (ctx) => set({ focusContext: ctx }),
   taskFormOpen: false,
   taskFormDefaults: {},
-  openTaskForm: (defaults = {}) => set({ taskFormOpen: true, taskFormDefaults: defaults }),
-  closeTaskForm: () => set({ taskFormOpen: false, taskFormDefaults: {} }),
+  editNode: null,
+  openTaskForm: (defaults = {}) => set({ taskFormOpen: true, taskFormDefaults: defaults, editNode: null }),
+  openTaskFormEdit: (node) => set({ taskFormOpen: true, taskFormDefaults: {}, editNode: node }),
+  closeTaskForm: () => set({ taskFormOpen: false, taskFormDefaults: {}, editNode: null }),
+  commandPaletteOpen: false,
+  openCommandPalette: () => set({ commandPaletteOpen: true }),
+  closeCommandPalette: () => set({ commandPaletteOpen: false }),
 }));

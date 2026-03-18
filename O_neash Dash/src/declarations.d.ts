@@ -32,6 +32,13 @@ declare module "pixelarticons/react" {
   export const Calendar: PixelIcon;
   export const Target: PixelIcon;
   export const GitBranch: PixelIcon;
+  export const AlarmClock: PixelIcon;
+  export const CheckboxOn: PixelIcon;
+  export const ArrowLeftBox: PixelIcon;
+  export const ArrowRightBox: PixelIcon;
+  export const CornerUpRight: PixelIcon;
+  export const PenSquare: PixelIcon;
+  export const SkullSharp: PixelIcon;
   // Catch-all for any other icons used in future
   const _: Record<string, PixelIcon>;
   export default _;

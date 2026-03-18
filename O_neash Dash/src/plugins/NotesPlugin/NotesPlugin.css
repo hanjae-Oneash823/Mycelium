@@ -867,3 +867,86 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* ── Linked Tasks Panel ───────────────────────────────────────────────────── */
+.note-linked-tasks {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 0.25rem;
+  padding: 0.5rem 1rem 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.note-linked-tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-size: 0.7rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  padding: 0 0 0.4rem 0;
+}
+
+.note-linked-task-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.note-linked-task-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.note-linked-task-title {
+  flex: 1;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+.note-linked-task-completed {
+  text-decoration: line-through;
+  color: rgba(255,255,255,0.3);
+}
+
+.note-linked-task-done-row {
+  opacity: 0.45;
+}
+
+.note-linked-task-due {
+  font-size: 0.72rem;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.note-linked-task-action {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.3);
+  padding: 0 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.note-linked-task-action:hover {
+  color: rgba(255,255,255,0.7);
+}
+
+.note-linked-task-unlink:hover {
+  color: #ff3b3b;
+}

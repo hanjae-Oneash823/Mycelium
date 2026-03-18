@@ -1,10 +1,14 @@
-import { useMemo } from 'react';
-import { DndContext } from '@dnd-kit/core';
+import { useMemo, useState } from 'react';
+import { DndContext, DragOverlay } from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useViewStore } from '../store/useViewStore';
 import { toDateString, isSameDay } from '../lib/logicEngine';
+import { getDensityRatio } from '../lib/densityCalc';
 import DotCell from '../components/DotCell';
+import DensityBar from '../components/DensityBar';
 import type { PlannerNode } from '../types';
+import { getDotColor, getDotDiameter, getDotAnimClass } from '../types';
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
@@ -22,9 +26,30 @@ interface GridRow {
 }
 
 export default function EisenhowerView() {
-  const { nodes, arcs, projects } = usePlannerStore();
+  const { nodes, arcs, projects, capacity, rescheduleNode } = usePlannerStore();
   const { openTaskForm } = useViewStore();
   const now = new Date();
+  const [activeDragNode, setActiveDragNode] = useState<PlannerNode | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const nodeId = event.active.id as string;
+    setActiveDragNode(nodes.find(n => n.id === nodeId) ?? null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragNode(null);
+    const { active, over } = event;
+    if (!over) return;
+    const overId = over.id as string;
+    if (!overId.startsWith('cell-')) return;
+    // Extract colKey: cell-{rowId}-{colKey}
+    // colKey is 'overdue' or 'YYYY-MM-DD' (10 chars)
+    const rest = overId.slice(5); // remove "cell-"
+    if (rest.endsWith('-overdue')) return; // block drop to OOPS
+    const dateStr = rest.slice(-10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return;
+    rescheduleNode(active.id as string, dateStr);
+  };
 
   // Build column dates: overdue + today + D+1..D+8
   const columns = useMemo(() => {
@@ -91,8 +116,10 @@ export default function EisenhowerView() {
   const LABEL_COL_W = 160;
   const CELL_MIN_W  = 90;
 
+  const capacityMinutes = capacity?.daily_minutes ?? 480;
+
   return (
-    <DndContext>
+    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Sticky header row */}
@@ -113,6 +140,9 @@ export default function EisenhowerView() {
               }}
             >
               {col.label}
+              {!col.isOverdue && (
+                <DensityBar ratio={getDensityRatio(nodes, col.key, capacityMinutes)} />
+              )}
             </div>
           ))}
         </div>
@@ -176,6 +206,22 @@ export default function EisenhowerView() {
           </span>
         </div>
       </div>
+
+      {/* Drag ghost */}
+      <DragOverlay dropAnimation={null}>
+        {activeDragNode && (
+          <div
+            className={`dot ${getDotAnimClass(activeDragNode)}`}
+            style={{
+              width:  getDotDiameter(activeDragNode.estimated_duration_minutes),
+              height: getDotDiameter(activeDragNode.estimated_duration_minutes),
+              backgroundColor: getDotColor(activeDragNode),
+              opacity: 0.85,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </DragOverlay>
     </DndContext>
   );
 }

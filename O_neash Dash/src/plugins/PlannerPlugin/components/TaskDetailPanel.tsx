@@ -1,6 +1,10 @@
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import type React from 'react';
-import type { PlannerNode } from '../types';
+import { CheckboxOn, PenSquare, SkullSharp } from 'pixelarticons/react';
+import type { PlannerNode, NoteHit } from '../types';
 import { formatDueLabel, formatEffortLabel } from '../lib/logicEngine';
+import { getLinkedNoteIds, unlinkNoteFromTask } from '../lib/noteLinks';
+import { loadNotesByIds } from '../lib/noteSearch';
 
 interface TaskDetailPanelProps {
   node: PlannerNode;
@@ -15,20 +19,48 @@ interface TaskDetailPanelProps {
 export default function TaskDetailPanel({
   node, anchorX, anchorY, onClose, onComplete, onEdit, onDelete,
 }: TaskDetailPanelProps) {
-  const now    = new Date();
+  const now         = new Date();
   const dueLabel    = formatDueLabel(node.due_at, now);
   const effortLabel = formatEffortLabel(node.estimated_duration_minutes);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [adjustedTop, setAdjustedTop] = useState(anchorY - 188);
+  const [linkedNotes, setLinkedNotes] = useState<NoteHit[]>([]);
+
   const panelWidth = 280;
   const left = Math.max(8, Math.min(anchorX - panelWidth / 2, window.innerWidth - panelWidth - 8));
-  const top  = Math.max(8, anchorY - 8); // position above anchor, adjusted by JS below
+
+  // Load linked notes on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const ids = await getLinkedNoteIds(node.id);
+      const hits = await loadNotesByIds(ids);
+      if (!cancelled) setLinkedNotes(hits);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [node.id]);
+
+  // Reposition above the dot after content changes height
+  useLayoutEffect(() => {
+    if (panelRef.current) {
+      setAdjustedTop(Math.max(8, anchorY - panelRef.current.offsetHeight - 8));
+    }
+  }, [linkedNotes.length, anchorY]);
+
+  const handleUnlink = async (compositeId: string) => {
+    await unlinkNoteFromTask(compositeId, node.id);
+    setLinkedNotes(prev => prev.filter(n => n.compositeId !== compositeId));
+  };
 
   return (
     <div
+      ref={panelRef}
       style={{
         position: 'fixed',
         left,
-        top: top - 180, // approximate height above dot
+        top: adjustedTop,
         width: panelWidth,
         background: '#0a0a0a',
         border: '1px solid rgba(255,255,255,0.18)',
@@ -83,11 +115,29 @@ export default function TaskDetailPanel({
         </div>
       )}
 
+      {/* Linked notes */}
+      {linkedNotes.length > 0 && (
+        <div style={{ marginBottom: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.5rem' }}>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+            linked notes
+          </div>
+          {linkedNotes.map(n => (
+            <div key={n.compositeId} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.2rem' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: n.groupColor, flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ fontSize: '0.85rem', color: '#c084fc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.5px' }}>
+                {n.title || '(untitled)'}
+              </span>
+              <button onClick={() => handleUnlink(n.compositeId)} style={{ ...actionBtnStyle('rgba(255,59,59,0.6)'), padding: '0 0.3rem', fontSize: '0.75rem' }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Action row */}
       <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.6rem' }}>
-        <button onClick={onComplete} style={actionBtnStyle('#4ade80')}>✓ done</button>
-        <button onClick={onEdit}    style={actionBtnStyle('rgba(255,255,255,0.5)')}>edit</button>
-        <button onClick={onDelete}  style={actionBtnStyle('#ef4444')}>delete</button>
+        <button onClick={onComplete} style={{ ...actionBtnStyle('#4ade80'), display: 'flex', alignItems: 'center', gap: 4 }}><CheckboxOn size={13} /> done</button>
+        <button onClick={onEdit}    style={{ ...actionBtnStyle('rgba(255,255,255,0.5)'), display: 'flex', alignItems: 'center', gap: 4 }}><PenSquare size={13} /> edit</button>
+        <button onClick={onDelete}  style={{ ...actionBtnStyle('#ef4444'), display: 'flex', alignItems: 'center', gap: 4 }}><SkullSharp size={13} /> del</button>
         <button onClick={onClose}   style={{ ...actionBtnStyle('rgba(255,255,255,0.25)'), marginLeft: 'auto' }}>×</button>
       </div>
     </div>

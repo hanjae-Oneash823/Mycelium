@@ -55,15 +55,50 @@
   --t3: rgba(255,255,255,.85);
 }
 
+@keyframes task-form-mode-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes planner-form-out {
+  from { opacity: 1; scale: 1; }
+  to   { opacity: 0; scale: 0.97; }
+}
+
+/* Outro — applied via React isClosing state, bypasses Radix animation detection */
+.planner-form-closing {
+  animation: planner-form-out 0.17s ease forwards;
+  pointer-events: none;
+}
+
 /* Animation utility classes */
 .dot-anim-urgent { animation: urgp 1.8s ease-in-out infinite; }
 .dot-anim-red    { animation: redp 1.6s ease-in-out infinite; }
 
+/* VT323 scaled-up alias — makes VT323 glyphs ~40% larger at any given font-size,
+   while IBM Plex Sans KR (Korean fallback) renders at its natural size */
+@font-face {
+  font-family: 'VT323UI';
+  src: local('VT323');
+  size-adjust: 125%;
+}
+
+/* TaskForm dialog font override (portaled outside .planner-plugin) */
+.planner-task-form,
+.planner-task-form * {
+  font-family: 'VT323UI', 'IBM Plex Sans KR', monospace !important;
+}
+
 /* Scrollbar styling */
-.planner-plugin *::-webkit-scrollbar       { width: 5px; height: 5px; }
-.planner-plugin *::-webkit-scrollbar-track { background: transparent; }
-.planner-plugin *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
-.planner-plugin *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+.planner-plugin *::-webkit-scrollbar,
+.planner-task-form *::-webkit-scrollbar       { width: 5px; height: 5px; }
+.planner-plugin *::-webkit-scrollbar-track,
+.planner-task-form *::-webkit-scrollbar-track { background: transparent; }
+.planner-plugin *::-webkit-scrollbar-thumb,
+.planner-task-form *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
+.planner-plugin *::-webkit-scrollbar-thumb:hover,
+.planner-task-form *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+.planner-task-form { color-scheme: dark; }
 
 /* Input resets */
 .planner-plugin input,

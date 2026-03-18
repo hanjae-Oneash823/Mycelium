@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { Note, NoteData } from '@/types';
+import LinkedTasksPanel from './LinkedTasksPanel';
 
 interface NoteEditorProps {
   note: Note | null;
+  groupId: string;
   onSave: (noteData: NoteData) => void;
   onDelete: (noteId: number) => void;
   onClose: () => void;
@@ -11,7 +13,7 @@ interface NoteEditorProps {
 /**
  * NoteEditor - Inline editor for creating/editing notes
  */
-function NoteEditor({ note, onSave, onDelete, onClose }: NoteEditorProps) {
+function NoteEditor({ note, groupId, onSave, onDelete, onClose }: NoteEditorProps) {
   const [title, setTitle] = useState<string>('');
   const [content, setContent] = useState<string>('');
 
@@ -34,6 +36,8 @@ function NoteEditor({ note, onSave, onDelete, onClose }: NoteEditorProps) {
       onDelete(note.id);
     }
   };
+
+  const compositeNoteId = note ? `${groupId}:${note.id}` : null;
 
   return (
     <div className="note-editor-inline">
@@ -74,6 +78,8 @@ function NoteEditor({ note, onSave, onDelete, onClose }: NoteEditorProps) {
           </button>
         </div>
       </div>
+
+      {compositeNoteId && <LinkedTasksPanel compositeNoteId={compositeNoteId} />}
     </div>
   );
 }

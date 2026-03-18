@@ -1,6 +1,7 @@
 import "./App.css";
 import PluginBox from "./plugins/PluginBox";
 import AlwaysOnTop from "./always-visible/AOT-elements";
+import { Toaster } from "./components/ui/sonner";
 import React, { useEffect, useState } from "react";
 import { setupDb } from "./lib/db";
 
@@ -10,6 +11,7 @@ function AppContent() {
     <main className="main-container relative" data-tauri-drag-region>
       <AlwaysOnTop />
       <PluginBox />
+      <Toaster />
     </main>
   );
 }

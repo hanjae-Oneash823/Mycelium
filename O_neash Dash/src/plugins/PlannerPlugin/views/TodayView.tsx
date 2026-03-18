@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { CheckboxOn, PenSquare, SkullSharp } from 'pixelarticons/react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useViewStore } from '../store/useViewStore';
 import { scoreSuggestion, isSameDay, toDateString, formatDueLabel, formatEffortLabel } from '../lib/logicEngine';
@@ -10,12 +11,12 @@ const SUGGESTION_LIMIT = 3;
 
 export default function TodayView() {
   const { nodes, capacity, completeNode, deleteNode, rescheduleNode } = usePlannerStore();
-  const { openTaskForm } = useViewStore();
+  const { openTaskForm, openTaskFormEdit } = useViewStore();
   const now   = new Date();
   const today = toDateString(now);
 
-  const overdue     = useMemo(() => nodes.filter(n => n.is_overdue && !n.is_completed).sort((a,b) => (a.due_at ?? '').localeCompare(b.due_at ?? '')), [nodes]);
-  const todayNodes  = useMemo(() => nodes.filter(n => !n.is_overdue && !n.is_completed && (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now))), [nodes]);
+  const overdue    = useMemo(() => nodes.filter(n => n.is_overdue && !n.is_completed).sort((a,b) => (a.due_at ?? '').localeCompare(b.due_at ?? '')), [nodes]);
+  const todayNodes = useMemo(() => nodes.filter(n => !n.is_overdue && !n.is_completed && (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now))), [nodes]);
 
   const suggestions = useMemo(() => {
     const candidates = nodes.filter(n =>
@@ -27,6 +28,10 @@ export default function TodayView() {
     const above = scored.filter(s => s.score > SUGGESTION_THRESHOLD);
     return (above.length > 0 ? above : scored).slice(0, SUGGESTION_LIMIT).map(s => s.node);
   }, [nodes]);
+
+  const handleComplete = (node: PlannerNode) => completeNode(node.id);
+  const handleDelete   = (node: PlannerNode) => deleteNode(node.id);
+  const handleEdit     = (node: PlannerNode) => openTaskFormEdit(node);
 
   const todayMinutes   = todayNodes.reduce((s, n) => s + (n.estimated_duration_minutes ?? 0), 0);
   const capacityMins   = capacity?.daily_minutes ?? 480;
@@ -76,9 +81,9 @@ export default function TodayView() {
             <div style={{ background: 'rgba(255,59,59,.025)', display: 'flex', flexDirection: 'column', gap: '0' }}>
               {overdue.map(node => (
                 <TaskRow key={node.id} node={node} now={now}
-                  onComplete={() => completeNode(node.id)}
-                  onDelete={() => deleteNode(node.id)}
-                  onEdit={() => openTaskForm({ title: node.title, due_at: node.due_at ?? undefined, importance_level: node.importance_level })}
+                  onComplete={() => handleComplete(node)}
+                  onDelete={() => handleDelete(node)}
+                  onEdit={() => handleEdit(node)}
                 />
               ))}
             </div>
@@ -93,9 +98,9 @@ export default function TodayView() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {todayNodes.map(node => (
               <TaskRow key={node.id} node={node} now={now}
-                onComplete={() => completeNode(node.id)}
-                onDelete={() => deleteNode(node.id)}
-                onEdit={() => openTaskForm({ title: node.title, planned_start_at: node.planned_start_at ?? undefined, due_at: node.due_at ?? undefined, importance_level: node.importance_level })}
+                onComplete={() => handleComplete(node)}
+                onDelete={() => handleDelete(node)}
+                onEdit={() => handleEdit(node)}
               />
             ))}
           </div>
@@ -110,9 +115,9 @@ export default function TodayView() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {suggestions.map(node => (
                 <TaskRow key={node.id} node={node} now={now}
-                  onComplete={() => completeNode(node.id)}
-                  onDelete={() => deleteNode(node.id)}
-                  onEdit={() => openTaskForm({ title: node.title, due_at: node.due_at ?? undefined, importance_level: node.importance_level })}
+                  onComplete={() => handleComplete(node)}
+                  onDelete={() => handleDelete(node)}
+                  onEdit={() => handleEdit(node)}
                   rescheduleToday={() => rescheduleNode(node.id, today)}
                 />
               ))}
@@ -187,9 +192,9 @@ function TaskRow({ node, now, onComplete, onDelete, onEdit, rescheduleToday }: {
         </button>
       )}
 
-      <button onClick={onComplete} title="complete" style={rowBtn('#4ade80')}>✓</button>
-      <button onClick={onEdit}    title="edit"     style={rowBtn('rgba(255,255,255,0.3)')}>✏</button>
-      <button onClick={onDelete}  title="delete"   style={rowBtn('#ef4444')}>×</button>
+      <button onClick={onComplete} title="complete" style={rowBtn('#4ade80')}><CheckboxOn size={14} /></button>
+      <button onClick={onEdit}    title="edit"     style={rowBtn('rgba(255,255,255,0.3)')}><PenSquare size={14} /></button>
+      <button onClick={onDelete}  title="delete"   style={rowBtn('#ef4444')}><SkullSharp size={14} /></button>
     </div>
   );
 }

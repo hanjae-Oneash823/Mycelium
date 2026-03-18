@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import type { PlannerNode } from '../types';
 import { getDotColor, getDotDiameter, getDotAnimClass } from '../types';
 import TaskDetailPanel from './TaskDetailPanel';
@@ -15,14 +17,26 @@ interface DotNodeProps {
 export default function DotNode({ node, onClick, onComplete, onDelete, onEdit }: DotNodeProps) {
   const [hovered, setHovered] = useState(false);
   const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
-  const dotRef = useRef<HTMLDivElement>(null);
+  const dotRef = useRef<HTMLDivElement | null>(null);
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: node.id,
+    disabled: !!node.is_locked,
+    data: { node },
+  });
+
+  // Merge dnd-kit ref + local ref for bounding rect
+  const mergedRef = useCallback((el: HTMLDivElement | null) => {
+    dotRef.current = el;
+    setNodeRef(el);
+  }, [setNodeRef]);
 
   const diameter  = getDotDiameter(node.estimated_duration_minutes);
   const color     = getDotColor(node);
   const animClass = getDotAnimClass(node);
 
-  const subTotal  = node.sub_total ?? 0;
-  const subDone   = node.sub_done  ?? 0;
+  const subTotal = node.sub_total ?? 0;
+  const subDone  = node.sub_done  ?? 0;
 
   const handleMouseEnter = () => {
     if (dotRef.current) {
@@ -36,25 +50,29 @@ export default function DotNode({ node, onClick, onComplete, onDelete, onEdit }:
 
   return (
     <div
-      ref={dotRef}
+      ref={mergedRef}
       className={`dot ${animClass}`}
       style={{
-        width:  diameter,
-        height: diameter,
+        width:     diameter,
+        height:    diameter,
         minWidth:  diameter,
         minHeight: diameter,
         backgroundColor: color,
-        cursor: 'pointer',
-        display: 'inline-flex',
+        cursor:    isDragging ? 'grabbing' : (node.is_locked ? 'default' : 'grab'),
+        display:   'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative',
+        position:  'relative',
         flexShrink: 0,
+        opacity:   isDragging ? 0.3 : 1,
+        transform: CSS.Translate.toString(transform),
       }}
-      onClick={onClick}
+      onClick={!isDragging ? onClick : undefined}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       title={node.title}
+      {...listeners}
+      {...attributes}
     >
       {/* Subtask SVG ring */}
       {subTotal > 0 && (
@@ -76,8 +94,18 @@ export default function DotNode({ node, onClick, onComplete, onDelete, onEdit }:
         </svg>
       )}
 
-      {/* Hover detail panel */}
-      {hovered && createPortal(
+      {/* Note badge */}
+      {(node.linked_note_count ?? 0) >= 1 && (
+        <div style={{
+          position: 'absolute', bottom: -2, right: -2,
+          width: 7, height: 7, borderRadius: '50%',
+          background: '#c084fc', border: '1px solid #000',
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Hover detail panel — hidden while dragging */}
+      {hovered && !isDragging && createPortal(
         <div
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={handleMouseLeave}
