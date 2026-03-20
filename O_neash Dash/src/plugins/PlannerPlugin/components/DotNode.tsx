@@ -1,76 +1,88 @@
 import { useState, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { PlannerNode } from '../types';
 import { getDotColor, getDotDiameter, getDotAnimClass } from '../types';
+import { useViewStore } from '../store/useViewStore';
+import DotTooltip from './DotTooltip';
 import TaskDetailPanel from './TaskDetailPanel';
 
 interface DotNodeProps {
-  node: PlannerNode;
-  onClick?: () => void;
+  node:        PlannerNode;
+  scale?:      number;
+  noPopups?:   boolean;
   onComplete?: () => void;
-  onDelete?: () => void;
-  onEdit?: () => void;
+  onDelete?:   () => void;
+  onEdit?:     () => void;
 }
 
-export default function DotNode({ node, onClick, onComplete, onDelete, onEdit }: DotNodeProps) {
-  const [hovered, setHovered] = useState(false);
-  const [panelPos, setPanelPos] = useState({ x: 0, y: 0 });
+export default function DotNode({ node, scale = 1, noPopups = false, onComplete, onDelete, onEdit }: DotNodeProps) {
+  const [hovered,   setHovered]   = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [anchor,    setAnchor]    = useState({ x: 0, y: 0 });
+  const taskFormOpen = useViewStore(s => s.taskFormOpen);
   const dotRef = useRef<HTMLDivElement | null>(null);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: node.id,
+    id:       node.id,
     disabled: !!node.is_locked,
-    data: { node },
+    data:     { node },
   });
 
-  // Merge dnd-kit ref + local ref for bounding rect
   const mergedRef = useCallback((el: HTMLDivElement | null) => {
     dotRef.current = el;
     setNodeRef(el);
   }, [setNodeRef]);
 
-  const diameter  = getDotDiameter(node.estimated_duration_minutes);
+  const computeAnchor = () => {
+    if (dotRef.current) {
+      const r = dotRef.current.getBoundingClientRect();
+      setAnchor({ x: r.left + r.width / 2, y: r.top });
+    }
+  };
+
+  const handleMouseEnter = () => {
+    computeAnchor();
+    setHovered(true);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) return;
+    e.stopPropagation();
+    computeAnchor();
+    setHovered(false);
+    setPanelOpen(prev => !prev);
+  };
+
+  const diameter  = getDotDiameter(node.estimated_duration_minutes) * scale;
   const color     = getDotColor(node);
   const animClass = getDotAnimClass(node);
 
   const subTotal = node.sub_total ?? 0;
   const subDone  = node.sub_done  ?? 0;
 
-  const handleMouseEnter = () => {
-    if (dotRef.current) {
-      const rect = dotRef.current.getBoundingClientRect();
-      setPanelPos({ x: rect.left + rect.width / 2, y: rect.top });
-    }
-    setHovered(true);
-  };
-
-  const handleMouseLeave = () => setHovered(false);
-
   return (
     <div
       ref={mergedRef}
       className={`dot ${animClass}`}
       style={{
-        width:     diameter,
-        height:    diameter,
-        minWidth:  diameter,
-        minHeight: diameter,
+        width:           diameter,
+        height:          diameter,
+        minWidth:        diameter,
+        minHeight:       diameter,
         backgroundColor: color,
-        cursor:    isDragging ? 'grabbing' : (node.is_locked ? 'default' : 'grab'),
-        display:   'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position:  'relative',
-        flexShrink: 0,
-        opacity:   isDragging ? 0.3 : 1,
-        transform: CSS.Translate.toString(transform),
+        cursor:          isDragging ? 'grabbing' : (node.is_locked ? 'default' : 'grab'),
+        display:         'inline-flex',
+        alignItems:      'center',
+        justifyContent:  'center',
+        position:        'relative',
+        flexShrink:      0,
+        opacity:         isDragging ? 0.3 : 1,
+        transform:       CSS.Translate.toString(transform),
       }}
-      onClick={!isDragging ? onClick : undefined}
+      onClick={handleClick}
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      title={node.title}
+      onMouseLeave={() => setHovered(false)}
       {...listeners}
       {...attributes}
     >
@@ -104,23 +116,22 @@ export default function DotNode({ node, onClick, onComplete, onDelete, onEdit }:
         }} />
       )}
 
-      {/* Hover detail panel — hidden while dragging */}
-      {hovered && !isDragging && createPortal(
-        <div
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={handleMouseLeave}
-        >
-          <TaskDetailPanel
-            node={node}
-            anchorX={panelPos.x}
-            anchorY={panelPos.y}
-            onClose={() => setHovered(false)}
-            onComplete={() => { onComplete?.(); setHovered(false); }}
-            onEdit={() => { onEdit?.(); setHovered(false); }}
-            onDelete={() => { onDelete?.(); setHovered(false); }}
-          />
-        </div>,
-        document.body
+      {/* Hover tooltip — hidden while dragging, panel open, or task form open */}
+      {!noPopups && hovered && !isDragging && !panelOpen && !taskFormOpen && (
+        <DotTooltip node={node} anchorX={anchor.x} anchorY={anchor.y} />
+      )}
+
+      {/* Click panel */}
+      {!noPopups && panelOpen && !isDragging && !taskFormOpen && (
+        <TaskDetailPanel
+          node={node}
+          anchorX={anchor.x}
+          anchorY={anchor.y}
+          onClose={() => setPanelOpen(false)}
+          onComplete={() => { onComplete?.(); setPanelOpen(false); }}
+          onEdit={() => { setPanelOpen(false); onEdit?.(); }}
+          onDelete={() => { onDelete?.(); setPanelOpen(false); }}
+        />
       )}
     </div>
   );

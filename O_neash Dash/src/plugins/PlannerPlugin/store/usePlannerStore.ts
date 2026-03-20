@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { createElement } from 'react';
+import { CheckboxOn } from 'pixelarticons/react';
 import { toast } from '@/components/ui/sonner';
 import type { PlannerNode, PlannerGroup, Arc, Project, UserCapacity, CreateNodeData } from '../types';
 import * as db from '../lib/plannerDb';
@@ -30,6 +32,7 @@ interface PlannerStore {
   createProject: (data: { name: string; color_hex?: string; arc_id?: string }) => Promise<string>;
   updateProject: (id: string, patch: Record<string, unknown>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  uncompleteNode: (id: string) => Promise<void>;
   // Test utilities
   wipePlannerData: () => Promise<void>;
 }
@@ -68,7 +71,11 @@ export const usePlannerStore = create<PlannerStore>((set) => ({
   },
 
   deleteNode: async (id) => {
-    await db.deleteNode(id);
+    try {
+      await db.deleteNode(id);
+    } catch (e) {
+      console.error('deleteNode sync error (node was deleted):', e);
+    }
     const nodes = await db.loadNodes();
     set({ nodes });
     toast('task deleted', { style: { borderColor: 'rgba(255,59,59,0.5)', color: '#ff3b3b' } });
@@ -85,7 +92,17 @@ export const usePlannerStore = create<PlannerStore>((set) => ({
     await db.completeNode(id);
     const nodes = await db.loadNodes();
     set({ nodes });
-    toast.success('task done ✓');
+    toast('task done', {
+      icon: createElement(CheckboxOn, { size: 16, style: { color: '#4ade80', flexShrink: 0, marginRight: 8 } }),
+      style: { borderColor: 'rgba(74,222,128,0.45)', color: '#4ade80' },
+    });
+  },
+
+  uncompleteNode: async (id) => {
+    await db.uncompleteNode(id);
+    const nodes = await db.loadNodes();
+    set({ nodes });
+    toast('task unfinished', { style: { borderColor: 'rgba(251,146,60,0.5)', color: '#fb923c' } });
   },
 
   replaceNodeGroups: async (nodeId, groupIds) => {
@@ -183,4 +200,5 @@ export const usePlannerStore = create<PlannerStore>((set) => ({
     set({ groups, capacity });
     toast('all planner data wiped', { style: { borderColor: 'rgba(255,59,59,0.5)', color: '#ff3b3b' } });
   },
+
 }));

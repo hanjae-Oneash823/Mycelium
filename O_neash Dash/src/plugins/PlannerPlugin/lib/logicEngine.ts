@@ -1,30 +1,48 @@
 import type { PlannerNode, ImportanceLevel } from '../types';
 
-// ─── Core: compute urgency level from importance + due date ───────────────────
-// L0 = no due date
-// L1 = not important, not urgent  (>2 days)
-// L2 = important,     not urgent  (>2 days)
-// L3 = not important, urgent      (≤2 days)
-// L4 = important,     urgent      (≤2 days)
+// ─── Core: compute urgency level ─────────────────────────────────────────────
+// L0 = event (no urgency concept)
+// L1 = simple task not important  |  assignment not important, DD > 3 days
+// L2 = simple task important      |  assignment important,     DD > 3 days
+// L3 = assignment not important,  DD ≤ 3 days
+// L4 = assignment important,      DD ≤ 3 days
 export function computeUrgencyLevel(
   isImportant: boolean,
   dueAt: string | null | undefined,
   now: Date,
+  isEvent = false,
 ): ImportanceLevel {
-  if (!dueAt) return 0;
-  const daysLeft = (new Date(dueAt).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-  const urgent = daysLeft <= 2;
+  if (isEvent) return 0;
+  if (!dueAt) {
+    // Simple task — urgency from importance only, never L0
+    return isImportant ? 2 : 1;
+  }
+  // Assignment — urgency from importance + DD proximity
+  const normalized = dueAt.length === 10 ? dueAt + 'T12:00:00' : dueAt;
+  const daysLeft = (new Date(normalized).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  const urgent = daysLeft <= 3;
   if (!isImportant && !urgent) return 1;
   if ( isImportant && !urgent) return 2;
   if (!isImportant &&  urgent) return 3;
-  return 4; // important + urgent
+  return 4;
 }
 
 // ─── Rule 2: Overdue detection ────────────────────────────────────────────────
 export function isNodeOverdue(node: PlannerNode, now: Date): boolean {
   if (!node.due_at) return false;
   if (node.is_completed) return false;
-  return new Date(node.due_at) < now;
+  const normalized = node.due_at.length === 10 ? node.due_at + 'T23:59:59' : node.due_at;
+  return new Date(normalized) < now;
+}
+
+// ─── Missed schedule detection (flexible tasks only) ─────────────────────────
+export function isMissedSchedule(node: PlannerNode, now: Date): boolean {
+  if (node.is_completed || node.is_overdue || node.due_at) return false;
+  if (!node.planned_start_at) return false;
+  const scheduledDay = new Date(node.planned_start_at.slice(0, 10) + 'T00:00:00');
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return scheduledDay < today;
 }
 
 // ─── Suggestion scoring (Today view) ─────────────────────────────────────────
@@ -37,7 +55,8 @@ export function scoreSuggestion(node: PlannerNode, today: Date): number {
 
   // Due date proximity
   if (node.due_at) {
-    const daysLeft = (new Date(node.due_at).getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+    const normalizedDue = node.due_at.length === 10 ? node.due_at + 'T12:00:00' : node.due_at;
+    const daysLeft = (new Date(normalizedDue).getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
     if (daysLeft <= 1)      score += 35;
     else if (daysLeft <= 3) score += 20;
     else if (daysLeft <= 7) score += 10;
@@ -62,14 +81,19 @@ export function scoreSuggestion(node: PlannerNode, today: Date): number {
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 export function isSameDay(dateStr: string | null | undefined, ref: Date): boolean {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
+  // Date-only strings (YYYY-MM-DD) are parsed as UTC by JS — force local noon to avoid timezone drift
+  const normalized = dateStr.length === 10 ? dateStr + 'T12:00:00' : dateStr;
+  const d = new Date(normalized);
   return d.getFullYear() === ref.getFullYear()
       && d.getMonth()    === ref.getMonth()
       && d.getDate()     === ref.getDate();
 }
 
 export function toDateString(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 export function formatDueLabel(dueDateStr: string | null | undefined, now: Date): string {

@@ -19,7 +19,6 @@ interface PaletteItem {
 
 const VIEW_SHORTCUTS: Array<{ prefix: string; view: PlannerViewType; label: string }> = [
   { prefix: '/today', view: 'today', label: 'Today' },
-  { prefix: '/cal', view: 'calendar', label: 'Calendar' },
   { prefix: '/eis', view: 'eisenhower', label: 'Eisenhower' },
   { prefix: '/focus', view: 'focus', label: 'Focus' },
   { prefix: '/arc', view: 'arc', label: 'Arc' },

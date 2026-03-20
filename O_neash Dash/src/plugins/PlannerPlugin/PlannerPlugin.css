@@ -26,7 +26,7 @@
   font-family: 'VT323', 'IBM Plex Mono', monospace;
   font-size: 18px;
   overflow: hidden;
-  padding: 112px 96px 96px 96px; /* top clears go-home btn; sides/bottom add breathing room */
+  padding: 112px 160px 96px 160px; /* top clears go-home btn; sides/bottom add breathing room */
   box-sizing: border-box;
 }
 
@@ -65,18 +65,46 @@
   to   { opacity: 0; scale: 0.97; }
 }
 
-/* Outro — applied via React isClosing state, bypasses Radix animation detection */
-.planner-form-closing {
-  animation: planner-form-out 0.17s ease forwards;
+/* Out — Radix detects this animation and waits for animationend before unmounting */
+.planner-task-form[data-state=closed] {
+  animation: planner-form-out 0.17s ease forwards !important;
   pointer-events: none;
+}
+
+/* Overlay fades out in sync */
+[data-radix-dialog-overlay][data-state=closed] {
+  animation-duration: 0.17s !important;
+}
+
+@keyframes wiggle {
+  0%,100% { transform: rotate(0deg); }
+  20%      { transform: rotate(6deg); }
+  40%      { transform: rotate(-5deg); }
+  60%      { transform: rotate(4deg); }
+  80%      { transform: rotate(-3deg); }
 }
 
 /* Animation utility classes */
 .dot-anim-urgent { animation: urgp 1.8s ease-in-out infinite; }
 .dot-anim-red    { animation: redp 1.6s ease-in-out infinite; }
+.dot-anim-wiggle { animation: wiggle 3s ease-in-out infinite; }
+
+/* Arc collapse: dots arrive from below (project rows fold up into arc row) */
+@keyframes dotsArrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.arc-dots-arrive { animation: dotsArrive 0.32s ease forwards; }
+
+/* Missed schedule: flexible task whose planned date passed (amber glow, no urgency pulse) */
+@keyframes amberp {
+  0%,100% { box-shadow: 0 0 6px #f5c842; }
+  50%      { box-shadow: 0 0 14px #f5c842, 0 0 20px rgba(245,200,66,0.18); }
+}
+.dot-anim-missed { animation: amberp 2.6s ease-in-out infinite; }
 
 /* VT323 scaled-up alias — makes VT323 glyphs ~40% larger at any given font-size,
-   while IBM Plex Sans KR (Korean fallback) renders at its natural size */
+   while HBIOS-SYS (Korean fallback) renders at its natural size */
 @font-face {
   font-family: 'VT323UI';
   src: local('VT323');
@@ -86,7 +114,7 @@
 /* TaskForm dialog font override (portaled outside .planner-plugin) */
 .planner-task-form,
 .planner-task-form * {
-  font-family: 'VT323UI', 'IBM Plex Sans KR', monospace !important;
+  font-family: 'VT323UI', 'HBIOS-SYS', monospace !important;
 }
 
 /* Scrollbar styling */
@@ -99,6 +127,25 @@
 .planner-plugin *::-webkit-scrollbar-thumb:hover,
 .planner-task-form *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
 .planner-task-form { color-scheme: dark; }
+
+/* Effort bar particles */
+@keyframes effortParticle {
+  0%   { left: -3px; opacity: 0; }
+  6%   { opacity: 1; }
+  88%  { opacity: 0.55; }
+  100% { left: calc(100% + 3px); opacity: 0; }
+}
+.effort-particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #a7f3c0;
+  animation: effortParticle linear infinite;
+}
+
+/* Hide scrollbar on today task column */
+.today-task-col::-webkit-scrollbar { display: none; }
+.today-task-col { scrollbar-width: none; }
 
 /* Input resets */
 .planner-plugin input,

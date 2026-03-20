@@ -1,5 +1,10 @@
 // Type declarations for packages with missing or incomplete type definitions
 
+interface ImportMeta {
+  readonly env: Record<string, string | boolean | undefined> & { DEV: boolean; PROD: boolean };
+}
+
+
 declare module "pixelarticons/react" {
   import * as React from "react";
 
@@ -39,6 +44,17 @@ declare module "pixelarticons/react" {
   export const CornerUpRight: PixelIcon;
   export const PenSquare: PixelIcon;
   export const SkullSharp: PixelIcon;
+  export const ChevronDown: PixelIcon;
+  export const ChevronRight: PixelIcon;
+  export const Tea: PixelIcon;
+  export const Forward: PixelIcon;
+  export const PlusBox: PixelIcon;
+  export const Fire: PixelIcon;
+  export const PartyPopper: PixelIcon;
+  export const Contact: PixelIcon;
+  export const Frown: PixelIcon;
+  export const HumanArmsUp: PixelIcon;
+  export const ArrowBarUp: PixelIcon;
   // Catch-all for any other icons used in future
   const _: Record<string, PixelIcon>;
   export default _;

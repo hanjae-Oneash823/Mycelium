@@ -1,4 +1,4 @@
-export type PlannerViewType = 'today' | 'calendar' | 'eisenhower' | 'focus' | 'arc';
+export type PlannerViewType = 'today' | 'eisenhower' | 'focus' | 'arc';
 export type NodeType = 'task' | 'event';
 /** User-facing binary input stored in DB: 0 = normal, 1 = important */
 export type UserImportance = 0 | 1;
@@ -57,6 +57,7 @@ export interface PlannerNode {
   is_overdue: boolean;
   is_recovery: boolean;
   is_pinned: boolean;
+  is_missed_schedule?: boolean;
   recovery_set_at?: string | null;
   parent_node_id?: string | null;
   created_at: string;
@@ -127,6 +128,7 @@ export const DOT_COLORS: Record<number, string> = {
   4: '#ff6b35',
 };
 export const DOT_COLOR_OVERDUE = '#ff3b3b';
+export const DOT_COLOR_MISSED  = '#f5c842';
 export const DOT_COLOR_EVENT   = '#888888';
 
 /** A resolved note reference loaded from the filesystem */
@@ -156,14 +158,17 @@ export function getDotDiameter(minutes: number | null | undefined): number {
 }
 
 export function getDotColor(node: PlannerNode): string {
-  if (node.is_overdue) return DOT_COLOR_OVERDUE;
+  if (node.is_overdue)        return DOT_COLOR_OVERDUE;
+  if (node.is_missed_schedule) return DOT_COLOR_MISSED;
   if (node.node_type === 'event') return DOT_COLOR_EVENT;
   if (node.is_recovery) return DOT_COLORS[4];
   return DOT_COLORS[node.computed_urgency_level] ?? DOT_COLORS[0];
 }
 
 export function getDotAnimClass(node: PlannerNode): string {
-  if (node.is_overdue) return 'dot-anim-red';
+  if (node.is_overdue)         return 'dot-anim-red';
+  if (node.is_missed_schedule) return 'dot-anim-missed';
   if (node.is_recovery || node.computed_urgency_level === 4) return 'dot-anim-urgent';
+  if (node.computed_urgency_level === 3) return 'dot-anim-wiggle';
   return '';
 }

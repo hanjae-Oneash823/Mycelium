@@ -3,11 +3,20 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'HBIOS-SYS';
+  src: url('/fonts/HBIOS-SYS.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 78%;
+}
+
 body {
   margin: 0;
   background-color: #000000; /* Pure black background */
   color: #ffffff; /* White text for contrast */
-  font-family: "VT323", "Gowun Dodum", monospace;
+  font-family: "VT323", "HBIOS-SYS", monospace;
   font-weight: 400;
   font-style: normal;
   font-size: 18px; /* Base size for VT323 */
@@ -53,6 +62,10 @@ body {
 }
 
 @layer base {
+  * {
+    font-family: 'VT323', 'HBIOS-SYS', monospace;
+  }
+
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;

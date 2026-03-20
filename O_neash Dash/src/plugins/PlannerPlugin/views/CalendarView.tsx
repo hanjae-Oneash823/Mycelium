@@ -1,9 +1,13 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useViewStore } from '../store/useViewStore';
-import { toDateString } from '../lib/logicEngine';
 import { getDotColor } from '../types';
 import type { PlannerNode } from '../types';
+
+/** Local calendar date key — always uses the local date (not UTC) so columns and events align in all timezones. */
+function localKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -155,23 +159,22 @@ export default function CalendarView() {
     const timed  = new Map<string, PlannerNode[]>(); // date → nodes with time
 
     for (const day of days) {
-      const key = toDateString(day);
+      const key = localKey(day);
       floats.set(key, []);
       timed.set(key, []);
     }
 
     for (const n of nodes) {
       if (!n.planned_start_at) continue;
-      // Parse date-only strings as local time to avoid UTC offset shifting the calendar day
-      const hasTimeComponent = n.planned_start_at.includes('T');
-      const dt = hasTimeComponent
+      // Parse date-only strings as local midnight; ISO strings parse as-is
+      const dt = n.planned_start_at.includes('T')
         ? new Date(n.planned_start_at)
         : new Date(n.planned_start_at + 'T00:00:00');
-      const key = toDateString(dt);
+      const key = localKey(dt); // local date — avoids UTC offset shifting the day
       if (!floats.has(key)) continue;
 
       // Events always go to the timed grid (blocks); tasks without time go to float tray
-      if (n.node_type === 'event' || hasTimeComponent) {
+      if (n.node_type === 'event' || n.planned_start_at.includes('T')) {
         timed.get(key)!.push(n);
       } else {
         floats.get(key)!.push(n);
@@ -182,15 +185,15 @@ export default function CalendarView() {
   }, [nodes, days]);
 
   // Current time position
-  const nowDayKey = toDateString(now);
-  const nowTopPx  = pixelFromDatetime(now, days.find(d => toDateString(d) === nowDayKey) ?? now);
+  const nowDayKey = localKey(now);
+  const nowTopPx  = pixelFromDatetime(now, days.find(d => localKey(d) === nowDayKey) ?? now);
 
-  const isCurrentWeek = days.some(d => toDateString(d) === nowDayKey);
+  const isCurrentWeek = days.some(d => localKey(d) === nowDayKey);
 
   const handleEmptyCellClick = useCallback((day: Date, hourDecimal: number) => {
     const dt = new Date(day);
     dt.setHours(Math.floor(hourDecimal), (hourDecimal % 1) * 60, 0, 0);
-    const isoStr = `${toDateString(dt)}T${String(Math.floor(hourDecimal)).padStart(2, '0')}:${String((hourDecimal % 1) * 60).padStart(2, '0')}:00`;
+    const isoStr = `${localKey(dt)}T${String(Math.floor(hourDecimal)).padStart(2, '0')}:${String(Math.round((hourDecimal % 1) * 60)).padStart(2, '0')}:00`;
     openTaskForm({ planned_start_at: isoStr, node_type: 'event' });
   }, [openTaskForm]);
 
@@ -218,7 +221,7 @@ export default function CalendarView() {
       <div style={{ display: 'flex', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.1)', background: '#000' }}>
         <div style={{ width: LABEL_W, minWidth: LABEL_W, flexShrink: 0 }} />
         {days.map(day => {
-          const key = toDateString(day);
+          const key = localKey(day);
           const isToday = key === nowDayKey;
           return (
             <div
@@ -247,7 +250,7 @@ export default function CalendarView() {
           <span style={{ fontSize: '0.55rem', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase' }}>float</span>
         </div>
         {days.map(day => {
-          const key = toDateString(day);
+          const key = localKey(day);
           const floatNodes = buckets.floats.get(key) ?? [];
           return (
             <div key={key} style={{ flex: 1, minWidth: COL_MIN_W, borderLeft: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, padding: '4px 6px' }}>
@@ -276,7 +279,7 @@ export default function CalendarView() {
 
           {/* Day columns */}
           {days.map(day => {
-            const key = toDateString(day);
+            const key = localKey(day);
             const isToday = key === nowDayKey;
             const timedNodes = buckets.timed.get(key) ?? [];
 

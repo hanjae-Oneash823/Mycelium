@@ -49,7 +49,7 @@ function LegendCell({ color, label, active }: { color: string; label: string; ac
       }}
     >
       <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, opacity: active ? 1 : 0.35, flexShrink: 0 }} />
-      <span style={{ fontFamily: "'VT323UI', 'IBM Plex Sans KR', monospace", fontSize: 10, letterSpacing: 1, color: active ? color : 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
+      <span style={{ fontFamily: "'VT323UI', 'HBIOS-SYS', monospace", fontSize: 10, letterSpacing: 1, color: active ? color : 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>
         {label}
       </span>
     </div>

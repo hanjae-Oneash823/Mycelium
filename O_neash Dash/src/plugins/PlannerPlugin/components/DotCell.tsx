@@ -8,9 +8,12 @@ interface DotCellProps {
   nodeDate: string | 'overdue';
   rowId: string;
   nodes: PlannerNode[];
+  dotScale?: number;
+  arcId?: string;
+  projectId?: string;
 }
 
-export default function DotCell({ nodeDate, rowId, nodes }: DotCellProps) {
+export default function DotCell({ nodeDate, rowId, nodes, dotScale = 1, arcId, projectId }: DotCellProps) {
   const { isOver, setNodeRef } = useDroppable({ id: `cell-${rowId}-${nodeDate}` });
   const { completeNode, deleteNode } = usePlannerStore();
   const { openTaskForm, openTaskFormEdit } = useViewStore();
@@ -18,6 +21,8 @@ export default function DotCell({ nodeDate, rowId, nodes }: DotCellProps) {
   const handleDoubleClick = () => {
     const defaults: Partial<CreateNodeData> = {};
     if (nodeDate !== 'overdue') defaults.planned_start_at = nodeDate;
+    if (arcId)     defaults.arc_id     = arcId;
+    if (projectId) defaults.project_id = projectId;
     openTaskForm(defaults);
   };
 
@@ -26,21 +31,28 @@ export default function DotCell({ nodeDate, rowId, nodes }: DotCellProps) {
       ref={setNodeRef}
       onDoubleClick={handleDoubleClick}
       style={{
-        minHeight: 48,
-        padding: '6px 4px',
+        width: '100%',
+        height: '100%',
+        padding: '4px 6px',
         display: 'flex',
         flexWrap: 'wrap',
         gap: 5,
-        alignContent: 'flex-start',
+        alignItems: 'center',
+        alignContent: 'center',
+        justifyContent: 'center',
         border: isOver ? '1px solid var(--teal)' : '1px solid transparent',
         transition: 'border-color 0.15s ease',
         cursor: 'default',
+        position: 'relative',
+        zIndex: 1,
+        boxSizing: 'border-box',
       }}
     >
       {nodes.map(node => (
         <DotNode
           key={node.id}
           node={node}
+          scale={dotScale}
           onComplete={() => completeNode(node.id)}
           onDelete={() => deleteNode(node.id)}
           onEdit={() => openTaskFormEdit(node)}
