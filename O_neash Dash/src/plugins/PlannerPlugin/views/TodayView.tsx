@@ -1,40 +1,50 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { CheckboxOn, PenSquare, SkullSharp, Frown, HumanArmsUp, ArrowBarUp, ChevronDown, Tea, Analytics, Forward, Undo } from 'pixelarticons/react';
+import { CheckboxOn, PenSquare, SkullSharp, Frown, HumanArmsUp, ArrowBarUp, ChevronDown, Tea, Forward, Undo, SpeedSlow, PartyPopper, Loader } from 'pixelarticons/react';
 import { getDotColor } from '../types';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useViewStore } from '../store/useViewStore';
-import { scoreSuggestion, isSameDay, toDateString, formatEffortLabel } from '../lib/logicEngine';
+import { scoreSuggestion, isSameDay, toDateString, formatEffortLabel, computePressureScore, type PressureResult } from '../lib/logicEngine';
 import {
-  loadTodayDoneSummary, loadSevenDayCompletions, loadArcNodeCounts, loadTodayCompletedNodes,
-  type TodayDoneSummary, type DayCompletion, type ArcNodeCount,
+  loadTodayDoneSummary, loadArcNodeCounts, loadTodayCompletedNodes,
+  type TodayDoneSummary, type ArcNodeCount,
 } from '../lib/plannerDb';
 import DotNode from '../components/DotNode';
 import type { PlannerNode } from '../types';
 
 const SUGGESTION_LIMIT = 3;
 
-const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
 export default function TodayView() {
-  const { nodes, capacity, completeNode, uncompleteNode, deleteNode, rescheduleNode } = usePlannerStore();
+  const { nodes, capacity, completeNode, uncompleteNode, deleteNode, rescheduleNode, loadAll } = usePlannerStore();
   const { openTaskForm, openTaskFormEdit } = useViewStore();
   const [now, setNow]                     = useState(() => new Date());
   const [overdueCollapsed, setOverdueCollapsed] = useState(false);
   const [doneSummary, setDoneSummary]     = useState<TodayDoneSummary>({ count: 0, effortMinutes: 0 });
-  const [sevenDay, setSevenDay]           = useState<DayCompletion[]>([]);
   const [todayDone, setTodayDone]         = useState<import('../types').PlannerNode[]>([]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    let lastDate = toDateString(new Date());
+    const id = setInterval(() => {
+      const next = new Date();
+      setNow(next);
+      const nextDate = toDateString(next);
+      if (nextDate !== lastDate) {
+        lastDate = nextDate;
+        loadAll(); // rehydrate nodes so is_overdue/is_missed_schedule recompute with new date
+      }
+    }, 60_000);
     return () => clearInterval(id);
   }, []);
 
   // Reload analytics whenever nodes change (completions trigger store refresh)
   useEffect(() => {
     loadTodayDoneSummary().then(setDoneSummary).catch(() => {});
-    loadSevenDayCompletions().then(setSevenDay).catch(() => {});
     loadTodayCompletedNodes().then(setTodayDone).catch(() => {});
   }, [nodes]);
+
+  const pressure = useMemo(
+    () => computePressureScore(nodes, capacity?.daily_minutes ?? 480, now),
+    [nodes, capacity, now],
+  );
 
   const today    = toDateString(now);
   const tomorrow = toDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
@@ -48,7 +58,6 @@ export default function TodayView() {
 
   const todayNodes = useMemo(() =>
     nodes.filter(n =>
-      n.node_type !== 'event' &&
       !n.is_overdue && !n.is_missed_schedule && !n.is_completed &&
       (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now)),
     ),
@@ -218,7 +227,7 @@ export default function TodayView() {
         }}>
           <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
           <OngoingArcsPanel />
-          <SevenDayPanel data={sevenDay} now={now} />
+          <PressureGaugePanel pressure={pressure} />
         </div>
 
       </div>
@@ -272,6 +281,15 @@ function MiniCard({ node, now, onComplete, onDelete, onEdit, badge, primaryActio
 
   const arc  = node.arc_id     ? arcs.find(a => a.id === node.arc_id)         : null;
   const proj = node.project_id ? projects.find(p => p.id === node.project_id) : null;
+  const isEvent    = node.node_type === 'event';
+  const eventStart = isEvent && node.planned_start_at && node.planned_start_at.length > 10
+    ? node.planned_start_at.slice(11, 16) : null;
+  const eventEnd   = (() => {
+    if (!eventStart || !(node.estimated_duration_minutes ?? 0)) return null;
+    const [hStr, mStr] = eventStart.split(':');
+    const totalMins = Number(hStr) * 60 + Number(mStr) + node.estimated_duration_minutes!;
+    return `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+  })();
 
   return (
     <div
@@ -286,22 +304,43 @@ function MiniCard({ node, now, onComplete, onDelete, onEdit, badge, primaryActio
         transition: 'background 0.12s, border-color 0.12s',
       }}
     >
+      {/* Event header */}
+      {isEvent && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+          <span style={{
+            fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.72rem',
+            letterSpacing: '3px', color: 'rgba(192,132,252,0.75)',
+            border: '1px solid rgba(192,132,252,0.3)', padding: '0.02rem 0.4rem',
+            lineHeight: 1.4,
+          }}>EVENT</span>
+          <span style={{
+            fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.95rem',
+            letterSpacing: '2px', color: 'rgba(255,255,255,0.35)',
+          }}>
+            {eventStart ? `${eventStart}${eventEnd ? ` → ${eventEnd}` : ''}` : 'all day'}
+          </span>
+        </div>
+      )}
+
       {/* Title + badge */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
         <span style={{
           fontSize: '1.35rem', lineHeight: 1.15, letterSpacing: '0.5px',
-          color: 'rgba(255,255,255,0.8)', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+          color: isEvent ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+          fontFamily: "'VT323', 'HBIOS-SYS', monospace",
           wordBreak: 'break-word', flex: 1,
         }}>
           {node.title}
         </span>
-        <span style={{
-          fontSize: '0.95rem', letterSpacing: '1px', flexShrink: 0,
-          color: `${badge.color}88`, fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-          paddingTop: '0.1rem',
-        }}>
-          {badge.label}
-        </span>
+        {!isEvent && (
+          <span style={{
+            fontSize: '0.95rem', letterSpacing: '1px', flexShrink: 0,
+            color: `${badge.color}88`, fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            paddingTop: '0.1rem',
+          }}>
+            {badge.label}
+          </span>
+        )}
       </div>
 
       {/* Arc / project */}
@@ -398,11 +437,18 @@ function TaskCard({ node, now, onComplete, onUncomplete, onDelete, onEdit, resch
 
   const arc      = node.arc_id     ? arcs.find(a => a.id === node.arc_id)         : null;
   const proj     = node.project_id ? projects.find(p => p.id === node.project_id) : null;
-  const isEvent  = node.node_type === 'event';
-  const eventTime = isEvent && node.planned_start_at?.includes('T')
+  const isEvent   = node.node_type === 'event';
+  // Extract HH:MM — handles both ISO 'T' and SQLite space separator
+  const eventStart = isEvent && node.planned_start_at && node.planned_start_at.length > 10
     ? node.planned_start_at.slice(11, 16) : null;
-  const typeLabel = isEvent ? 'event' : node.due_at ? 'assign' : 'task';
-  const typeLabelColor = isEvent ? 'rgba(192,132,252,0.4)' : node.due_at ? 'rgba(245,166,35,0.4)' : 'rgba(0,196,167,0.4)';
+  const eventEnd = (() => {
+    if (!eventStart || !(node.estimated_duration_minutes ?? 0)) return null;
+    const [hStr, mStr] = eventStart.split(':');
+    const totalMins = Number(hStr) * 60 + Number(mStr) + node.estimated_duration_minutes!;
+    return `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+  })();
+  const typeLabel = node.due_at ? 'assign' : 'task';
+  const typeLabelColor = node.due_at ? 'rgba(245,166,35,0.4)' : 'rgba(0,196,167,0.4)';
 
   const effortLabel = formatEffortLabel(node.estimated_duration_minutes);
   const namedGroups = (node.groups ?? []).filter(g => !g.is_ungrouped);
@@ -448,29 +494,41 @@ function TaskCard({ node, now, onComplete, onUncomplete, onDelete, onEdit, resch
         filter: isDone ? 'grayscale(1)' : 'none',
       }}>
         {/* ── Top bar ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <DotNode node={node} scale={1.6} noPopups onComplete={onComplete} onDelete={onDelete} onEdit={onEdit} />
+        {isEvent ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <span style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.8rem',
-              letterSpacing: '2px', textTransform: 'uppercase', color: typeLabelColor,
-            }}>{typeLabel}</span>
-            {eventTime && (
-              <span style={{ fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.35)', fontFamily: "'VT323', 'HBIOS-SYS', monospace" }}>
-                {eventTime}
-              </span>
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.78rem',
+              letterSpacing: '3px', color: 'rgba(192,132,252,0.75)',
+              border: '1px solid rgba(192,132,252,0.3)', padding: '0.05rem 0.45rem',
+              lineHeight: 1.4,
+            }}>EVENT</span>
+            <span style={{
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.1rem',
+              letterSpacing: '2px', color: 'rgba(255,255,255,0.4)',
+            }}>
+              {eventStart ? `${eventStart}${eventEnd ? ` → ${eventEnd}` : ''}` : 'all day'}
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <DotNode node={node} scale={1.6} noPopups onComplete={onComplete} onDelete={onDelete} onEdit={onEdit} />
+              <span style={{
+                fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.8rem',
+                letterSpacing: '2px', textTransform: 'uppercase', color: typeLabelColor,
+              }}>{typeLabel}</span>
+            </div>
+            {dueBadge && (
+              <div style={{
+                border: `1px solid ${dueBadge.color}55`, color: `${dueBadge.color}99`,
+                padding: '0.1rem 0.45rem', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                fontSize: '1.15rem', letterSpacing: '1.5px', lineHeight: 1.3,
+              }}>
+                {dueBadge.label}
+              </div>
             )}
           </div>
-          {dueBadge && (
-            <div style={{
-              border: `1px solid ${dueBadge.color}55`, color: `${dueBadge.color}99`,
-              padding: '0.1rem 0.45rem', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              fontSize: '1.15rem', letterSpacing: '1.5px', lineHeight: 1.3,
-            }}>
-              {dueBadge.label}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ── Title ── */}
         <div style={{
@@ -523,7 +581,7 @@ function TaskCard({ node, now, onComplete, onUncomplete, onDelete, onEdit, resch
         opacity: hovered ? 1 : 0, transition: 'opacity 0.15s',
         pointerEvents: hovered ? 'auto' : 'none',
       }}>
-        {!isDone && rescheduleTomorrow && (
+        {!isDone && rescheduleTomorrow && !isEvent && (
           <button onClick={rescheduleTomorrow} style={{
             background: 'transparent', border: '1px solid rgba(255,255,255,0.18)',
             color: 'rgba(255,255,255,0.45)', padding: '0.1rem 0.5rem',
@@ -598,6 +656,45 @@ function TodayEffortPanel({ todayNodes, doneSummary }: {
   const fmtMins = (m: number) => m < 60 ? `${m}m` : `${(m / 60).toFixed(1)}h`;
 
   const pct = scheduledMins > 0 ? Math.round((doneMins / scheduledMins) * 100) : 0;
+
+  const noTasks  = totalCount === 0;
+  const allDone  = totalCount > 0 && todayNodes.length === 0 && doneSummary.count > 0;
+
+  if (noTasks) return (
+    <SidebarPanel title="today's effort" icon={Tea}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.25rem 0 0.25rem 1.5rem' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#00c4a7' }}>
+          <Loader size={16} />
+          <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.15rem', letterSpacing: '2px', lineHeight: 1.3 }}>
+            nothing scheduled.
+          </span>
+        </span>
+        <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.4 }}>
+          a rare 여유로운 day.<br />
+          enjoy it — or get ahead<br />
+          on what's coming.
+        </span>
+      </div>
+    </SidebarPanel>
+  );
+
+  if (allDone) return (
+    <SidebarPanel title="today's effort" icon={Tea}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.25rem 0 0.25rem 1.5rem' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#4ade80' }}>
+          <PartyPopper size={16} />
+          <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.15rem', letterSpacing: '2px', lineHeight: 1.3, textShadow: '0 0 14px #4ade8055' }}>
+            all done.
+          </span>
+        </span>
+        <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.3)', lineHeight: 1.4 }}>
+          go crack open a beer,<br />
+          put on netflix, and<br />
+          do absolutely nothing.
+        </span>
+      </div>
+    </SidebarPanel>
+  );
 
   return (
     <SidebarPanel title="today's effort" icon={Tea}>
@@ -728,40 +825,241 @@ function OngoingArcsPanel() {
   );
 }
 
-// Panel 3 — 7-Day Completion
-function SevenDayPanel({ data, now }: { data: DayCompletion[]; now: Date }) {
-  const counts = data.map(d => d.count);
-  const total  = counts.reduce((s, c) => s + c, 0);
-  const avg    = total / 7;
-  const max    = Math.max(...counts, 1);
-  const todayStr = toDateString(now);
+// Panel 3 — Pressure Gauge
+const PRESSURE_LEVELS = [
+  { key: 'safe',     label: 'SAFE',     color: '#4ade80', min: 0,  max: 25  },
+  { key: 'loaded',   label: 'LOADED',   color: '#f5c842', min: 26, max: 50  },
+  { key: 'heavy',    label: 'HEAVY',    color: '#ff6b35', min: 51, max: 75  },
+  { key: 'critical', label: 'CRITICAL', shortLabel: 'CRIT.', color: '#ff3b3b', min: 76, max: 100 },
+] as const;
 
-  const barColor = (entry: DayCompletion): string => {
-    if (entry.date === todayStr) return 'rgba(255,255,255,0.2)';
-    if (entry.count === 0)       return 'rgba(255,255,255,0.08)';
-    if (entry.count >= avg)      return '#4ade80';
-    if (entry.count >= avg * 0.6) return '#f5c842';
-    return '#ff6b35';
-  };
+function PressureSummaryPopup({ pressure, onClose }: { pressure: PressureResult; onClose: () => void }) {
+  const { score, level, breakdown } = pressure;
+  const levelData = PRESSURE_LEVELS.find(l => l.key === level)!;
+  const { todayScore, overdueScore, horizonScore, todayItems, overdueItems, horizonItems,
+          todayMins, capacityMins, effortBonus } = breakdown;
+
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const dim  = 'rgba(255,255,255,0.35)';
+  const mid  = 'rgba(255,255,255,0.6)';
+  const trunc = (s: string) => s.length > 24 ? s.slice(0, 23) + '…' : s;
+  const fmtPts = (n: number) => `+${Math.round(n * 10) / 10}`;
+  const urgColor: Record<number, string> = { 0: '#c084fc', 1: '#00c4a7', 2: '#64c8ff', 3: '#ff6b35', 4: '#ff3b3b' };
+
+  const Row = ({ left, right, color = mid }: { left: string; right?: string; color?: string }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', color, ...mono, fontSize: '1.05rem', letterSpacing: '1px' }}>
+      <span>{left}</span>
+      {right && <span style={{ color: 'rgba(255,255,255,0.85)', flexShrink: 0 }}>{right}</span>}
+    </div>
+  );
+  const Divider = () => (
+    <div style={{ color: dim, ...mono, fontSize: '1rem', letterSpacing: '1px' }}>
+      {'─'.repeat(36)}
+    </div>
+  );
+  const SectionHead = ({ label, sub, score: s, cap }: { label: string; sub?: string; score: number; cap: number }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', ...mono }}>
+      <span style={{ fontSize: '1.15rem', letterSpacing: '3px', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase' }}>
+        {label}{sub && <span style={{ fontSize: '0.9rem', color: dim, marginLeft: '0.4rem' }}>{sub}</span>}
+      </span>
+      <span style={{ fontSize: '1rem', color: dim, letterSpacing: '1px' }}>
+        [ <span style={{ color: levelData.color }}>{Math.round(s)}</span> / {cap} ]
+      </span>
+    </div>
+  );
 
   return (
-    <SidebarPanel title="7-day completion" icon={Analytics}>
-      <div style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.95rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.35)', marginBottom: '0.75rem' }}>
-        avg {avg.toFixed(1)} tasks/day
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 950, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.14)',
+          padding: '1.5rem 1.75rem', width: 420, maxHeight: '75vh', overflowY: 'auto',
+          display: 'flex', flexDirection: 'column', gap: '0.6rem',
+        }}
+      >
+        {/* Header */}
+        <div style={{ ...mono, fontSize: '1.3rem', letterSpacing: '4px', color: levelData.color, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+          pressure breakdown
+        </div>
+        <Divider />
+
+        {/* TODAY */}
+        <SectionHead label="today" score={todayScore} cap={45} />
+        {todayItems.length === 0
+          ? <Row left="  (none scheduled today)" color={dim} />
+          : todayItems.map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: '1.05rem', letterSpacing: '1px' }}>
+                <span style={{ color: mid }}>{'> '}<span style={{ color: urgColor[item.urgencyLevel] }}>L{item.urgencyLevel}</span>{' '}{trunc(item.title)}</span>
+                <span style={{ color: 'rgba(255,255,255,0.85)', flexShrink: 0 }}>{fmtPts(item.urgPts)}</span>
+              </div>
+            ))
+        }
+        {effortBonus > 0 && (
+          <Row
+            left={`  effort  ${(todayMins/60).toFixed(1)}h / ${(capacityMins/60).toFixed(0)}h`}
+            right={fmtPts(effortBonus)}
+            color={dim}
+          />
+        )}
+
+        {/* OVERDUE */}
+        <div style={{ marginTop: '0.4rem' }} />
+        <SectionHead label="overdue" score={overdueScore} cap={25} />
+        {overdueItems.length === 0
+          ? <Row left="  (no overdue tasks)" color={dim} />
+          : overdueItems.map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: '1.05rem', letterSpacing: '1px' }}>
+                <span style={{ color: mid }}>{'> '}<span style={{ color: urgColor[item.urgencyLevel] }}>L{item.urgencyLevel}</span>{' '}{trunc(item.title)}<span style={{ color: dim }}> · {Math.round(item.daysAgo * 10) / 10}d ago</span></span>
+                <span style={{ color: 'rgba(255,255,255,0.85)', flexShrink: 0 }}>{fmtPts(item.pts)}</span>
+              </div>
+            ))
+        }
+
+        {/* HORIZON */}
+        <div style={{ marginTop: '0.4rem' }} />
+        <SectionHead label="horizon" sub="(next 7d)" score={horizonScore} cap={30} />
+        {horizonItems.length === 0
+          ? <Row left="  (nothing in the next 7d)" color={dim} />
+          : horizonItems.map((item, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: '1.05rem', letterSpacing: '1px' }}>
+                <span style={{ color: mid }}>{'> '}<span style={{ color: urgColor[item.urgencyLevel] }}>L{item.urgencyLevel}</span>{' '}{trunc(item.title)}<span style={{ color: dim }}> · in {Math.round(item.daysAway * 10) / 10}d</span></span>
+                <span style={{ color: 'rgba(255,255,255,0.85)', flexShrink: 0 }}>{fmtPts(item.pts)}</span>
+              </div>
+            ))
+        }
+
+        {/* Total */}
+        <div style={{ marginTop: '0.4rem' }} />
+        <Divider />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', ...mono }}>
+          <span style={{ fontSize: '1.2rem', letterSpacing: '3px', color: 'rgba(255,255,255,0.55)' }}>TOTAL</span>
+          <span style={{ fontSize: '1.4rem', letterSpacing: '2px', color: levelData.color }}>
+            {score} pts · [ {levelData.label} ]
+          </span>
+        </div>
+
+        {/* Close */}
+        <div style={{ marginTop: '0.5rem', textAlign: 'right' }}>
+          <span
+            onClick={onClose}
+            style={{ ...mono, fontSize: '1.05rem', letterSpacing: '2px', color: dim, cursor: 'pointer' }}
+          >
+            [ close ]
+          </span>
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80 }}>
-        {data.map((entry, i) => {
-          const h = max > 0 ? Math.max(4, Math.round((entry.count / max) * 68)) : 4;
-          return (
-            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ width: '100%', height: h, background: barColor(entry) }} />
-              <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', lineHeight: 1 }}>
-                {DAY_LETTERS[new Date(entry.date + 'T12:00:00').getDay()]}
-              </span>
-            </div>
-          );
-        })}
+    </div>
+  );
+}
+
+function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
+  const { score, level } = pressure;
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryHovered, setSummaryHovered] = useState(false);
+  const levelData = PRESSURE_LEVELS.find(l => l.key === level)!;
+
+  // SVG geometry — cx=80, cy=90 matches .gauge-needle CSS transform-origin
+  const W = 160, H = 90;
+  const cx = 80, cy = 90;
+  const r = 55, labelR = 65, needleLen = r - 6;
+
+  const toRad = (d: number) => d * Math.PI / 180;
+  const px = (radius: number, d: number) => cx + radius * Math.cos(toRad(d));
+  const py = (radius: number, d: number) => cy - radius * Math.sin(toRad(d));
+
+  const wedge = (s: number, e: number) =>
+    `M ${cx} ${cy} L ${px(r, s)} ${py(r, s)} A ${r} ${r} 0 0 1 ${px(r, e)} ${py(r, e)} Z`;
+
+  const segments = [
+    { startDeg: 179, endDeg: 137, midDeg: 158, anchor: 'end',   ...PRESSURE_LEVELS[0] },
+    { startDeg: 134, endDeg: 92,  midDeg: 113, anchor: 'end',   ...PRESSURE_LEVELS[1] },
+    { startDeg: 89,  endDeg: 47,  midDeg: 68,  anchor: 'start', ...PRESSURE_LEVELS[2] },
+    { startDeg: 44,  endDeg: 1,   midDeg: 23,  anchor: 'start', ...PRESSURE_LEVELS[3] },
+  ];
+
+  const needleAngle = 180 - (score / 100) * 180;
+  const needleRad   = toRad(needleAngle);
+  const nx = cx + needleLen * Math.cos(needleRad);
+  const ny = cy - needleLen * Math.sin(needleRad);
+
+  return (
+    <SidebarPanel title="pressure gauge" icon={SpeedSlow}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '44px' }}>
+
+        {/* Gauge SVG */}
+        <svg width={W} height={H} style={{ display: 'block', overflow: 'visible', flexShrink: 0 }}>
+          {segments.map(seg => (
+            <path
+              key={seg.key}
+              d={wedge(seg.startDeg, seg.endDeg)}
+              fill={seg.key === level ? seg.color : seg.color + '22'}
+            />
+          ))}
+          {segments.map(seg => (
+            <text
+              key={`lbl-${seg.key}`}
+              x={px(labelR, seg.midDeg)}
+              y={py(labelR, seg.midDeg) + 4}
+              textAnchor={seg.anchor}
+              fill={seg.key === level ? seg.color : 'rgba(255,255,255,0.2)'}
+              fontSize={16}
+              letterSpacing={1}
+              fontFamily="'VT323', 'HBIOS-SYS', monospace"
+            >
+              {'shortLabel' in seg ? seg.shortLabel : seg.label}
+            </text>
+          ))}
+          <line
+            x1={cx} y1={cy} x2={nx} y2={ny}
+            stroke="#fff" strokeWidth={1.5} strokeOpacity={0.9}
+            strokeLinecap="square"
+            className={`gauge-needle gauge-needle-${level}`}
+          />
+          <circle cx={cx} cy={cy} r={3} fill="#fff" opacity={0.45} />
+        </svg>
+
+        {/* Score + level box + summary */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem', flexShrink: 0 }}>
+          <div style={{
+            border: '0.7px solid rgba(255,255,255,0.35)',
+            padding: '0.35rem 0.65rem',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: '0.05rem',
+          }}>
+            <span style={{
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: '1.8rem', letterSpacing: '1px',
+              color: levelData.color, lineHeight: 1,
+              filter: `drop-shadow(0 0 6px ${levelData.color}88)`,
+            }}>{score}<span style={{ fontSize: '0.9rem', marginLeft: '2px' }}>pts.</span></span>
+            <span style={{
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: '0.85rem', letterSpacing: '2px',
+              color: levelData.color, opacity: 0.8, lineHeight: 1,
+            }}>[ {levelData.label} ]</span>
+          </div>
+          <span
+            onClick={() => setSummaryOpen(true)}
+            onMouseEnter={() => setSummaryHovered(true)}
+            onMouseLeave={() => setSummaryHovered(false)}
+            style={{
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: '0.9rem', letterSpacing: '2px',
+              color: summaryHovered ? levelData.color : 'rgba(255,255,255,0.3)',
+              cursor: 'pointer', transition: 'color 0.15s',
+            }}
+          >
+            [ summary ]
+          </span>
+        </div>
+
       </div>
+
+      {summaryOpen && <PressureSummaryPopup pressure={pressure} onClose={() => setSummaryOpen(false)} />}
     </SidebarPanel>
   );
 }

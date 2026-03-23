@@ -1,9 +1,19 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown } from 'pixelarticons/react';
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import type { DragStartEvent, DragEndEvent, Modifier } from '@dnd-kit/core';
+
+// Centers the DragOverlay on the cursor instead of anchoring to the element's top-left
+const snapToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform }) => {
+  if (!draggingNodeRect || !activatorEvent || !('clientX' in activatorEvent)) return transform;
+  const e = activatorEvent as MouseEvent;
+  return {
+    ...transform,
+    x: transform.x + (e.clientX - draggingNodeRect.left - draggingNodeRect.width  / 2),
+    y: transform.y + (e.clientY - draggingNodeRect.top  - draggingNodeRect.height / 2),
+  };
+};
 import { usePlannerStore } from '../store/usePlannerStore';
-import { useViewStore } from '../store/useViewStore';
 import { toDateString, isSameDay } from '../lib/logicEngine';
 import { getDensityRatio } from '../lib/densityCalc';
 import DotCell from '../components/DotCell';
@@ -45,8 +55,7 @@ interface ColDef {
 }
 
 export default function EisenhowerView() {
-  const { nodes, arcs, projects, capacity, rescheduleNode, wipePlannerData } = usePlannerStore();
-  const { openTaskForm } = useViewStore();
+  const { nodes, arcs, projects, capacity, rescheduleNode } = usePlannerStore();
   const now = new Date();
   const [activeDragNode, setActiveDragNode] = useState<PlannerNode | null>(null);
 
@@ -90,6 +99,7 @@ export default function EisenhowerView() {
     // Block dragging an assignment past its due date
     const node = nodes.find(n => n.id === (active.id as string));
     if (node?.due_at && dateStr > node.due_at.slice(0, 10)) return;
+    if (node?.planned_start_at?.slice(0, 10) === dateStr) return;
     rescheduleNode(active.id as string, dateStr);
   };
 
@@ -267,9 +277,9 @@ export default function EisenhowerView() {
                   style={{
                     width: LABEL_COL_W, minWidth: LABEL_COL_W, flexShrink: 0,
                     padding: `0 0.75rem 0 ${0.75 + row.indent * 1.0}rem`,
-                    fontSize: row.indent === 0 ? '1.5rem' : '1.15rem',
+                    fontSize: row.indent === 0 ? '1.25rem' : '1rem',
                     letterSpacing: row.indent === 0 ? '2px' : '1.5px',
-                    color: row.indent === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)',
+                    color: row.color,
                     display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem',
                     overflow: 'hidden', zIndex: 1, background: '#000',
                     cursor: isArcTogglable ? 'pointer' : 'default',
@@ -331,7 +341,7 @@ export default function EisenhowerView() {
               <div key={row.id}>
                 {/* Spacer between arc blocks */}
                 {idx > 0 && row.indent === 0 && (
-                  <div style={{ display: 'flex', height: 48 }}>
+                  <div style={{ display: 'flex', height: 20 }}>
                     <div style={{ width: LABEL_COL_W, minWidth: LABEL_COL_W, flexShrink: 0 }} />
                     {columns.map(col => (
                       <div key={col.key} style={{ flex: 1, minWidth: CELL_MIN_W }} />
@@ -358,44 +368,10 @@ export default function EisenhowerView() {
           </div>{/* end rows wrapper */}
         </div>
 
-        {/* Footer */}
-        <div style={{
-          padding: '0.6rem 1rem',
-          borderTop: '1px solid rgba(255,255,255,0.1)',
-          flexShrink: 0, display: 'flex', gap: '0.75rem', alignItems: 'center',
-        }}>
-          <button
-            onClick={() => openTaskForm()}
-            style={{
-              background: 'transparent', border: '1px solid rgba(255,255,255,0.22)',
-              color: 'rgba(255,255,255,0.6)', padding: '0.25rem 0.9rem',
-              fontSize: '1rem', letterSpacing: '2px', cursor: 'pointer',
-              fontFamily: "'VT323', monospace",
-            }}
-          >
-            + task
-          </button>
-          <span style={{ fontSize: '0.72rem', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.2)' }}>
-            double-click any cell to add with that date
-          </span>
-          <div style={{ marginLeft: 'auto' }}>
-            <button
-              onClick={wipePlannerData}
-              style={{
-                background: 'transparent', border: '1px solid rgba(255,59,59,0.25)',
-                color: 'rgba(255,59,59,0.45)', padding: '0.25rem 0.75rem',
-                fontSize: '0.85rem', letterSpacing: '2px', cursor: 'pointer',
-                fontFamily: "'VT323', monospace",
-              }}
-            >
-              wipe
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Drag ghost */}
-      <DragOverlay dropAnimation={null}>
+      <DragOverlay dropAnimation={null} modifiers={[snapToCursor]}>
         {activeDragNode && (
           <div
             className={`dot ${getDotAnimClass(activeDragNode)}`}

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeftBox, ArrowRightBox, CornerUpRight } from 'pixelarticons/react';
+import { ArrowLeftBox, ArrowRightBox, CornerUpRight, ChevronDown } from 'pixelarticons/react';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useViewStore } from '../store/useViewStore';
 import { buildArcPositions, detectCongestion, addMonths, windowLabel } from '../lib/arcBuilder';
@@ -11,7 +11,7 @@ const WINDOW_MONTHS = 4;
 const ROW_H = 100; // px per arc row
 const BAR_H = 26;
 const PROJ_BAR_H = 16;
-const LABEL_W = 190;
+const LABEL_W = 300;
 
 export default function ArcView() {
   const { nodes, arcs, projects, archiveArc, deleteArc, deleteProject } = usePlannerStore();
@@ -22,6 +22,13 @@ export default function ArcView() {
     d.setMonth(d.getMonth() - 1);
     d.setDate(1); d.setHours(0, 0, 0, 0);
     return d;
+  });
+  const [collapsedArcs, setCollapsedArcs] = useState<Set<string>>(() => new Set(arcs.map(a => a.id)));
+  const [todayHovered, setTodayHovered] = useState(false);
+  const toggleArc = (id: string) => setCollapsedArcs(s => {
+    const next = new Set(s);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
   });
   const [arcFormOpen, setArcFormOpen] = useState(false);
   const [editArc, setEditArc] = useState<Arc | null>(null);
@@ -82,7 +89,7 @@ export default function ArcView() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', fontFamily: "'VT323', monospace" }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
         {/* Left spacer */}
         <div style={{ flex: 1 }} />
         {/* Centered nav group */}
@@ -91,13 +98,15 @@ export default function ArcView() {
             onClick={() => setWindowStart(w => addMonths(w, -1))}
             style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
           ><ArrowLeftBox size={22} /></button>
-          <button
-            onClick={() => { const d = new Date(); d.setMonth(d.getMonth() - 1); d.setDate(1); d.setHours(0,0,0,0); setWindowStart(d); }}
-            style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', letterSpacing: '1.5px', padding: '3px 10px', cursor: 'pointer' }}
-          >TODAY</button>
-          <span style={{ fontSize: '1rem', letterSpacing: '2.5px', color: 'rgba(255,255,255,0.5)', padding: '0 0.5rem' }}>
+          <span style={{ fontSize: '1.5rem', letterSpacing: '3px', color: 'rgba(255,255,255,0.85)', padding: '0 0.15rem 0 0.5rem' }}>
             {windowLabel(windowStart, windowEnd)}
           </span>
+          <button
+            onClick={() => { const d = new Date(); d.setMonth(d.getMonth() - 1); d.setDate(1); d.setHours(0,0,0,0); setWindowStart(d); }}
+            onMouseEnter={() => setTodayHovered(true)}
+            onMouseLeave={() => setTodayHovered(false)}
+            style={{ background: 'transparent', border: 'none', color: todayHovered ? '#f5c842' : 'rgba(255,255,255,0.4)', fontSize: '0.9rem', letterSpacing: '1.5px', padding: '3px 6px', cursor: 'pointer', transition: 'color 0.15s', fontFamily: "'VT323', 'HBIOS-SYS', monospace" }}
+          >[ TODAY ]</button>
           <button
             onClick={() => setWindowStart(w => addMonths(w, 1))}
             style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
@@ -107,7 +116,7 @@ export default function ArcView() {
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={() => { setEditArc(null); setArcFormOpen(true); }}
-            style={{ background: 'transparent', border: '1px solid rgba(0,196,167,0.5)', color: '#00c4a7', fontSize: '1rem', letterSpacing: '2px', padding: '3px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            style={{ background: 'transparent', border: '1px solid rgba(245,200,66,0.5)', color: '#f5c842', fontSize: '1rem', letterSpacing: '2px', padding: '3px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           ><CornerUpRight size={16} /> new arc</button>
         </div>
       </div>
@@ -129,7 +138,7 @@ export default function ArcView() {
                 const d = addMonths(windowStart, i);
                 const pct = (d.getTime() - windowStart.getTime()) / (windowEnd.getTime() - windowStart.getTime()) * 100;
                 return (
-                  <div key={i} style={{ position: 'absolute', left: `${pct}%`, top: 0, bottom: 0, borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', paddingLeft: 6 }}>
+                  <div key={i} style={{ position: 'absolute', left: `${pct}%`, top: 0, bottom: 0, borderLeft: '1.5px solid rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', paddingLeft: 6 }}>
                     <span style={{ fontSize: '0.85rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>
                       {d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
                     </span>
@@ -142,20 +151,30 @@ export default function ArcView() {
 
             {/* Arc rows */}
             {arcPositions.map(ap => (
-              <div key={ap.arc.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', minHeight: ROW_H, display: 'flex' }}>
+              <div key={ap.arc.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', minHeight: collapsedArcs.has(ap.arc.id) ? 52 : ROW_H, display: 'flex' }}>
                 {/* Label col */}
-                <div style={{ width: LABEL_W, minWidth: LABEL_W, padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 4, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-                  <button
-                    onClick={() => goToFocusArc(ap.arc)}
-                    style={{ background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', padding: 0 }}
-                  >
-                    <span style={{ fontSize: '1.1rem', letterSpacing: '1px', color: ap.arc.color_hex, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 9, height: 9, borderRadius: '50%', backgroundColor: ap.arc.color_hex, display: 'inline-block', flexShrink: 0 }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ap.arc.name}</span>
-                    </span>
-                  </button>
-                  {/* All projects for this arc — including those with < 2 tasks (no bar) */}
-                  {projects.filter(p => p.arc_id === ap.arc.id).map(p => {
+                {(() => { const isCollapsed = collapsedArcs.has(ap.arc.id); return (
+                <div style={{ width: LABEL_W, minWidth: LABEL_W, padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 4, borderRight: '1.5px solid rgba(255,255,255,0.12)' }}>
+                  {/* Arc name row — right-aligned */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                    <button
+                      onClick={() => goToFocusArc(ap.arc)}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, flex: 1 }}
+                    >
+                      <span style={{ fontSize: '1.1rem', letterSpacing: '1px', color: ap.arc.color_hex, display: 'block', wordBreak: 'break-word', textAlign: 'right', lineHeight: 1.2 }}>
+                        {ap.arc.name}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => toggleArc(ap.arc.id)}
+                      style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: 0, flexShrink: 0, lineHeight: 1 }}
+                    >
+                      <ChevronDown size={12} style={{ display: 'block', transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.15s' }} />
+                    </button>
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', backgroundColor: ap.arc.color_hex, display: 'inline-block', flexShrink: 0 }} />
+                  </div>
+                  {/* Projects — only when not collapsed */}
+                  {!isCollapsed && projects.filter(p => p.arc_id === ap.arc.id).map(p => {
                     const hasBar = ap.projects.some(pp => pp.project.id === p.id);
                     const color = p.color_hex ?? ap.arc.color_hex;
                     return (
@@ -163,21 +182,24 @@ export default function ArcView() {
                         key={p.id}
                         onClick={() => goToFocusProject(p)}
                         onContextMenu={e => { e.preventDefault(); setProjContextMenu({ x: e.clientX, y: e.clientY, project: p, arcId: ap.arc.id }); }}
-                        style={{ background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', padding: '0 0 0 14px', display: 'flex', alignItems: 'center', gap: 5 }}
+                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}
                         title={hasBar ? p.name : `${p.name} (no timeline bar — needs 2+ tasks)`}
                       >
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0, opacity: hasBar ? 1 : 0.4 }} />
-                        <span style={{ fontSize: '0.85rem', letterSpacing: '1px', color: hasBar ? color : 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '0.85rem', letterSpacing: '1px', color: hasBar ? color : 'rgba(255,255,255,0.3)', wordBreak: 'break-word', textAlign: 'right', lineHeight: 1.2 }}>
                           {p.name}
                         </span>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0, opacity: hasBar ? 1 : 0.4 }} />
                       </button>
                     );
                   })}
-                  <button
-                    onClick={() => { setEditProject(null); setEditProjDefaultArcId(ap.arc.id); setProjFormOpen(true); }}
-                    style={{ background: 'transparent', border: 'none', fontSize: '0.85rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: 4 }}
-                  >＋ project</button>
+                  {!isCollapsed && (
+                    <button
+                      onClick={() => { setEditProject(null); setEditProjDefaultArcId(ap.arc.id); setProjFormOpen(true); }}
+                      style={{ background: 'transparent', border: 'none', fontSize: '0.85rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', textAlign: 'right', padding: 0, marginTop: 4, width: '100%' }}
+                    >＋ project</button>
+                  )}
                 </div>
+                ); })()}
 
                 {/* Timeline col */}
                 <div style={{ flex: 1, position: 'relative', padding: '8px 0' }}>
@@ -220,8 +242,8 @@ export default function ArcView() {
                     </span>
                   </div>
 
-                  {/* Project sub-bars */}
-                  {ap.projects.map((pp, pi) => {
+                  {/* Project sub-bars — hidden when collapsed */}
+                  {!collapsedArcs.has(ap.arc.id) && ap.projects.map((pp, pi) => {
                     const donePct = pp.taskCount > 0 ? pp.doneCount / pp.taskCount * 100 : 0;
                     return (
                       <div

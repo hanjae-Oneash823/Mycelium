@@ -143,6 +143,35 @@
   animation: effortParticle linear infinite;
 }
 
+/* Pressure gauge needle vibration */
+@keyframes needleVibrateSafe {
+  0%, 100% { transform: rotate(-0.4deg); }
+  50%       { transform: rotate(0.4deg); }
+}
+@keyframes needleVibrateLoaded {
+  0%, 100% { transform: rotate(-1deg); }
+  50%       { transform: rotate(1deg); }
+}
+@keyframes needleVibrateHeavy {
+  0%, 100% { transform: rotate(-2.2deg); }
+  50%       { transform: rotate(2.2deg); }
+}
+@keyframes needleVibrateCritical {
+  0%   { transform: rotate(-4deg); }
+  25%  { transform: rotate(3.5deg); }
+  50%  { transform: rotate(-3deg); }
+  75%  { transform: rotate(4deg); }
+  100% { transform: rotate(-4deg); }
+}
+.gauge-needle {
+  transform-box: view-box;
+  transform-origin: 80px 90px;
+}
+.gauge-needle-safe     { animation: needleVibrateSafe     0.55s ease-in-out infinite; }
+.gauge-needle-loaded   { animation: needleVibrateLoaded   0.38s ease-in-out infinite; }
+.gauge-needle-heavy    { animation: needleVibrateHeavy    0.22s ease-in-out infinite; }
+.gauge-needle-critical { animation: needleVibrateCritical 0.14s linear       infinite; }
+
 /* Hide scrollbar on today task column */
 .today-task-col::-webkit-scrollbar { display: none; }
 .today-task-col { scrollbar-width: none; }

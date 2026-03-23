@@ -78,6 +78,104 @@ export function scoreSuggestion(node: PlannerNode, today: Date): number {
   return Math.max(0, score);
 }
 
+// ─── Pressure score ───────────────────────────────────────────────────────────
+
+export type PressureLevel = 'safe' | 'loaded' | 'heavy' | 'critical';
+
+export interface PressureBreakdown {
+  todayScore:   number;
+  overdueScore: number;
+  horizonScore: number;
+  todayItems:   Array<{ title: string; urgencyLevel: ImportanceLevel; urgPts: number }>;
+  overdueItems: Array<{ title: string; urgencyLevel: ImportanceLevel; pts: number; daysAgo: number }>;
+  horizonItems: Array<{ title: string; urgencyLevel: ImportanceLevel; pts: number; daysAway: number }>;
+  todayMins:    number;
+  capacityMins: number;
+  effortBonus:  number;
+}
+
+export interface PressureResult {
+  score: number;
+  level: PressureLevel;
+  breakdown: PressureBreakdown;
+}
+
+export function computePressureScore(
+  nodes: PlannerNode[],
+  capacityMins: number,
+  now: Date,
+): PressureResult {
+  const urgencyPts: Record<ImportanceLevel, number> = { 0: 1, 1: 3, 2: 7, 3: 15, 4: 25 };
+
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  // ── 1. Today pressure (0–40) ──────────────────────────────────────────────
+  const todayIncomplete = nodes.filter(n =>
+    !n.is_completed && !n.is_overdue && !n.is_missed_schedule &&
+    (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now)),
+  );
+  const todayItems = todayIncomplete.map(n => ({
+    title: n.title, urgencyLevel: n.computed_urgency_level,
+    urgPts: urgencyPts[n.computed_urgency_level] ?? 1,
+  }));
+  let todayPts = todayItems.reduce((s, i) => s + i.urgPts, 0);
+  const todayMins = todayIncomplete.reduce((s, n) => s + (n.estimated_duration_minutes ?? 0), 0);
+  const ratio = capacityMins > 0 ? todayMins / capacityMins : 0;
+  const effortBonus = Math.max(0, Math.min(20, (ratio - 0.8) * 40));
+  todayPts += effortBonus;
+  const todayScore = Math.min(45, todayPts);
+
+  // ── 2. Overdue pressure (0–30) ────────────────────────────────────────────
+  const overdueNodes = nodes.filter(n => n.is_overdue || n.is_missed_schedule);
+  const overdueItems: PressureBreakdown['overdueItems'] = [];
+  let overduePts = 0;
+  for (const n of overdueNodes) {
+    const ref = n.due_at ?? n.planned_start_at;
+    const normalized = ref ? (ref.length === 10 ? ref + 'T12:00:00' : ref) : null;
+    const daysAgo = normalized
+      ? (now.getTime() - new Date(normalized).getTime()) / 86400000
+      : 1;
+    const pts = 3 + (urgencyPts[n.computed_urgency_level] ?? 1) + Math.min(daysAgo * 1.5, 8);
+    overduePts += pts;
+    overdueItems.push({ title: n.title, urgencyLevel: n.computed_urgency_level, pts, daysAgo });
+  }
+  const overdueScore = Math.min(25, overduePts);
+
+  // ── 3. Horizon pressure — next 7 days (0–30) ─────────────────────────────
+  const horizonItems: PressureBreakdown['horizonItems'] = [];
+  let horizonPts = 0;
+  const horizon = nodes.filter(n => !n.is_completed && !n.is_overdue && !n.is_missed_schedule);
+  for (const n of horizon) {
+    const ref = n.due_at ?? n.planned_start_at;
+    if (!ref) continue;
+    const normalized = ref.length === 10 ? ref + 'T12:00:00' : ref;
+    const daysAway = (new Date(normalized).getTime() - now.getTime()) / 86400000;
+    if (daysAway <= 0 || daysAway > 7) continue;
+    const proximity = daysAway <= 2 ? 0.4 : daysAway <= 4 ? 0.1 : 0.03;
+    const pts = (urgencyPts[n.computed_urgency_level] ?? 1) * proximity;
+    horizonPts += pts;
+    horizonItems.push({ title: n.title, urgencyLevel: n.computed_urgency_level, pts, daysAway });
+  }
+  const horizonScore = Math.min(30, horizonPts);
+
+  const score = Math.round(Math.min(100, todayScore + overdueScore + horizonScore));
+  const level: PressureLevel =
+    score >= 76 ? 'critical' :
+    score >= 51 ? 'heavy' :
+    score >= 26 ? 'loaded' : 'safe';
+
+  return {
+    score, level,
+    breakdown: {
+      todayScore, overdueScore, horizonScore,
+      todayItems, overdueItems,
+      horizonItems: [...horizonItems].sort((a, b) => a.daysAway - b.daysAway),
+      todayMins, capacityMins, effortBonus,
+    },
+  };
+}
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 export function isSameDay(dateStr: string | null | undefined, ref: Date): boolean {
   if (!dateStr) return false;

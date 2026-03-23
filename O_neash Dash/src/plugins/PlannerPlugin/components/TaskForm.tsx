@@ -275,6 +275,7 @@ export default function TaskForm() {
   const [effortSize, setEffortSize] = useState<string>("");
   const [eventDate, setEventDate] = useState<Date | null>(null);
   const [eventTime, setEventTime] = useState("");
+  const eventTimeInputRef = useRef<HTMLInputElement>(null);
   const [durationHours, setDurationHours] = useState<number>(0);
   const [arcId, setArcId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -521,9 +522,11 @@ export default function TaskForm() {
       if (isEvent && eventDate) {
         const p2 = (n: number) => String(n).padStart(2, "0");
         const ymd = `${eventDate.getFullYear()}-${p2(eventDate.getMonth() + 1)}-${p2(eventDate.getDate())}`;
-        if (eventTime) {
+        // Fall back to DOM value in case WebKit time-picker didn't fire onChange
+        const resolvedTime = eventTime || eventTimeInputRef.current?.value || "";
+        if (resolvedTime) {
           // Store as local ISO string (no Z) so the calendar positions it at the user's selected local time
-          const [h, m] = eventTime.split(":").map(Number);
+          const [h, m] = resolvedTime.split(":").map(Number);
           planStart = `${ymd}T${p2(h)}:${p2(m)}:00`;
         } else {
           // No time specified: store as date-only so the calendar defaults to 9am display
@@ -1443,11 +1446,17 @@ export default function TaskForm() {
                           <div>
                             <FieldLabel>TIME</FieldLabel>
                             <input
-                              type="time"
+                              ref={eventTimeInputRef}
+                              type="text"
+                              placeholder="HH:MM"
                               value={eventTime}
-                              onChange={(e) => setEventTime(e.target.value)}
+                              onChange={(e) => {
+                                // Auto-insert colon after 2 digits
+                                let v = e.target.value.replace(/[^0-9:]/g, '');
+                                if (v.length === 2 && !v.includes(':') && eventTime.length < 2) v = v + ':';
+                                setEventTime(v.slice(0, 5));
+                              }}
                               className="flex h-9 w-full bg-transparent border border-[rgba(255,255,255,0.2)] text-white font-mono text-sm px-3 focus:outline-none focus:border-[#c084fc]"
-                              style={{ colorScheme: "dark" }}
                             />
                           </div>
                         </div>

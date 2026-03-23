@@ -29,40 +29,38 @@ async function hydrateRows(rows: PlannerNode[]): Promise<PlannerNode[]> {
     row.is_recovery  = Boolean(row.is_recovery);
     row.is_pinned    = Boolean(row.is_pinned);
 
-    // ── Event auto-complete ───────────────────────────────────────────────────
-    // If event end time (start + duration) has passed, mark completed in DB
-    if (row.node_type === 'event' && !row.is_completed && row.planned_start_at?.includes('T')) {
-      const startMs   = new Date(row.planned_start_at).getTime();
-      const durationMs = (row.estimated_duration_minutes ?? 0) * 60_000;
-      if (startMs + durationMs < now.getTime()) {
-        await db.execute(
-          `UPDATE nodes SET is_completed = 1, actual_completed_at = ? WHERE id = ?`,
-          [now.toISOString(), row.id],
-        );
-        row.is_completed = true;
-      }
-    }
-
     // ── Compute is_overdue fresh from due_at — don't trust stale DB column ───
+    // Use toDateString(new Date(...)) to extract LOCAL date — avoids UTC-shift bugs
+    // where a datetime like '2026-03-21T15:00:00Z' (= midnight KST March 22) would
+    // slice to '2026-03-21' and be treated as yesterday.
+    const dueDateStr = row.due_at
+      ? (row.due_at.length === 10 ? row.due_at : toDateString(new Date(row.due_at)))
+      : null;
     row.is_overdue =
-      !row.is_completed && !!row.due_at &&
-      new Date(row.due_at.slice(0, 10) + 'T23:59:59') < now;
+      !row.is_completed && !!row.due_at && !!dueDateStr && dueDateStr < todayStr;
 
     // ── WTDI auto-advance for assignments ────────────────────────────────────
     // If assignment's planned date has passed but it's not yet overdue, push to today
     if (!row.is_completed && !row.is_overdue && row.due_at && row.planned_start_at) {
-      const wtdi = new Date(row.planned_start_at.slice(0, 10) + 'T00:00:00');
-      if (wtdi < today) {
-        await db.execute(`UPDATE nodes SET planned_start_at = ? WHERE id = ?`, [todayStr, row.id]);
-        row.planned_start_at = todayStr;
+      const wtdiStr = row.planned_start_at.length === 10
+        ? row.planned_start_at
+        : toDateString(new Date(row.planned_start_at));
+      if (wtdiStr < todayStr) {
+        // Preserve any time suffix (e.g. "T12:30:00") when advancing the date
+        const timeSuffix = row.planned_start_at.length > 10 ? row.planned_start_at.slice(10) : '';
+        const newPlannedAt = todayStr + timeSuffix;
+        await db.execute(`UPDATE nodes SET planned_start_at = ? WHERE id = ?`, [newPlannedAt, row.id]);
+        row.planned_start_at = newPlannedAt;
       }
     }
 
     // ── Missed schedule: flexible task whose planned date has passed ──────────
+    const plannedDateStr = row.planned_start_at
+      ? (row.planned_start_at.length === 10 ? row.planned_start_at : toDateString(new Date(row.planned_start_at)))
+      : null;
     row.is_missed_schedule =
       !row.is_completed && !row.is_overdue && !row.due_at &&
-      !!row.planned_start_at &&
-      new Date(row.planned_start_at.slice(0, 10) + 'T23:59:59') < now;
+      !!row.planned_start_at && !!plannedDateStr && plannedDateStr < todayStr;
 
     // ── Recompute urgency level from current data ─────────────────────────────
     row.computed_urgency_level = computeUrgencyLevel(
