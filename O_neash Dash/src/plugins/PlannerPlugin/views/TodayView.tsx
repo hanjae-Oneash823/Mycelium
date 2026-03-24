@@ -1,11 +1,12 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { CheckboxOn, PenSquare, SkullSharp, Frown, HumanArmsUp, ArrowBarUp, ChevronDown, Tea, Forward, Undo, SpeedSlow, PartyPopper, Loader } from 'pixelarticons/react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { CheckboxOn, PenSquare, SkullSharp, Frown, HumanArmsUp, ArrowBarUp, ChevronDown, Tea, Forward, Undo, SpeedSlow, PartyPopper, Loader} from 'pixelarticons/react';
 import { getDotColor } from '../types';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useViewStore } from '../store/useViewStore';
-import { scoreSuggestion, isSameDay, toDateString, formatEffortLabel, computePressureScore, type PressureResult } from '../lib/logicEngine';
+import { scoreSuggestion, isSameDay, toDateString, formatEffortLabel, computePressureScore, pickFrogNode, pickDiceNode, type PressureResult } from '../lib/logicEngine';
 import {
   loadTodayDoneSummary, loadArcNodeCounts, loadTodayCompletedNodes,
+  loadFrogsDoneToday, setNodeFrogPinned,
   type TodayDoneSummary, type ArcNodeCount,
 } from '../lib/plannerDb';
 import DotNode from '../components/DotNode';
@@ -20,6 +21,8 @@ export default function TodayView() {
   const [overdueCollapsed, setOverdueCollapsed] = useState(false);
   const [doneSummary, setDoneSummary]     = useState<TodayDoneSummary>({ count: 0, effortMinutes: 0 });
   const [todayDone, setTodayDone]         = useState<import('../types').PlannerNode[]>([]);
+  const [frogsDone, setFrogsDone]         = useState(0);
+  const [diceOpen, setDiceOpen]           = useState(false);
 
   useEffect(() => {
     let lastDate = toDateString(new Date());
@@ -39,6 +42,7 @@ export default function TodayView() {
   useEffect(() => {
     loadTodayDoneSummary().then(setDoneSummary).catch(() => {});
     loadTodayCompletedNodes().then(setTodayDone).catch(() => {});
+    loadFrogsDoneToday().then(setFrogsDone).catch(() => {});
   }, [nodes]);
 
   const pressure = useMemo(
@@ -47,6 +51,16 @@ export default function TodayView() {
   );
 
   const today    = toDateString(now);
+
+  const frogNode = useMemo(() => pickFrogNode(nodes, today), [nodes, today]);
+
+  // When completing the current frog node, pin it before completing so we can count it
+  const handleCompleteNode = useCallback(async (node: PlannerNode) => {
+    if (frogNode?.id === node.id && !node.is_frog_pinned) {
+      await setNodeFrogPinned(node.id, true);
+    }
+    completeNode(node.id);
+  }, [frogNode, completeNode]);
   const tomorrow = toDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 
   const overdue = useMemo(() =>
@@ -85,7 +99,8 @@ export default function TodayView() {
 
   const cardProps = (node: PlannerNode) => ({
     node, now,
-    onComplete:   () => completeNode(node.id),
+    isFrog:       frogNode?.id === node.id,
+    onComplete:   () => handleCompleteNode(node),
     onUncomplete: () => uncompleteNode(node.id),
     onDelete:     () => deleteNode(node.id),
     onEdit:       () => openTaskFormEdit(node),
@@ -117,6 +132,18 @@ export default function TodayView() {
             }} />
           </div>
         </div>
+        <button
+          onClick={() => setDiceOpen(true)}
+          title="Dice Taskmaster — roll for a random task"
+          style={{
+            background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+            color: 'rgba(255,255,255,0.45)', padding: '0.3rem 0.85rem',
+            fontSize: '0.95rem', letterSpacing: '2px', cursor: 'pointer',
+            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+          }}
+        >
+          ⚄ dice
+        </button>
         <button
           onClick={() => openTaskForm({ planned_start_at: today })}
           style={{
@@ -226,11 +253,21 @@ export default function TodayView() {
           display: 'flex', flexDirection: 'column',
         }}>
           <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
+          <EatTheFrogPanel hasFrog={!!frogNode} frogsDone={frogsDone} />
           <OngoingArcsPanel />
           <PressureGaugePanel pressure={pressure} />
         </div>
 
       </div>
+
+      {/* Modals */}
+      {diceOpen && (
+        <DiceModal
+          pool={[...overdue, ...todayNodes]}
+          onClose={() => setDiceOpen(false)}
+          onReschedule={(id) => { rescheduleNode(id, today); setDiceOpen(false); }}
+        />
+      )}
     </div>
   );
 }
@@ -270,8 +307,8 @@ function SectionLabel({ icon, label, color }: { icon: React.ReactNode; label: st
 
 // ─── Mini card (shared by OverdueCard + SuggestionCard) ───────────────────────
 
-function MiniCard({ node, now, onComplete, onDelete, onEdit, badge, primaryAction }: {
-  node: PlannerNode; now: Date;
+function MiniCard({ node, now, isFrog, onComplete, onDelete, onEdit, badge, primaryAction }: {
+  node: PlannerNode; now: Date; isFrog?: boolean;
   onComplete: () => void; onDelete: () => void; onEdit: () => void;
   badge: { label: string; color: string };
   primaryAction?: { label: string; onClick: () => void };
@@ -320,6 +357,17 @@ function MiniCard({ node, now, onComplete, onDelete, onEdit, badge, primaryActio
             {eventStart ? `${eventStart}${eventEnd ? ` → ${eventEnd}` : ''}` : 'all day'}
           </span>
         </div>
+      )}
+
+      {/* Frog badge */}
+      {isFrog && (
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+          padding: '0.15rem 0.35rem', alignSelf: 'flex-start',
+        }}>
+          <PixelFrog px={2} />
+          <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.78rem', letterSpacing: '2px', color: '#4ade80', lineHeight: 1.4 }}>FROG</span>
+        </span>
       )}
 
       {/* Title + badge */}
@@ -384,8 +432,8 @@ function MiniCard({ node, now, onComplete, onDelete, onEdit, badge, primaryActio
   );
 }
 
-function OverdueCard({ node, now, onComplete, onDelete, onEdit }: {
-  node: PlannerNode; now: Date;
+function OverdueCard({ node, now, isFrog, onComplete, onDelete, onEdit }: {
+  node: PlannerNode; now: Date; isFrog?: boolean;
   onComplete: () => void; onDelete: () => void; onEdit: () => void;
 }) {
   const badge = (() => {
@@ -395,7 +443,7 @@ function OverdueCard({ node, now, onComplete, onDelete, onEdit }: {
       : null;
     return { label: days ? `${days}d ago` : 'overdue', color: '#ff3b3b' };
   })();
-  return <MiniCard node={node} now={now} onComplete={onComplete} onDelete={onDelete} onEdit={onEdit} badge={badge} />;
+  return <MiniCard node={node} now={now} isFrog={isFrog} onComplete={onComplete} onDelete={onDelete} onEdit={onEdit} badge={badge} />;
 }
 
 function SuggestionCard({ node, now, onComplete, onDelete, onEdit, rescheduleToday }: {
@@ -422,9 +470,10 @@ function SuggestionCard({ node, now, onComplete, onDelete, onEdit, rescheduleTod
 
 // ─── Task card (today section) ────────────────────────────────────────────────
 
-function TaskCard({ node, now, onComplete, onUncomplete, onDelete, onEdit, rescheduleTomorrow, isDone }: {
+function TaskCard({ node, now, isFrog, onComplete, onUncomplete, onDelete, onEdit, rescheduleTomorrow, isDone }: {
   node: PlannerNode;
   now: Date;
+  isFrog?: boolean;
   onComplete: () => void;
   onUncomplete?: () => void;
   onDelete: () => void;
@@ -517,6 +566,11 @@ function TaskCard({ node, now, onComplete, onUncomplete, onDelete, onEdit, resch
                 fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.8rem',
                 letterSpacing: '2px', textTransform: 'uppercase', color: typeLabelColor,
               }}>{typeLabel}</span>
+              {isFrog && !isDone && (
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <PixelFrog px={2} />
+                </span>
+              )}
             </div>
             {dueBadge && (
               <div style={{
@@ -620,7 +674,7 @@ function actionBtn(color: string): React.CSSProperties {
 
 // ─── Analytics sidebar ────────────────────────────────────────────────────────
 
-function SidebarPanel({ title, icon: Icon, children }: { title: string; icon?: React.FC<{ size?: number }>; children: React.ReactNode }) {
+function SidebarPanel({ title, icon: Icon, titleRight, children }: { title: string; icon?: React.FC<{ size?: number; style?: React.CSSProperties }>; titleRight?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{
       padding: '1.25rem 1.25rem 1.1rem',
@@ -637,6 +691,7 @@ function SidebarPanel({ title, icon: Icon, children }: { title: string; icon?: R
         }}>
           {title}
         </span>
+        {titleRight && <span style={{ marginLeft: 'auto' }}>{titleRight}</span>}
       </div>
       {children}
     </div>
@@ -783,37 +838,38 @@ function TodayEffortPanel({ todayNodes, doneSummary }: {
 // Panel 2 — Ongoing Arcs
 function OngoingArcsPanel() {
   const { arcs, nodes } = usePlannerStore();
-  const activeArcs = arcs.filter(a => !a.is_archived);
+  const { setActiveView } = useViewStore();
+  const latestNodeUpdate = (arcId: string) =>
+    nodes.filter(n => n.arc_id === arcId).reduce((max, n) => n.updated_at > max ? n.updated_at : max, '');
+  const activeArcs = arcs
+    .filter(a => !a.is_archived)
+    .sort((a, b) => latestNodeUpdate(b.id).localeCompare(latestNodeUpdate(a.id)))
+    .slice(0, 3);
+  const totalArcs  = arcs.filter(a => !a.is_archived).length;
   const [arcCounts, setArcCounts] = useState<ArcNodeCount[]>([]);
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
 
   useEffect(() => {
     loadArcNodeCounts().then(setArcCounts);
-  }, [nodes]); // re-query whenever nodes change (complete, delete, create)
+  }, [nodes]);
 
   if (activeArcs.length === 0) return null;
 
   return (
     <SidebarPanel title="ongoing arcs" icon={Forward}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.02rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {activeArcs.map(arc => {
           const counts = arcCounts.find(c => c.arc_id === arc.id);
           const done  = counts?.done  ?? 0;
           const total = counts?.total ?? 0;
-
           return (
             <div key={arc.id}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', lineHeight: 1.15 }}>
                 <span style={{ color: arc.color_hex, opacity: 0.5, fontFamily: 'monospace', fontSize: '0.8rem', marginLeft: '1rem' }}>›</span>
-                <span style={{
-                  fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.05rem',
-                  letterSpacing: '1px', color: arc.color_hex, flex: 1,
-                }}>
+                <span style={{ ...mono, fontSize: '1.05rem', letterSpacing: '1px', color: arc.color_hex, flex: 1 }}>
                   {arc.name}
                 </span>
-                <span style={{
-                  fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.85rem',
-                  letterSpacing: '1px', color: 'rgba(255,255,255,0.6)',
-                }}>
+                <span style={{ ...mono, fontSize: '0.85rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.6)' }}>
                   {done}/{total}
                 </span>
               </div>
@@ -821,6 +877,14 @@ function OngoingArcsPanel() {
           );
         })}
       </div>
+      {totalArcs > 3 && (
+        <div
+          onClick={() => setActiveView('arc')}
+          style={{ ...mono, fontSize: '0.9rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.65)', cursor: 'pointer', marginTop: '0.55rem', textAlign: 'right' }}
+        >
+          [ see more ]
+        </div>
+      )}
     </SidebarPanel>
   );
 }
@@ -974,7 +1038,7 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
   const wedge = (s: number, e: number) =>
     `M ${cx} ${cy} L ${px(r, s)} ${py(r, s)} A ${r} ${r} 0 0 1 ${px(r, e)} ${py(r, e)} Z`;
 
-  const segments = [
+  const segments: Array<typeof PRESSURE_LEVELS[number] & { startDeg: number; endDeg: number; midDeg: number; anchor: 'end' | 'start' }> = [
     { startDeg: 179, endDeg: 137, midDeg: 158, anchor: 'end',   ...PRESSURE_LEVELS[0] },
     { startDeg: 134, endDeg: 92,  midDeg: 113, anchor: 'end',   ...PRESSURE_LEVELS[1] },
     { startDeg: 89,  endDeg: 47,  midDeg: 68,  anchor: 'start', ...PRESSURE_LEVELS[2] },
@@ -1061,6 +1125,245 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
 
       {summaryOpen && <PressureSummaryPopup pressure={pressure} onClose={() => setSummaryOpen(false)} />}
     </SidebarPanel>
+  );
+}
+
+
+// ─── Pixel Frog ───────────────────────────────────────────────────────────────
+
+const FROG_MAP = [
+  [0,0,1,1,0,0,0,1,1,0,0],  // r0: eye stalks
+  [0,1,1,1,1,1,1,1,1,1,0],  // r1: head
+  [0,1,0,1,1,1,1,1,0,1,0],  // r2: eyes
+  [0,1,0,1,1,1,1,1,0,1,0],  // r3: eyes
+  [1,1,1,1,0,1,0,1,1,1,1],  // r4: nostrils
+  [1,1,1,1,1,1,1,1,1,1,1],  // r5: body
+  [0,0,0,0,0,0,0,0,0,0,0],  // r6: gap
+  [0,1,1,1,1,1,1,1,1,1,0],  // r7: jaw
+  [0,0,1,1,1,1,1,1,1,0,0],  // r8: feet
+];
+
+function PixelFrog({ px = 3, color = '#4ade80', dim = false }: { px?: number; color?: string; dim?: boolean }) {
+  const col = dim ? 'rgba(74,222,128,0.2)' : color;
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(11, ${px}px)`,
+      gridTemplateRows: `repeat(9, ${px}px)`,
+      gap: 0, flexShrink: 0,
+    }}>
+      {FROG_MAP.flat().map((on, i) => (
+        <div key={i} style={{ width: px, height: px, background: on ? col : 'transparent' }} />
+      ))}
+    </div>
+  );
+}
+
+// ─── Panel 5 — Eat the Frog ───────────────────────────────────────────────────
+
+const FROG_GOAL = 3;
+
+function EatTheFrogPanel({ hasFrog, frogsDone }: {
+  hasFrog: boolean;
+  frogsDone: number;
+}) {
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const done    = Math.min(frogsDone, FROG_GOAL);
+  const allDone = done >= FROG_GOAL;
+
+  if (!hasFrog && done === 0) return null;
+
+  const counter = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+      {Array.from({ length: FROG_GOAL }).map((_, i) => (
+        <PixelFrog key={i} px={2} dim={i >= done} />
+      ))}
+      {allDone && (
+        <span style={{ ...mono, fontSize: '0.8rem', letterSpacing: '1.5px', color: '#4ade80', marginLeft: '0.2rem' }}>✓</span>
+      )}
+    </div>
+  );
+
+  return (
+    <SidebarPanel title="eat the frog" icon={Frown} titleRight={counter}>
+      {/* Subtitle */}
+      <div style={{ ...mono, fontSize: '0.88rem', letterSpacing: '0.5px', color: 'rgba(74,222,128,0.55)', lineHeight: 1.4, marginBottom: '0.75rem' }}>
+        swallow it whole.<br />the rest of the day is yours.
+      </div>
+
+
+    </SidebarPanel>
+  );
+}
+
+// ─── Dice Taskmaster Modal ────────────────────────────────────────────────────
+
+// Row-major 3×3 dot patterns for faces 1–6
+const T = true, F = false;
+const DOT_PATTERNS: boolean[][] = [
+  [F,F,F, F,T,F, F,F,F], // 1
+  [T,F,F, F,F,F, F,F,T], // 2
+  [T,F,F, F,T,F, F,F,T], // 3
+  [T,F,T, F,F,F, T,F,T], // 4
+  [T,F,T, F,T,F, T,F,T], // 5
+  [T,F,T, T,F,T, T,F,T], // 6
+];
+
+// Die: 44px, border + dots. CELL=8, GAP=4, PAD=6 → 6+8+4+8+4+8+6 = 44px
+function DieFace({ idx }: { idx: number }) {
+  const pattern = DOT_PATTERNS[idx] ?? DOT_PATTERNS[0];
+  return (
+    <div style={{
+      width: 44, height: 44, boxSizing: 'border-box',
+      border: '2px solid rgba(192,132,252,0.6)', background: '#000',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 8px)',
+      gridTemplateRows: 'repeat(3, 8px)',
+      gap: 2, padding: 6,
+    }}>
+      {pattern.map((on, i) => (
+        <div key={i} style={{ background: on ? '#c084fc' : 'transparent' }} />
+      ))}
+    </div>
+  );
+}
+
+type DicePhase = 'idle' | 'rolling' | 'fading' | 'result';
+
+function DiceModal({ pool, onClose, onReschedule }: {
+  pool: PlannerNode[];
+  onClose: () => void;
+  onReschedule: (id: string) => void;
+}) {
+  const [phase, setPhase]       = useState<DicePhase>('idle');
+  const [faceIdx, setFaceIdx]   = useState(0);
+  const [rollKey, setRollKey]   = useState(0);
+  const [picked, setPicked]     = useState<PlannerNode | null>(null);
+  const [closing, setClosing]   = useState(false);
+  const intervalRef             = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+
+  const tasks     = pool.filter(n => n.node_type !== 'event' && !n.is_completed);
+  const purple    = '#c084fc';
+  const purpleDim = 'rgba(192,132,252,0.4)';
+  const dim       = 'rgba(255,255,255,0.22)';
+
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
+
+  const handleClose = () => {
+    setClosing(true);
+    setTimeout(onClose, 170);
+  };
+
+  const startRoll = () => {
+    if (phase === 'rolling' || phase === 'fading') return;
+    setPicked(null);
+    setFaceIdx(Math.floor(Math.random() * 6));
+    setRollKey(k => k + 1);
+    setPhase('rolling');
+
+    // Cycle face during animation
+    intervalRef.current = setInterval(() => {
+      setFaceIdx(Math.floor(Math.random() * 6));
+    }, 130);
+
+    // Animation is 1.8s; after that fade die out, then show result
+    setTimeout(() => {
+      clearInterval(intervalRef.current!);
+      const result = pickDiceNode(pool);
+      setPicked(result);
+      setPhase('fading');
+      setTimeout(() => setPhase('result'), 320);
+    }, 1800);
+  };
+
+  return (
+    <div
+      onClick={handleClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 950, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        className={closing ? 'dice-modal-out' : 'dice-modal-in'}
+        style={{ background: '#000', border: '1px solid rgba(255,255,255,0.18)', padding: '2rem', width: 400, display: 'flex', flexDirection: 'column', gap: 0 }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.6rem' }}>
+          <span style={{ ...mono, fontSize: '1.5rem', letterSpacing: '4px', color: purple, textTransform: 'uppercase' }}>dice taskmaster</span>
+          <span style={{ ...mono, fontSize: '1.2rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.65)' }}>{tasks.length} tasks</span>
+        </div>
+
+        {/* Tagline */}
+        <div style={{ ...mono, fontSize: '1.35rem', color: 'rgba(255,255,255,0.62)', lineHeight: 1.4, marginBottom: '1.25rem' }}>
+          the gods have assembled your tasks.<br />roll — and <span style={{ color: '#ff3b3b' }}>OBEY</span>.
+        </div>
+
+        {/* Stage */}
+        <div style={{
+          position: 'relative', overflow: 'hidden',
+          height: 180, width: '100%',
+          marginBottom: '1.25rem',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+        }}>
+          {/* Die — enters on roll, fades out after */}
+          {(phase === 'rolling' || phase === 'fading') && (
+            <div
+              key={rollKey}
+              className={phase === 'fading' ? 'dice-fade-out' : 'dice-rolling-entry'}
+              style={{ position: 'absolute', left: 'calc(50% - 22px)', bottom: 8 }}
+            >
+              <DieFace idx={faceIdx} />
+            </div>
+          )}
+
+          {/* Result — fades in after die exits */}
+          {phase === 'result' && (
+            <div
+              className="dice-result-in"
+              style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                padding: '0 1rem',
+              }}
+            >
+              {picked ? (
+                <>
+                  <div style={{ ...mono, fontSize: '1.1rem', letterSpacing: '3px', color: 'rgba(192,132,252,0.85)', marginBottom: '0.5rem' }}>FATE HAS SPOKEN</div>
+                  <div style={{ ...mono, fontSize: '2rem', color: '#fff', textAlign: 'center', lineHeight: 1.25 }}>{picked.title}</div>
+                  {!picked.planned_start_at?.startsWith(toDateString(new Date())) && (
+                    <button
+                      onClick={() => onReschedule(picked.id)}
+                      style={{ marginTop: '0.75rem', background: 'transparent', border: `1px solid ${purpleDim}`, color: purple, padding: '0.2rem 0.8rem', cursor: 'pointer', ...mono, fontSize: '1rem', letterSpacing: '2px' }}
+                    >
+                      + today
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div style={{ ...mono, fontSize: '1rem', color: dim }}>no tasks in pool</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {tasks.length > 0 && (phase === 'idle' || phase === 'result') ? (
+            <span
+              onClick={startRoll}
+              style={{ ...mono, fontSize: '1.2rem', letterSpacing: '2px', color: purple, cursor: 'pointer' }}
+            >
+              {phase === 'result' ? '[ re-roll ]' : '[ press to roll ]'}
+            </span>
+          ) : <span />}
+          <span onClick={handleClose} style={{ ...mono, fontSize: '1rem', letterSpacing: '2px', color: dim, cursor: 'pointer' }}>
+            [ close ]
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 

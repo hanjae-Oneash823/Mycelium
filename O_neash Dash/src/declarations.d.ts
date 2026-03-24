@@ -58,6 +58,9 @@ declare module "pixelarticons/react" {
   export const Presentation: PixelIcon;
   export const Radio: PixelIcon;
   export const Gps: PixelIcon;
+  export const Undo: PixelIcon;
+  export const SpeedSlow: PixelIcon;
+  export const Loader: PixelIcon;
   // Catch-all for any other icons used in future
   const _: Record<string, PixelIcon>;
   export default _;

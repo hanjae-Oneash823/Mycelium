@@ -70,6 +70,8 @@ export interface PlannerNode {
   sub_total?: number;
   sub_done?: number;
   linked_note_count?: number;
+  /** Marked as the "eat the frog" task for today. Persisted to DB. */
+  is_frog_pinned?: boolean;
   /** True for virtual instances expanded from a recurring template. Not persisted. */
   is_virtual?: boolean;
 }

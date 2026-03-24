@@ -23,11 +23,12 @@ async function hydrateRows(rows: PlannerNode[]): Promise<PlannerNode[]> {
   const todayStr = toDateString(today);
 
   for (const row of rows) {
-    row.groups       = await getNodeGroups(row.id);
-    row.is_completed = Boolean(row.is_completed);
-    row.is_locked    = Boolean(row.is_locked);
-    row.is_recovery  = Boolean(row.is_recovery);
-    row.is_pinned    = Boolean(row.is_pinned);
+    row.groups         = await getNodeGroups(row.id);
+    row.is_completed   = Boolean(row.is_completed);
+    row.is_locked      = Boolean(row.is_locked);
+    row.is_recovery    = Boolean(row.is_recovery);
+    row.is_pinned      = Boolean(row.is_pinned);
+    row.is_frog_pinned = Boolean(row.is_frog_pinned);
 
     // ── Compute is_overdue fresh from due_at — don't trust stale DB column ───
     // Use toDateString(new Date(...)) to extract LOCAL date — avoids UTC-shift bugs
@@ -751,4 +752,75 @@ export async function loadArcNodeCounts(): Promise<ArcNodeCount[]> {
      GROUP BY arc_id`,
   );
   return rows;
+}
+
+// ─── Eat the Frog ────────────────────────────────────────────────────────────
+
+/** Count how many frog-pinned tasks were completed today. */
+export async function loadFrogsDoneToday(): Promise<number> {
+  const db = getDb();
+  const today = toDateString(new Date());
+  const rows = await db.select<{ count: number }[]>(
+    `SELECT COUNT(*) as count FROM nodes
+     WHERE is_frog_pinned = 1 AND is_completed = 1
+       AND DATE(actual_completed_at) = ?`,
+    [today],
+  );
+  return rows[0]?.count ?? 0;
+}
+
+/** Pin or unpin a node as the frog task. */
+export async function setNodeFrogPinned(id: string, value: boolean): Promise<void> {
+  const db = getDb();
+  await db.execute(`UPDATE nodes SET is_frog_pinned = ? WHERE id = ?`, [value ? 1 : 0, id]);
+}
+
+// ─── Load Forecast ────────────────────────────────────────────────────────────
+
+export interface WeekForecastDay {
+  date: string;
+  totalMins: number;
+  count: number;
+}
+
+/** Return scheduled effort (sum of estimated_duration_minutes) for each of next 7 days. */
+export async function loadWeekForecast(): Promise<WeekForecastDay[]> {
+  const db = getDb();
+  const rows = await db.select<{ day: string; total_mins: number; count: number }[]>(
+    `SELECT DATE(planned_start_at) as day,
+            SUM(COALESCE(estimated_duration_minutes, 60)) as total_mins,
+            COUNT(*) as count
+     FROM nodes
+     WHERE is_completed = 0
+       AND DATE(planned_start_at) > DATE('now')
+       AND DATE(planned_start_at) <= DATE('now', '+7 days')
+     GROUP BY day`,
+  );
+  const result: WeekForecastDay[] = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    const dateStr = toDateString(d);
+    const row = rows.find(r => r.day === dateStr);
+    result.push({ date: dateStr, totalMins: row?.total_mins ?? 0, count: row?.count ?? 0 });
+  }
+  return result;
+}
+
+// ─── Weekly Review ────────────────────────────────────────────────────────────
+
+export async function saveWeeklyReview(data: {
+  notes: string;
+  goals: string;
+  completed_count: number;
+  cleared_count: number;
+}): Promise<void> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  const weekStart = toDateString(new Date());
+  await db.execute(
+    `INSERT INTO weekly_review (id, week_start, notes, goals, completed_count, cleared_count)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, weekStart, data.notes || null, data.goals || null, data.completed_count, data.cleared_count],
+  );
 }

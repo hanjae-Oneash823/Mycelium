@@ -210,3 +210,49 @@ export function formatEffortLabel(minutes: number | null | undefined): string {
   const h = minutes / 60;
   return h === Math.floor(h) ? `${h}h` : `${h.toFixed(1)}h`;
 }
+
+// ─── Eat the Frog ─────────────────────────────────────────────────────────────
+
+/**
+ * Frog score = urgency * 0.6 + effort_hours * 0.4
+ * Higher score = uglier, harder frog — pick it first.
+ */
+export function computeFrogScore(node: PlannerNode): number {
+  const urgency = node.computed_urgency_level;
+  const effortHrs = (node.estimated_duration_minutes ?? 60) / 60;
+  return urgency * 0.6 + effortHrs * 0.4;
+}
+
+/**
+ * Returns the node with the highest frog score from the overdue+today pool.
+ * Returns null if there are no eligible tasks.
+ */
+export function pickFrogNode(nodes: PlannerNode[], today: string): PlannerNode | null {
+  const pool = nodes.filter(n =>
+    !n.is_completed &&
+    n.node_type !== 'event' &&
+    (n.is_overdue || n.is_missed_schedule ||
+      n.planned_start_at?.startsWith(today) ||
+      n.due_at?.startsWith(today)),
+  );
+  if (pool.length === 0) return null;
+  return pool.reduce((best, n) => computeFrogScore(n) > computeFrogScore(best) ? n : best);
+}
+
+// ─── Dice Taskmaster ──────────────────────────────────────────────────────────
+
+/**
+ * Weighted random pick from pool. Weight = 1/effort_hours (shorter tasks more likely).
+ */
+export function pickDiceNode(pool: PlannerNode[]): PlannerNode | null {
+  const tasks = pool.filter(n => n.node_type !== 'event' && !n.is_completed);
+  if (tasks.length === 0) return null;
+  const weights = tasks.map(n => 1 / Math.max(0.25, (n.estimated_duration_minutes ?? 60) / 60));
+  const total = weights.reduce((s, w) => s + w, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < tasks.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return tasks[i];
+  }
+  return tasks[tasks.length - 1];
+}

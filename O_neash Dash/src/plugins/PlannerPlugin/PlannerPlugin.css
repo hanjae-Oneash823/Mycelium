@@ -176,6 +176,51 @@
 .today-task-col::-webkit-scrollbar { display: none; }
 .today-task-col { scrollbar-width: none; }
 
+/* Eat the Frog badge pulse */
+@keyframes frogPulse {
+  0%, 100% { box-shadow: 0 0 5px #4ade80; }
+  50%       { box-shadow: 0 0 14px #4ade80, 0 0 22px rgba(74,222,128,0.25); }
+}
+.frog-badge-glow { animation: frogPulse 2.2s ease-in-out infinite; }
+
+/* Dice modal open/close transitions */
+@keyframes diceModalIn {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes diceModalOut {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.97); }
+}
+.dice-modal-in  { animation: diceModalIn  0.18s ease forwards; }
+.dice-modal-out { animation: diceModalOut 0.17s ease forwards; }
+
+/* Dice — entry from top-left with gravity bounce */
+@keyframes diceEntry {
+  0%   { transform: translate(-140px, -180px) rotate(0deg);   animation-timing-function: ease-in; }
+  25%  { transform: translate(-15px,    0px)  rotate(300deg); animation-timing-function: cubic-bezier(0, 0.7, 0.3, 1); }
+  34%  { transform: translate(0px,    -52px)  rotate(370deg); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.4); }
+  44%  { transform: translate(0px,      0px)  rotate(430deg); animation-timing-function: cubic-bezier(0, 0.7, 0.3, 1); }
+  51%  { transform: translate(0px,    -28px)  rotate(462deg); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.4); }
+  59%  { transform: translate(0px,      0px)  rotate(495deg); animation-timing-function: cubic-bezier(0, 0.7, 0.3, 1); }
+  64%  { transform: translate(0px,    -11px)  rotate(513deg); animation-timing-function: cubic-bezier(0.6, 0, 1, 0.4); }
+  70%  { transform: translate(0px,      0px)  rotate(540deg); animation-timing-function: ease-out; }
+  100% { transform: translate(0px,      0px)  rotate(540deg); }
+}
+.dice-rolling-entry { animation: diceEntry 1.8s linear forwards; }
+
+@keyframes diceFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.dice-fade-out { animation: diceFadeOut 0.3s ease forwards; }
+
+@keyframes diceResultIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.dice-result-in { animation: diceResultIn 0.4s ease forwards; }
+
 /* Input resets */
 .planner-plugin input,
 .planner-plugin textarea,

@@ -306,6 +306,21 @@ export async function setupDb(): Promise<Database> {
   );
   CREATE INDEX IF NOT EXISTS idx_ntl_note ON note_task_links(note_id);
   CREATE INDEX IF NOT EXISTS idx_ntl_node ON note_task_links(node_id);
+
+  CREATE TABLE IF NOT EXISTS daily_stats (
+    date        DATE PRIMARY KEY,
+    frogs_done  INTEGER DEFAULT 0
+  );
+
+  CREATE TABLE IF NOT EXISTS weekly_review (
+    id               TEXT PRIMARY KEY,
+    week_start       DATE NOT NULL,
+    notes            TEXT,
+    goals            TEXT,
+    completed_count  INTEGER DEFAULT 0,
+    cleared_count    INTEGER DEFAULT 0,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
     `;
 
     // Apply the full schema every time
@@ -316,6 +331,7 @@ export async function setupDb(): Promise<Database> {
     const columnMigrations = [
       `ALTER TABLE nodes ADD COLUMN recurrence_rule TEXT`,
       `ALTER TABLE nodes ADD COLUMN recurrence_exceptions TEXT`,
+      `ALTER TABLE nodes ADD COLUMN is_frog_pinned BOOLEAN DEFAULT 0`,
     ];
     for (const sql of columnMigrations) {
       try { await db.execute(sql); } catch { /* column already exists */ }
