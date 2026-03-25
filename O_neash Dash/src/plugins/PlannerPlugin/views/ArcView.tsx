@@ -15,7 +15,7 @@ const LABEL_W = 300;
 
 export default function ArcView() {
   const { nodes, arcs, projects, archiveArc, deleteArc, deleteProject } = usePlannerStore();
-  const { setActiveView, setFocusContext } = useViewStore();
+  const { setActiveView, setFocusContext, openTendrils } = useViewStore();
 
   const [windowStart, setWindowStart] = useState<Date>(() => {
     const d = new Date();
@@ -178,18 +178,24 @@ export default function ArcView() {
                     const hasBar = ap.projects.some(pp => pp.project.id === p.id);
                     const color = p.color_hex ?? ap.arc.color_hex;
                     return (
-                      <button
-                        key={p.id}
-                        onClick={() => goToFocusProject(p)}
-                        onContextMenu={e => { e.preventDefault(); setProjContextMenu({ x: e.clientX, y: e.clientY, project: p, arcId: ap.arc.id }); }}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}
-                        title={hasBar ? p.name : `${p.name} (no timeline bar — needs 2+ tasks)`}
-                      >
-                        <span style={{ fontSize: '0.85rem', letterSpacing: '1px', color: hasBar ? color : 'rgba(255,255,255,0.3)', wordBreak: 'break-word', textAlign: 'right', lineHeight: 1.2 }}>
-                          {p.name}
-                        </span>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0, opacity: hasBar ? 1 : 0.4 }} />
-                      </button>
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
+                        <button
+                          onClick={e => { e.stopPropagation(); openTendrils(p.id); }}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontSize: '0.72rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.22)', fontFamily: "'VT323', monospace", flexShrink: 0, lineHeight: 1 }}
+                          title="Open Tendrils for this project"
+                        >⊹</button>
+                        <button
+                          onClick={() => goToFocusProject(p)}
+                          onContextMenu={e => { e.preventDefault(); setProjContextMenu({ x: e.clientX, y: e.clientY, project: p, arcId: ap.arc.id }); }}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 5 }}
+                          title={hasBar ? p.name : `${p.name} (no timeline bar — needs 2+ tasks)`}
+                        >
+                          <span style={{ fontSize: '0.85rem', letterSpacing: '1px', color: hasBar ? color : 'rgba(255,255,255,0.3)', wordBreak: 'break-word', textAlign: 'right', lineHeight: 1.2 }}>
+                            {p.name}
+                          </span>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: color, display: 'inline-block', flexShrink: 0, opacity: hasBar ? 1 : 0.4 }} />
+                        </button>
+                      </div>
                     );
                   })}
                   {!isCollapsed && (

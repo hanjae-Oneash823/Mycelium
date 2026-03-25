@@ -1,4 +1,4 @@
-export type PlannerViewType = 'today' | 'eisenhower' | 'focus' | 'arc';
+export type PlannerViewType = 'today' | 'eisenhower' | 'focus' | 'arc' | 'tendrils';
 export type NodeType = 'task' | 'event';
 /** User-facing binary input stored in DB: 0 = normal, 1 = important */
 export type UserImportance = 0 | 1;
@@ -74,6 +74,11 @@ export interface PlannerNode {
   is_frog_pinned?: boolean;
   /** True for virtual instances expanded from a recurring template. Not persisted. */
   is_virtual?: boolean;
+  /** Placeholder node in a Tendrils graph — has no date, not yet actionable. */
+  is_pre_node?: boolean;
+  /** Saved canvas position in a Tendrils graph. */
+  tendril_pos_x?: number | null;
+  tendril_pos_y?: number | null;
 }
 
 export interface SubTask {

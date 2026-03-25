@@ -282,8 +282,8 @@ function NodeTreeCanvas({
     filteredArcs.forEach((arc, i) => {
       const angle =
         -Math.PI / 2 + (i / Math.max(filteredArcs.length, 1)) * 2 * Math.PI;
-      const tx = ALL_WX + Math.cos(angle) * 120;
-      const ty = Math.sin(angle) * 120;
+      const tx = ALL_WX + Math.cos(angle) * 175;
+      const ty = Math.sin(angle) * 175;
       next.push({
         id: arc.id,
         type: "arc",
@@ -307,14 +307,14 @@ function NodeTreeCanvas({
 
       const arcProjs = projects.filter((p) => p.arc_id === arc.id);
       arcProjs.forEach((proj, j) => {
-        const spread = Math.min(Math.PI * 0.6, arcProjs.length * 0.25);
+        const spread = Math.min(Math.PI * 0.65, arcProjs.length * 0.32);
         const fanOffset =
           arcProjs.length > 1
             ? (j / (arcProjs.length - 1) - 0.5) * spread * 2
             : 0;
         const pAngle = angle + fanOffset;
-        const ptx = tx + Math.cos(pAngle) * 85;
-        const pty = ty + Math.sin(pAngle) * 85;
+        const ptx = tx + Math.cos(pAngle) * 120;
+        const pty = ty + Math.sin(pAngle) * 120;
         next.push({
           id: proj.id,
           type: "project",
@@ -1304,6 +1304,12 @@ function FieldCanvas({
           const pname =
             projects.find((p) => p.id === found!.node.project_id)?.name ?? "";
           sub = sub ? `${sub} › ${pname}` : pname;
+        }
+        const subTotal = found.node.sub_total ?? 0;
+        if (subTotal > 0) {
+          const subDone = found.node.sub_done ?? 0;
+          const subStr = `${subDone}/${subTotal} sub`;
+          sub = sub ? `${sub}  ·  ${subStr}` : subStr;
         }
         setTooltip({
           x: px,

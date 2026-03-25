@@ -252,6 +252,7 @@ export async function setupDb(): Promise<Database> {
     INSERT OR IGNORE INTO node_groups(node_id, group_id)
     SELECT OLD.node_id, id FROM planner_groups
     WHERE is_ungrouped = 1
+      AND EXISTS (SELECT 1 FROM nodes WHERE id = OLD.node_id)
       AND NOT EXISTS (
         SELECT 1 FROM node_groups WHERE node_id = OLD.node_id
       );
@@ -321,6 +322,17 @@ export async function setupDb(): Promise<Database> {
     cleared_count    INTEGER DEFAULT 0,
     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS tendril_edges (
+    id          TEXT PRIMARY KEY,
+    project_id  TEXT NOT NULL,
+    source_id   TEXT NOT NULL,
+    target_id   TEXT NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(source_id) REFERENCES nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY(target_id) REFERENCES nodes(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_te_project ON tendril_edges(project_id);
     `;
 
     // Apply the full schema every time
@@ -332,10 +344,29 @@ export async function setupDb(): Promise<Database> {
       `ALTER TABLE nodes ADD COLUMN recurrence_rule TEXT`,
       `ALTER TABLE nodes ADD COLUMN recurrence_exceptions TEXT`,
       `ALTER TABLE nodes ADD COLUMN is_frog_pinned BOOLEAN DEFAULT 0`,
+      `ALTER TABLE nodes ADD COLUMN is_pre_node BOOLEAN DEFAULT 0`,
+      `ALTER TABLE nodes ADD COLUMN tendril_pos_x REAL`,
+      `ALTER TABLE nodes ADD COLUMN tendril_pos_y REAL`,
     ];
     for (const sql of columnMigrations) {
       try { await db.execute(sql); } catch { /* column already exists */ }
     }
+
+    // Trigger migrations — DROP + recreate to apply fixes (IF NOT EXISTS guards against
+    // the schema having already created the correct version in the same init run)
+    await db.execute(`DROP TRIGGER IF EXISTS readd_ungrouped_if_empty`);
+    await db.execute(`
+      CREATE TRIGGER IF NOT EXISTS readd_ungrouped_if_empty AFTER DELETE ON node_groups
+      BEGIN
+        INSERT OR IGNORE INTO node_groups(node_id, group_id)
+        SELECT OLD.node_id, id FROM planner_groups
+        WHERE is_ungrouped = 1
+          AND EXISTS (SELECT 1 FROM nodes WHERE id = OLD.node_id)
+          AND NOT EXISTS (
+            SELECT 1 FROM node_groups WHERE node_id = OLD.node_id
+          );
+      END
+    `);
 
     return db;
   } catch (error) {

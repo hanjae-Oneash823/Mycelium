@@ -29,6 +29,7 @@ async function hydrateRows(rows: PlannerNode[]): Promise<PlannerNode[]> {
     row.is_recovery    = Boolean(row.is_recovery);
     row.is_pinned      = Boolean(row.is_pinned);
     row.is_frog_pinned = Boolean(row.is_frog_pinned);
+    row.is_pre_node    = Boolean(row.is_pre_node);
 
     // ── Compute is_overdue fresh from due_at — don't trust stale DB column ───
     // Use toDateString(new Date(...)) to extract LOCAL date — avoids UTC-shift bugs
@@ -823,4 +824,144 @@ export async function saveWeeklyReview(data: {
      VALUES (?, ?, ?, ?, ?, ?)`,
     [id, weekStart, data.notes || null, data.goals || null, data.completed_count, data.cleared_count],
   );
+}
+
+// ─── Tendrils ────────────────────────────────────────────────────────────────
+
+export interface TendrilEdge {
+  id: string;
+  project_id: string;
+  source_id: string;
+  target_id: string;
+  created_at: string;
+}
+
+export async function loadProjectNodes(projectId: string): Promise<PlannerNode[]> {
+  const db = getDb();
+  const rows = await db.select<PlannerNode[]>(
+    `${NODE_SELECT} WHERE n.project_id = ? ORDER BY n.created_at ASC`,
+    [projectId],
+  );
+  return hydrateRows(rows);
+}
+
+export interface ProjectNodeCounts {
+  project_id: string;
+  total: number;
+  active: number;
+  done: number;
+}
+
+export async function loadAllProjectNodeCounts(): Promise<ProjectNodeCounts[]> {
+  const db = getDb();
+  return db.select<ProjectNodeCounts[]>(`
+    SELECT
+      project_id,
+      COUNT(*) AS total,
+      SUM(CASE WHEN is_completed = 0 THEN 1 ELSE 0 END) AS active,
+      SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS done
+    FROM nodes
+    WHERE project_id IS NOT NULL AND (is_pre_node = 0 OR is_pre_node IS NULL)
+    GROUP BY project_id
+  `);
+}
+
+export async function loadTendrilEdges(projectId: string): Promise<TendrilEdge[]> {
+  const db = getDb();
+  return db.select<TendrilEdge[]>(
+    `SELECT * FROM tendril_edges WHERE project_id = ? ORDER BY created_at ASC`,
+    [projectId],
+  );
+}
+
+export async function createTendrilEdge(
+  projectId: string,
+  sourceId: string,
+  targetId: string,
+): Promise<string> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  await db.execute(
+    `INSERT INTO tendril_edges (id, project_id, source_id, target_id) VALUES (?, ?, ?, ?)`,
+    [id, projectId, sourceId, targetId],
+  );
+  return id;
+}
+
+export async function deleteTendrilEdge(id: string): Promise<void> {
+  const db = getDb();
+  await db.execute(`DELETE FROM tendril_edges WHERE id = ?`, [id]);
+}
+
+export async function createPreNode(projectId: string, title: string): Promise<string> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  await db.execute(
+    `INSERT INTO nodes (id, title, node_type, importance_level, computed_urgency_level, project_id, is_pre_node)
+     VALUES (?, ?, 'task', 0, 0, ?, 1)`,
+    [id, title, projectId],
+  );
+  return id;
+}
+
+export async function deletePreNode(id: string): Promise<void> {
+  const db = getDb();
+  await db.execute(`DELETE FROM nodes WHERE id = ? AND is_pre_node = 1`, [id]);
+}
+
+export async function saveTendrilPosition(nodeId: string, x: number, y: number): Promise<void> {
+  const db = getDb();
+  await db.execute(
+    `UPDATE nodes SET tendril_pos_x = ?, tendril_pos_y = ? WHERE id = ?`,
+    [x, y, nodeId],
+  );
+}
+
+// ─── Sub-tasks ───────────────────────────────────────────────────────────────
+
+import type { SubTask } from '../types';
+
+export async function loadSubTasks(nodeId: string): Promise<SubTask[]> {
+  const db = getDb();
+  const rows = await db.select<SubTask[]>(
+    `SELECT * FROM sub_tasks WHERE node_id = ? ORDER BY sort_order ASC, created_at ASC`,
+    [nodeId],
+  );
+  return rows.map(r => ({ ...r, is_completed: Boolean(r.is_completed) }));
+}
+
+export async function createSubTask(nodeId: string, title: string, sortOrder: number): Promise<SubTask> {
+  const db = getDb();
+  const id = crypto.randomUUID();
+  await db.execute(
+    `INSERT INTO sub_tasks (id, node_id, title, is_completed, sort_order) VALUES (?, ?, ?, 0, ?)`,
+    [id, nodeId, title, sortOrder],
+  );
+  const rows = await db.select<SubTask[]>(`SELECT * FROM sub_tasks WHERE id = ?`, [id]);
+  return { ...rows[0], is_completed: false };
+}
+
+export async function updateSubTask(id: string, patch: Partial<Pick<SubTask, 'title' | 'is_completed'>>): Promise<void> {
+  const db = getDb();
+  if (patch.title !== undefined) {
+    await db.execute(`UPDATE sub_tasks SET title = ? WHERE id = ?`, [patch.title, id]);
+  }
+  if (patch.is_completed !== undefined) {
+    await db.execute(`UPDATE sub_tasks SET is_completed = ? WHERE id = ?`, [patch.is_completed ? 1 : 0, id]);
+  }
+}
+
+export async function deleteSubTask(id: string): Promise<void> {
+  const db = getDb();
+  await db.execute(`DELETE FROM sub_tasks WHERE id = ?`, [id]);
+}
+
+export async function reorderSubTasks(nodeId: string, orderedIds: string[]): Promise<void> {
+  const db = getDb();
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.execute(
+      `UPDATE sub_tasks SET sort_order = ? WHERE id = ? AND node_id = ?`,
+      [i, orderedIds[i], nodeId],
+    );
+  }
 }

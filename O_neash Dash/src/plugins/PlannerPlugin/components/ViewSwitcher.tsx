@@ -1,17 +1,18 @@
 import { useEffect } from 'react';
-import { Zap, Grid2x22, Target, GitBranch } from 'pixelarticons/react';
+import { Zap, Grid2x22, Target, GitBranch, Tournament } from 'pixelarticons/react';
 import { useViewStore } from '../store/useViewStore';
 import type { PlannerViewType } from '../types';
 
 const VIEWS: { id: PlannerViewType; label: string; icon: React.ReactNode }[] = [
   { id: 'today',      label: 'today',      icon: <Zap       size={18} /> },
   { id: 'eisenhower', label: 'eisenhower', icon: <Grid2x22  size={18} /> },
+  { id: 'tendrils',   label: 'tendrils',   icon: <Tournament size={18} /> },
   { id: 'arc',        label: 'arc',        icon: <GitBranch size={18} /> },
   { id: 'focus',      label: 'focus',      icon: <Target    size={18} /> },
 ];
 
 export default function ViewSwitcher() {
-  const { activeView, setActiveView } = useViewStore();
+  const { activeView, setActiveView, openTendrilsHub } = useViewStore();
 
   // Number key shortcuts: 1–5
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function ViewSwitcher() {
         return (
           <button
             key={v.id}
-            onClick={() => setActiveView(v.id)}
+            onClick={() => v.id === 'tendrils' ? openTendrilsHub() : setActiveView(v.id)}
             style={{
               background:    'none',
               border:        'none',

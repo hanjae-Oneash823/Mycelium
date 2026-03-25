@@ -1,4 +1,4 @@
-import type { PlannerNode, ImportanceLevel } from '../types';
+import type { PlannerNode, ImportanceLevel, SubTask } from '../types';
 
 // ─── Core: compute urgency level ─────────────────────────────────────────────
 // L0 = event (no urgency concept)
@@ -237,6 +237,27 @@ export function pickFrogNode(nodes: PlannerNode[], today: string): PlannerNode |
   );
   if (pool.length === 0) return null;
   return pool.reduce((best, n) => computeFrogScore(n) > computeFrogScore(best) ? n : best);
+}
+
+// ─── Task Numbering ───────────────────────────────────────────────────────────
+// Global sequential numbers across all non-completed nodes, sorted by urgency DESC then created_at ASC.
+// Returns Map<nodeId, "N"> for parent nodes.
+// Subtask numbers ("N.M") are computed inline at display sites: parentNumber + "." + (sort_order + 1).
+export function computeNodeNumbers(
+  nodes: PlannerNode[],
+  _subTasksByNode?: Record<string, SubTask[]>,
+): Map<string, string> {
+  const result = new Map<string, string>();
+  const sorted = [...nodes]
+    .filter(n => !n.is_completed)
+    .sort((a, b) => {
+      if (b.computed_urgency_level !== a.computed_urgency_level) {
+        return b.computed_urgency_level - a.computed_urgency_level;
+      }
+      return a.created_at.localeCompare(b.created_at);
+    });
+  sorted.forEach((node, i) => result.set(node.id, String(i + 1)));
+  return result;
 }
 
 // ─── Dice Taskmaster ──────────────────────────────────────────────────────────

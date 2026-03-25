@@ -3,15 +3,18 @@ import type { PlannerNode } from '../types';
 import { formatDueLabel, formatEffortLabel } from '../lib/logicEngine';
 
 interface DotTooltipProps {
-  node:    PlannerNode;
-  anchorX: number;
-  anchorY: number;
+  node:        PlannerNode;
+  anchorX:     number;
+  anchorY:     number;
 }
 
 export default function DotTooltip({ node, anchorX, anchorY }: DotTooltipProps) {
   const dueLabel    = formatDueLabel(node.due_at, new Date());
   const effortLabel = formatEffortLabel(node.estimated_duration_minutes);
-  const meta        = [effortLabel, dueLabel].filter(Boolean).join('  ·  ');
+  const subTotal    = node.sub_total ?? 0;
+  const subDone     = node.sub_done  ?? 0;
+  const subLabel    = subTotal > 0 ? `${subDone}/${subTotal} sub` : null;
+  const meta        = [effortLabel, dueLabel, subLabel].filter(Boolean).join('  ·  ');
 
   const w    = 240;
   const left = Math.max(8, Math.min(anchorX - w / 2, window.innerWidth - w - 8));

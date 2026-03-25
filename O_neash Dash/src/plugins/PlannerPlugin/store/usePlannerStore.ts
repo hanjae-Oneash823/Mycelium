@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createElement } from 'react';
 import { CheckboxOn } from 'pixelarticons/react';
 import { toast } from '@/components/ui/sonner';
-import type { PlannerNode, PlannerGroup, Arc, Project, UserCapacity, CreateNodeData } from '../types';
+import type { PlannerNode, PlannerGroup, Arc, Project, UserCapacity, CreateNodeData, SubTask } from '../types';
 import * as db from '../lib/plannerDb';
 
 interface PlannerStore {
@@ -11,6 +11,7 @@ interface PlannerStore {
   arcs: Arc[];
   projects: Project[];
   capacity: UserCapacity | null;
+  subTasksByNode: Record<string, SubTask[]>;
 
   loadAll: () => Promise<void>;
   createNode: (data: CreateNodeData) => Promise<string>;
@@ -33,16 +34,32 @@ interface PlannerStore {
   updateProject: (id: string, patch: Record<string, unknown>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   uncompleteNode: (id: string) => Promise<void>;
+  // Sub-tasks
+  loadSubTasks: (nodeId: string) => Promise<void>;
+  createSubTask: (nodeId: string, title: string) => Promise<void>;
+  toggleSubTask: (id: string, nodeId: string, current: boolean) => Promise<void>;
+  updateSubTaskTitle: (id: string, nodeId: string, title: string) => Promise<void>;
+  deleteSubTask: (id: string, nodeId: string) => Promise<void>;
+  reorderSubTasks: (nodeId: string, orderedIds: string[]) => Promise<void>;
   // Test utilities
   wipePlannerData: () => Promise<void>;
 }
 
-export const usePlannerStore = create<PlannerStore>((set) => ({
+// Patches sub_total/sub_done on the affected node in-place from a fresh subtask list
+function patchNodeCounts(nodes: PlannerNode[], nodeId: string, subTasks: SubTask[]): PlannerNode[] {
+  return nodes.map(n => n.id === nodeId
+    ? { ...n, sub_total: subTasks.length, sub_done: subTasks.filter(s => s.is_completed).length }
+    : n,
+  );
+}
+
+export const usePlannerStore = create<PlannerStore>((set, get) => ({
   nodes: [],
   groups: [],
   arcs: [],
   projects: [],
   capacity: null,
+  subTasksByNode: {},
 
   loadAll: async () => {
     const [nodes, groups, arcs, projects, capacity] = await Promise.all([
@@ -193,9 +210,64 @@ export const usePlannerStore = create<PlannerStore>((set) => ({
     toast('project deleted', { style: { borderColor: 'rgba(255,59,59,0.5)', color: '#ff3b3b' } });
   },
 
+  // Sub-tasks
+  loadSubTasks: async (nodeId) => {
+    const subTasks = await db.loadSubTasks(nodeId);
+    set(s => ({
+      subTasksByNode: { ...s.subTasksByNode, [nodeId]: subTasks },
+      nodes: patchNodeCounts(s.nodes, nodeId, subTasks),
+    }));
+  },
+
+  createSubTask: async (nodeId, title) => {
+    const existing = get().subTasksByNode[nodeId] ?? [];
+    const subTask  = await db.createSubTask(nodeId, title, existing.length);
+    const updated  = [...existing, subTask];
+    set(s => ({
+      subTasksByNode: { ...s.subTasksByNode, [nodeId]: updated },
+      nodes: patchNodeCounts(s.nodes, nodeId, updated),
+    }));
+  },
+
+  toggleSubTask: async (id, nodeId, current) => {
+    await db.updateSubTask(id, { is_completed: !current });
+    const updated = (get().subTasksByNode[nodeId] ?? []).map(s =>
+      s.id === id ? { ...s, is_completed: !current } : s,
+    );
+    set(s => ({
+      subTasksByNode: { ...s.subTasksByNode, [nodeId]: updated },
+      nodes: patchNodeCounts(s.nodes, nodeId, updated),
+    }));
+  },
+
+  updateSubTaskTitle: async (id, nodeId, title) => {
+    await db.updateSubTask(id, { title });
+    const updated = (get().subTasksByNode[nodeId] ?? []).map(s =>
+      s.id === id ? { ...s, title } : s,
+    );
+    set(s => ({ subTasksByNode: { ...s.subTasksByNode, [nodeId]: updated } }));
+  },
+
+  deleteSubTask: async (id, nodeId) => {
+    await db.deleteSubTask(id);
+    const updated = (get().subTasksByNode[nodeId] ?? []).filter(s => s.id !== id);
+    set(s => ({
+      subTasksByNode: { ...s.subTasksByNode, [nodeId]: updated },
+      nodes: patchNodeCounts(s.nodes, nodeId, updated),
+    }));
+  },
+
+  reorderSubTasks: async (nodeId, orderedIds) => {
+    await db.reorderSubTasks(nodeId, orderedIds);
+    const current = get().subTasksByNode[nodeId] ?? [];
+    const byId    = Object.fromEntries(current.map(s => [s.id, s]));
+    const updated = orderedIds.map((id, i) => ({ ...byId[id], sort_order: i }));
+    set(s => ({ subTasksByNode: { ...s.subTasksByNode, [nodeId]: updated } }));
+  },
+
   wipePlannerData: async () => {
     await db.wipePlannerData();
-    set({ nodes: [], arcs: [], projects: [], capacity: null });
+    set({ nodes: [], arcs: [], projects: [], capacity: null, subTasksByNode: {} });
     const [groups, capacity] = await Promise.all([db.loadGroups(), db.loadUserCapacity()]);
     set({ groups, capacity });
     toast('all planner data wiped', { style: { borderColor: 'rgba(255,59,59,0.5)', color: '#ff3b3b' } });

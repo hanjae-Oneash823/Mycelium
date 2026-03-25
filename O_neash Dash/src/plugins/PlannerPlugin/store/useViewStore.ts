@@ -15,6 +15,9 @@ interface ViewStore {
   commandPaletteOpen: boolean;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
+  tendrilsProjectId: string | null;
+  openTendrils: (projectId: string) => void;
+  openTendrilsHub: () => void;
 }
 
 export const useViewStore = create<ViewStore>((set) => ({
@@ -31,4 +34,7 @@ export const useViewStore = create<ViewStore>((set) => ({
   commandPaletteOpen: false,
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
+  tendrilsProjectId: null,
+  openTendrils: (projectId) => set({ activeView: 'tendrils', tendrilsProjectId: projectId }),
+  openTendrilsHub: () => set({ activeView: 'tendrils', tendrilsProjectId: null }),
 }));

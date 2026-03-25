@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown } from 'pixelarticons/react';
-import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, pointerWithin } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, Modifier } from '@dnd-kit/core';
 
 // Centers the DragOverlay on the cursor instead of anchoring to the element's top-left
@@ -180,7 +180,7 @@ export default function EisenhowerView() {
 
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: '2rem' }}>
 
         {/* Scrollable body — header lives inside so column widths share the same layout context,

@@ -8,12 +8,12 @@ import DotTooltip from './DotTooltip';
 import TaskDetailPanel from './TaskDetailPanel';
 
 interface DotNodeProps {
-  node:        PlannerNode;
-  scale?:      number;
-  noPopups?:   boolean;
-  onComplete?: () => void;
-  onDelete?:   () => void;
-  onEdit?:     () => void;
+  node:         PlannerNode;
+  scale?:       number;
+  noPopups?:    boolean;
+  onComplete?:  () => void;
+  onDelete?:    () => void;
+  onEdit?:      () => void;
 }
 
 export default function DotNode({ node, scale = 1, noPopups = false, onComplete, onDelete, onEdit }: DotNodeProps) {
@@ -54,7 +54,7 @@ export default function DotNode({ node, scale = 1, noPopups = false, onComplete,
     setPanelOpen(prev => !prev);
   };
 
-  const diameter  = getDotDiameter(node.estimated_duration_minutes) * scale;
+  const diameter  = Math.round(getDotDiameter(node.estimated_duration_minutes) * scale);
   const color     = getDotColor(node);
   const animClass = getDotAnimClass(node);
 
@@ -88,24 +88,53 @@ export default function DotNode({ node, scale = 1, noPopups = false, onComplete,
       {...listeners}
       {...attributes}
     >
-      {/* Subtask SVG ring */}
-      {subTotal > 0 && (
-        <svg
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
-          viewBox={`0 0 ${diameter} ${diameter}`}
-        >
-          <circle
-            cx={diameter / 2}
-            cy={diameter / 2}
-            r={diameter / 2 - 1.5}
-            fill="none"
-            stroke="rgba(255,255,255,0.5)"
-            strokeWidth="1.5"
-            strokeDasharray={`${(subDone / subTotal) * (Math.PI * (diameter - 3))} ${Math.PI * (diameter - 3)}`}
-            transform={`rotate(-90 ${diameter / 2} ${diameter / 2})`}
-            strokeLinecap="butt"
-          />
-        </svg>
+      {/* Subtask SVG ring — SVG is sized to contain the ring, centered over dot */}
+      {subTotal > 0 && (() => {
+        const gap = 4;
+        const sw  = 2;
+        const pad = gap + sw;
+        const svgSize = diameter + pad * 2;
+        const cx = svgSize / 2;
+        const r  = diameter / 2 + gap;
+        const circ = 2 * Math.PI * r;
+        return (
+          <svg
+            width={svgSize}
+            height={svgSize}
+            viewBox={`0 0 ${svgSize} ${svgSize}`}
+            style={{
+              position: 'absolute',
+              top:  '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none',
+              overflow: 'visible',
+            }}
+          >
+            <circle cx={cx} cy={cx} r={r} fill="none" stroke={color} strokeOpacity={0.2} strokeWidth={sw} />
+            {subDone > 0 && (
+              <circle
+                cx={cx} cy={cx} r={r}
+                fill="none" stroke={color} strokeOpacity={0.85} strokeWidth={sw}
+                strokeDasharray={`${(subDone / subTotal) * circ} ${circ}`}
+                transform={`rotate(-90 ${cx} ${cx})`}
+                strokeLinecap="butt"
+              />
+            )}
+          </svg>
+        );
+      })()}
+
+      {/* Subtask count badge — visible on hover */}
+      {subTotal > 0 && hovered && !isDragging && (
+        <div style={{
+          position: 'absolute', bottom: -(diameter * 0.45), left: '50%', transform: 'translateX(-50%)',
+          fontFamily: "'VT323', monospace", fontSize: Math.max(9, diameter * 0.42),
+          color: color, letterSpacing: '0.5px', lineHeight: 1, whiteSpace: 'nowrap',
+          pointerEvents: 'none', zIndex: 20,
+          textShadow: '0 1px 4px #000',
+        }}>
+          {subDone}/{subTotal}
+        </div>
       )}
 
       {/* Note badge */}
