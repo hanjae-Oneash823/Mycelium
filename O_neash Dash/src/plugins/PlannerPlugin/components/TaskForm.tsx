@@ -524,10 +524,9 @@ function IdentityStep({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const realGroups  = groups.filter((g: any) => !g.is_ungrouped);
+  const arcList     = arcs;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const arcList     = arcs.filter((a: any) => !a.is_archived);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const filteredPrj = projects.filter((p: any) => p.arc_id === arcId && !p.is_archived);
+  const filteredPrj = projects.filter((p: any) => p.arc_id === arcId);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName;
@@ -1084,7 +1083,6 @@ export default function TaskForm() {
           due_at: dueAtRef.current ? toDateString(dueAtRef.current) : null,
           planned_start_at: planStart ?? null,
           arc_id: arcId ?? null, project_id: projectId ?? null,
-          recurrence_rule: null,
         });
         await replaceNodeGroups(editNode.id, selectedGroups);
       } else {

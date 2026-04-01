@@ -62,7 +62,7 @@ export default function ProjectFields({
               <SelectValue placeholder="select an arc" />
             </TypedSelectTrigger>
             <TypedSelectContent className="bg-black border-[rgba(255,255,255,0.09)] rounded-none">
-              {arcs.filter(a => !a.is_archived).map(arc => (
+              {arcs.map(arc => (
                 <TypedSelectItem key={arc.id} value={arc.id} className="font-mono text-sm">
                   {arc.name}
                 </TypedSelectItem>
@@ -82,7 +82,7 @@ export default function ProjectFields({
               <SelectValue placeholder={arcId ? 'select a project' : 'select an arc first'} />
             </TypedSelectTrigger>
             <TypedSelectContent className="bg-black border-[rgba(255,255,255,0.09)] rounded-none">
-              {filteredProjects.filter(p => !p.is_archived).map(proj => (
+              {filteredProjects.map(proj => (
                 <TypedSelectItem key={proj.id} value={proj.id} className="font-mono text-sm">
                   {proj.name}
                 </TypedSelectItem>

@@ -15,6 +15,7 @@ interface ViewStore {
   commandPaletteOpen: boolean;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
+  // Tendrils view removed — stubs kept so dormant files still compile
   tendrilsProjectId: string | null;
   openTendrils: (projectId: string) => void;
   openTendrilsHub: () => void;
@@ -35,6 +36,6 @@ export const useViewStore = create<ViewStore>((set) => ({
   openCommandPalette: () => set({ commandPaletteOpen: true }),
   closeCommandPalette: () => set({ commandPaletteOpen: false }),
   tendrilsProjectId: null,
-  openTendrils: (projectId) => set({ activeView: 'tendrils', tendrilsProjectId: projectId }),
-  openTendrilsHub: () => set({ activeView: 'tendrils', tendrilsProjectId: null }),
+  openTendrils: (_projectId) => {},
+  openTendrilsHub: () => {},
 }));

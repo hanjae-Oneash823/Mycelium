@@ -1,29 +1,38 @@
 import { useEffect } from 'react';
-import { Zap, Grid2x22, Target, GitBranch, Tournament } from 'pixelarticons/react';
+import { Zap, Grid2x22, Target, Reload } from 'pixelarticons/react';
 import { useViewStore } from '../store/useViewStore';
 import type { PlannerViewType } from '../types';
 
 const VIEWS: { id: PlannerViewType; label: string; icon: React.ReactNode }[] = [
-  { id: 'today',      label: 'today',      icon: <Zap       size={18} /> },
-  { id: 'eisenhower', label: 'eisenhower', icon: <Grid2x22  size={18} /> },
-  { id: 'tendrils',   label: 'tendrils',   icon: <Tournament size={18} /> },
-  { id: 'arc',        label: 'arc',        icon: <GitBranch size={18} /> },
-  { id: 'focus',      label: 'focus',      icon: <Target    size={18} /> },
+  { id: 'today',      label: 'today',      icon: <Zap      size={18} /> },
+  { id: 'eisenhower', label: 'eisenhower', icon: <Grid2x22 size={18} /> },
+  { id: 'focus',      label: 'focus',      icon: <Target   size={18} /> },
+  { id: 'routines',   label: 'routines',   icon: <Reload   size={18} /> },
 ];
 
 export default function ViewSwitcher() {
-  const { activeView, setActiveView, openTendrilsHub } = useViewStore();
+  const { activeView, setActiveView } = useViewStore();
 
-  // Number key shortcuts: 1–5
+  // Number key shortcuts: 1–5, arrow keys to cycle views
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const idx = parseInt(e.key) - 1;
-      if (idx >= 0 && idx < VIEWS.length) setActiveView(VIEWS[idx].id);
+      if (idx >= 0 && idx < VIEWS.length) {
+        setActiveView(VIEWS[idx].id);
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const currentIdx = VIEWS.findIndex(v => v.id === activeView);
+        const next = e.key === 'ArrowRight'
+          ? (currentIdx + 1) % VIEWS.length
+          : (currentIdx - 1 + VIEWS.length) % VIEWS.length;
+        setActiveView(VIEWS[next].id);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [setActiveView]);
+  }, [setActiveView, activeView]);
 
   return (
     <div style={{
@@ -39,7 +48,7 @@ export default function ViewSwitcher() {
         return (
           <button
             key={v.id}
-            onClick={() => v.id === 'tendrils' ? openTendrilsHub() : setActiveView(v.id)}
+            onClick={() => setActiveView(v.id)}
             style={{
               background:    'none',
               border:        'none',

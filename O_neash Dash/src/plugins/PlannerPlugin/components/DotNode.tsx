@@ -11,12 +11,13 @@ interface DotNodeProps {
   node:         PlannerNode;
   scale?:       number;
   noPopups?:    boolean;
+  isToday?:     boolean;
   onComplete?:  () => void;
   onDelete?:    () => void;
   onEdit?:      () => void;
 }
 
-export default function DotNode({ node, scale = 1, noPopups = false, onComplete, onDelete, onEdit }: DotNodeProps) {
+export default function DotNode({ node, scale = 1, noPopups = false, isToday = true, onComplete, onDelete, onEdit }: DotNodeProps) {
   const [hovered,   setHovered]   = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [anchor,    setAnchor]    = useState({ x: 0, y: 0 });
@@ -25,7 +26,7 @@ export default function DotNode({ node, scale = 1, noPopups = false, onComplete,
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id:       node.id,
-    disabled: !!node.is_locked,
+    disabled: !!node.is_locked || !!node.is_routine,
     data:     { node },
   });
 
@@ -70,10 +71,10 @@ export default function DotNode({ node, scale = 1, noPopups = false, onComplete,
         height:          diameter,
         minWidth:        diameter,
         minHeight:       diameter,
-        backgroundColor: node.node_type === 'event' ? 'transparent' : color,
+        backgroundColor: node.node_type === 'event' ? '#000' : color,
         borderRadius:    '50%',
         border:          node.node_type === 'event' ? `3px solid ${color}` : 'none',
-        cursor:          isDragging ? 'grabbing' : (node.is_locked ? 'default' : 'grab'),
+        cursor:          isDragging ? 'grabbing' : (node.is_locked || node.is_routine ? 'default' : 'grab'),
         display:         'inline-flex',
         alignItems:      'center',
         justifyContent:  'center',
@@ -137,15 +138,6 @@ export default function DotNode({ node, scale = 1, noPopups = false, onComplete,
         </div>
       )}
 
-      {/* Note badge */}
-      {(node.linked_note_count ?? 0) >= 1 && (
-        <div style={{
-          position: 'absolute', bottom: -2, right: -2,
-          width: 7, height: 7, borderRadius: '50%',
-          background: '#c084fc', border: '1px solid #000',
-          pointerEvents: 'none',
-        }} />
-      )}
 
       {/* Hover tooltip — hidden while dragging, panel open, or task form open */}
       {!noPopups && hovered && !isDragging && !panelOpen && !taskFormOpen && (
@@ -158,6 +150,7 @@ export default function DotNode({ node, scale = 1, noPopups = false, onComplete,
           node={node}
           anchorX={anchor.x}
           anchorY={anchor.y}
+          isToday={isToday}
           onClose={() => setPanelOpen(false)}
           onComplete={() => { onComplete?.(); setPanelOpen(false); }}
           onEdit={() => { setPanelOpen(false); onEdit?.(); }}

@@ -71,7 +71,8 @@ function layoutNodes(
 
 // ─── Module-level callback stores (bypass XyFlow memoization) ────────────────
 const _nodeCbs = {
-  onDeletePre: (_id: string) => {},
+  onDeletePre:  (_id: string) => {},
+  onDeleteNode: (_id: string) => {},
 };
 
 // ─── Module-level callback store (bypasses XyFlow edge memoization) ───────────
@@ -96,6 +97,7 @@ const HANDLE_STYLE: React.CSSProperties = {
 
 function TendrilNode({ data, selected }: { data: TendrilNodeData; selected?: boolean }) {
   const { node } = data;
+  const [hovered, setHovered] = useState(false);
   const isPre     = !!node.is_pre_node;
   const isDone    = node.is_completed;
   const isOverdue = !isDone && !isPre && node.is_overdue;
@@ -155,20 +157,39 @@ function TendrilNode({ data, selected }: { data: TendrilNodeData; selected?: boo
       : '#4ade80';
 
   return (
-    <div style={{
-      width: NODE_W,
-      minHeight: NODE_H,
-      boxSizing: 'border-box',
-      padding: '10px 14px 10px 14px',
-      background: bgColor,
-      border: `1px ${borderStyle} ${borderColor}`,
-      boxShadow: selected ? `0 0 0 1px ${accentColor}` : 'none',
-      cursor: 'pointer',
-      position: 'relative',
-      transition: 'border-color 0.12s, box-shadow 0.12s',
-    }}>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: NODE_W,
+        minHeight: NODE_H,
+        boxSizing: 'border-box',
+        padding: '10px 14px 10px 14px',
+        background: bgColor,
+        border: `1px ${borderStyle} ${borderColor}`,
+        boxShadow: selected ? `0 0 0 1px ${accentColor}` : 'none',
+        cursor: 'pointer',
+        position: 'relative',
+        transition: 'border-color 0.12s, box-shadow 0.12s',
+      }}>
       <Handle type="target" position={Position.Left}  style={HANDLE_STYLE} />
       <Handle type="source" position={Position.Right} style={HANDLE_STYLE} />
+
+      {/* Delete button — visible on hover or selection */}
+      {(hovered || selected) && !isDone && (
+        <button
+          className="nodrag"
+          onClick={e => { e.stopPropagation(); _nodeCbs.onDeleteNode(node.id); }}
+          title="Delete node"
+          style={{
+            position: 'absolute', top: 4, right: 4,
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'rgba(255,59,59,0.55)', fontSize: '0.85rem',
+            lineHeight: 1, padding: '1px 3px',
+            ...mono,
+          }}
+        >×</button>
+      )}
 
       {/* Badge */}
       <div style={{ ...mono, fontSize: '0.65rem', letterSpacing: '2px', color: accentColor, marginBottom: '0.28rem' }}>
@@ -458,20 +479,31 @@ function PromotePanel({ node, onClose, onRefresh, onDelete }: {
 
 function TendrilsHub() {
   const { openTendrils } = useViewStore();
-  const { projects, arcs } = usePlannerStore();
+  const { projects, arcs, nodes: allNodes } = usePlannerStore();
   const [hovered, setHovered] = useState<string | null>(null);
   const [countsByProject, setCountsByProject] = useState<Map<string, ProjectNodeCounts>>(new Map());
   const [projFormOpen, setProjFormOpen] = useState(false);
 
   const mono = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" } as const;
 
+  // Count pending routine nodes per project directly from the store
+  const routineCountsByProject = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of allNodes) {
+      if (n.is_routine && !n.is_completed && n.project_id) {
+        m.set(n.project_id, (m.get(n.project_id) ?? 0) + 1);
+      }
+    }
+    return m;
+  }, [allNodes]);
+
   useEffect(() => {
-    loadAllProjectNodeCounts().then(rows => {
-      setCountsByProject(new Map(rows.map(r => [r.project_id, r])));
+    loadAllProjectNodeCounts().then(nodes => {
+      setCountsByProject(new Map(nodes.map(r => [r.project_id, r])));
     });
   }, []);
 
-  const activeProjects = projects.filter(p => !p.is_archived);
+  const activeProjects = projects;
 
   // Group projects by arc (null arc = ungrouped)
   const grouped = useMemo(() => {
@@ -487,7 +519,7 @@ function TendrilsHub() {
   const arcMap = useMemo(() => new Map(arcs.map(a => [a.id, a])), [arcs]);
 
   const arcOrder = [
-    ...arcs.filter(a => !a.is_archived).map(a => a.id),
+    ...arcs.map(a => a.id),
     null, // ungrouped last
   ] as (string | null)[];
 
@@ -547,8 +579,9 @@ function TendrilsHub() {
             {/* Project cards */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
               {group.map(p => {
-                const counts = countsByProject.get(p.id) ?? { total: 0, active: 0, done: 0 };
-                const color = p.color_hex ?? '#00c4a7';
+                const counts   = countsByProject.get(p.id) ?? { total: 0, active: 0, done: 0 };
+                const occCount = routineCountsByProject.get(p.id) ?? 0;
+                const color = arcColor;
                 const isHov = hovered === p.id;
 
                 return (
@@ -580,7 +613,7 @@ function TendrilsHub() {
                       {p.name}
                     </div>
 
-                    {/* Stats — two lines */}
+                    {/* Stats */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                       <span style={{ fontSize: '0.8rem', letterSpacing: '1.5px', color: '#4ade80' }}>
                         {counts.active} active
@@ -588,6 +621,11 @@ function TendrilsHub() {
                       <span style={{ fontSize: '0.8rem', letterSpacing: '1.5px', color: 'rgba(255,80,80,0.5)' }}>
                         {counts.done} done
                       </span>
+                      {occCount > 0 && (
+                        <span style={{ fontSize: '0.8rem', letterSpacing: '1.5px', color: 'rgba(192,132,252,0.65)' }}>
+                          {occCount} routine{occCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
 
                     {/* Arrow hint on hover */}
@@ -624,13 +662,13 @@ function TendrilsHub() {
 
 export default function TendrilsView() {
   const { tendrilsProjectId, openTendrilsHub, openTaskFormEdit, taskFormOpen } = useViewStore();
-  const { projects, arcs, loadAll, subTasksByNode, loadSubTasks, toggleSubTask } = usePlannerStore();
+  const { projects, arcs, loadAll, deleteNode, subTasksByNode, loadSubTasks, toggleSubTask } = usePlannerStore();
 
   const project = useMemo(
     () => projects.find(p => p.id === tendrilsProjectId),
     [projects, tendrilsProjectId],
   );
-  const projectColor = project?.color_hex ?? '#00c4a7';
+  const projectColor = projectArc?.color_hex ?? '#00c4a7';
   const projectArc = useMemo(() => arcs.find(a => a.id === project?.arc_id), [arcs, project]);
 
   const [projectNodes, setProjectNodes] = useState<PlannerNode[]>([]);
@@ -836,10 +874,15 @@ export default function TendrilsView() {
   const onNodesDelete = useCallback(async (nodes: FlowNode[]) => {
     for (const n of nodes) {
       const pn = projectNodes.find(p => p.id === n.id);
-      if (pn?.is_pre_node) await deletePreNode(n.id);
+      if (pn?.is_pre_node) {
+        await deletePreNode(n.id);
+      } else if (pn) {
+        await deleteNode(n.id);
+      }
     }
+    await loadAll();
     refreshNodes();
-  }, [projectNodes, refreshNodes]);
+  }, [projectNodes, deleteNode, loadAll, refreshNodes]);
 
   const onNodeClick = useCallback((_evt: React.MouseEvent, node: FlowNode) => {
     const pn = projectNodes.find(p => p.id === node.id);
@@ -874,6 +917,17 @@ export default function TendrilsView() {
   _edgeCbs.onDelete = handleDeleteEdge;
   _nodeCbs.onDeletePre = async (id: string) => {
     await deletePreNode(id);
+    refreshNodes();
+  };
+  _nodeCbs.onDeleteNode = async (id: string) => {
+    const pn = projectNodes.find(p => p.id === id);
+    if (!pn) return;
+    if (pn.is_pre_node) {
+      await deletePreNode(id);
+    } else {
+      await deleteNode(id);
+      await loadAll();
+    }
     refreshNodes();
   };
 

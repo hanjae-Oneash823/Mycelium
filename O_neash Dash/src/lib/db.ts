@@ -20,132 +20,6 @@ export async function setupDb(): Promise<Database> {
 
     // 4. Always apply the schema to ensure new tables/columns are created
     const schemaSql = `
-    CREATE TABLE IF NOT EXISTS groups (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        color TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        group_id INTEGER,
-        title TEXT,
-        content TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (group_id) REFERENCES groups(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        label TEXT UNIQUE NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS junc_note_tags (
-        note_id INTEGER,
-        tag_id INTEGER,
-        PRIMARY KEY (note_id, tag_id),
-        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS todo_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        parent_id INTEGER, -- Links subtasks
-        group_id INTEGER,
-        task TEXT NOT NULL,
-        description TEXT,
-        effort DECIMAL,
-        is_completed BOOLEAN DEFAULT 0,
-        importance INTEGER CHECK (importance BETWEEN 1 AND 5),
-        due_date TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (parent_id) REFERENCES todo_items(id) ON DELETE CASCADE,
-        FOREIGN KEY (group_id) REFERENCES groups(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS scratchpad (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        content TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS habits (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        one_liner TEXT,
-        goal_week INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS habit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        habit_id INTEGER,
-        log_date DATE DEFAULT (DATE('now')),
-        status BOOLEAN,
-        value INTEGER,
-        FOREIGN KEY (habit_id) REFERENCES habits(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS sleep_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        start_time TIMESTAMP,
-        wake_time TIMESTAMP,
-        total_sleep DECIMAL
-    );
-
-    CREATE TABLE IF NOT EXISTS journal (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        entry_date DATE DEFAULT (DATE('now')),
-        content TEXT,
-        mood_rating INTEGER,
-        energy_level INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS trips (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trip_name TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS trip_pins (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trip_id INTEGER,
-        type TEXT, -- trip/bucketlist
-        lat REAL NOT NULL,
-        lon REAL NOT NULL,
-        date TIMESTAMP,
-        FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS travel_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pin_id INTEGER,
-        content TEXT,
-        FOREIGN KEY (pin_id) REFERENCES trip_pins(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS travel_images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pin_id INTEGER,
-        path TEXT NOT NULL, -- Path to /0-neash-data/photos/
-        FOREIGN KEY (pin_id) REFERENCES trip_pins(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        one_liner TEXT,
-        goal_week INTEGER
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_scratchpad_date ON scratchpad(created_at);
-    CREATE INDEX IF NOT EXISTS idx_habit_log_date ON habit_log(log_date);
-    CREATE INDEX IF NOT EXISTS idx_trip_pins_id ON trip_pins(trip_id);
-    CREATE INDEX IF NOT EXISTS idx_travel_images_pin ON travel_images(pin_id);
-    CREATE INDEX IF NOT EXISTS idx_todo_parent ON todo_items(parent_id);
-    CREATE INDEX IF NOT EXISTS idx_todo_group ON todo_items(group_id);
-    CREATE INDEX IF NOT EXISTS idx_todo_completed ON todo_items(is_completed);
-    CREATE INDEX IF NOT EXISTS idx_todo_importance ON todo_items(importance);
-    CREATE INDEX IF NOT EXISTS idx_todo_due_date ON todo_items(due_date);
-    CREATE INDEX IF NOT EXISTS idx_notes_group ON notes(group_id);
 
   -- ─────────────────── PLANNER PLUGIN ───────────────────────────────────────
 
@@ -153,9 +27,6 @@ export async function setupDb(): Promise<Database> {
     id          TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
     color_hex   TEXT DEFAULT '#00c4a7',
-    start_date  DATE,
-    end_date    DATE,
-    is_archived BOOLEAN DEFAULT 0,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -163,10 +34,6 @@ export async function setupDb(): Promise<Database> {
     id          TEXT PRIMARY KEY,
     arc_id      TEXT,
     name        TEXT NOT NULL,
-    color_hex   TEXT,
-    start_date  DATE,
-    end_date    DATE,
-    is_archived BOOLEAN DEFAULT 0,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(arc_id) REFERENCES arcs(id) ON DELETE SET NULL
   );
@@ -175,10 +42,7 @@ export async function setupDb(): Promise<Database> {
     id             TEXT PRIMARY KEY,
     name           TEXT NOT NULL,
     color_hex      TEXT DEFAULT '#64c8ff',
-    icon           TEXT,
     sort_order     INTEGER DEFAULT 0,
-    is_visible     BOOLEAN DEFAULT 1,
-    is_daily_life  BOOLEAN DEFAULT 0,
     is_ungrouped   BOOLEAN DEFAULT 0,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
@@ -191,14 +55,12 @@ export async function setupDb(): Promise<Database> {
     project_id                  TEXT,
     arc_id                      TEXT,
     title                       TEXT NOT NULL,
-    description                 TEXT,
     node_type                   TEXT NOT NULL DEFAULT 'task'
                                     CHECK(node_type IN('task','event')),
     planned_start_at            DATETIME,
     due_at                      DATETIME,
     actual_completed_at         DATETIME,
     estimated_duration_minutes  INTEGER,
-    actual_duration_minutes     INTEGER,
     importance_level            INTEGER NOT NULL DEFAULT 0
                                     CHECK(importance_level BETWEEN 0 AND 4),
     computed_urgency_level      INTEGER NOT NULL DEFAULT 0
@@ -206,15 +68,14 @@ export async function setupDb(): Promise<Database> {
     is_completed                BOOLEAN DEFAULT 0,
     is_locked                   BOOLEAN DEFAULT 0,
     is_overdue                  BOOLEAN DEFAULT 0,
-    is_recovery                 BOOLEAN DEFAULT 0,
     is_pinned                   BOOLEAN DEFAULT 0,
-    recovery_set_at             TIMESTAMP,
-    parent_node_id              TEXT,
     created_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at                  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(project_id)     REFERENCES projects(id) ON DELETE SET NULL,
-    FOREIGN KEY(arc_id)         REFERENCES arcs(id)     ON DELETE SET NULL,
-    FOREIGN KEY(parent_node_id) REFERENCES nodes(id)    ON DELETE CASCADE
+    is_routine                  INTEGER DEFAULT 0,
+    routine_id                  TEXT,
+    FOREIGN KEY(project_id)     REFERENCES projects(id)  ON DELETE SET NULL,
+    FOREIGN KEY(arc_id)         REFERENCES arcs(id)      ON DELETE SET NULL,
+    FOREIGN KEY(routine_id)     REFERENCES routines(id)  ON DELETE SET NULL
   );
 
   CREATE TRIGGER IF NOT EXISTS nodes_ts AFTER UPDATE ON nodes
@@ -295,33 +156,7 @@ export async function setupDb(): Promise<Database> {
   CREATE INDEX IF NOT EXISTS idx_nodes_planned   ON nodes(planned_start_at);
   CREATE INDEX IF NOT EXISTS idx_nodes_completed ON nodes(is_completed);
   CREATE INDEX IF NOT EXISTS idx_nodes_overdue   ON nodes(is_overdue);
-  CREATE INDEX IF NOT EXISTS idx_nodes_parent    ON nodes(parent_node_id);
   CREATE INDEX IF NOT EXISTS idx_projects_arc    ON projects(arc_id);
-
-  CREATE TABLE IF NOT EXISTS note_task_links (
-    note_id   TEXT NOT NULL,
-    node_id   TEXT NOT NULL,
-    linked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (note_id, node_id),
-    FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
-  );
-  CREATE INDEX IF NOT EXISTS idx_ntl_note ON note_task_links(note_id);
-  CREATE INDEX IF NOT EXISTS idx_ntl_node ON note_task_links(node_id);
-
-  CREATE TABLE IF NOT EXISTS daily_stats (
-    date        DATE PRIMARY KEY,
-    frogs_done  INTEGER DEFAULT 0
-  );
-
-  CREATE TABLE IF NOT EXISTS weekly_review (
-    id               TEXT PRIMARY KEY,
-    week_start       DATE NOT NULL,
-    notes            TEXT,
-    goals            TEXT,
-    completed_count  INTEGER DEFAULT 0,
-    cleared_count    INTEGER DEFAULT 0,
-    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
 
   CREATE TABLE IF NOT EXISTS tendril_edges (
     id          TEXT PRIMARY KEY,
@@ -333,6 +168,62 @@ export async function setupDb(): Promise<Database> {
     FOREIGN KEY(target_id) REFERENCES nodes(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_te_project ON tendril_edges(project_id);
+
+  -- ─────────────────── ROUTINES ─────────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS routines (
+    id               TEXT PRIMARY KEY,
+    title            TEXT NOT NULL,
+    node_type        TEXT NOT NULL DEFAULT 'task'
+                         CHECK(node_type IN('task','event')),
+    arc_id           TEXT,
+    project_id       TEXT,
+    importance_level INTEGER NOT NULL DEFAULT 0,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(arc_id)     REFERENCES arcs(id)     ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS routine_rules (
+    id               TEXT PRIMARY KEY,
+    routine_id       TEXT NOT NULL,
+    sort_order       INTEGER DEFAULT 0,
+    freq             TEXT NOT NULL DEFAULT 'weekly'
+                         CHECK(freq IN('daily','weekly','monthly','manual')),
+    repeat_interval  INTEGER NOT NULL DEFAULT 1,
+    days             TEXT,
+    start_date       TEXT NOT NULL,
+    end_mode         TEXT NOT NULL DEFAULT 'count'
+                         CHECK(end_mode IN('count','date')),
+    end_count        INTEGER,
+    end_date         TEXT,
+    start_time       TEXT,
+    duration_minutes INTEGER,
+    exceptions       TEXT,
+    FOREIGN KEY(routine_id) REFERENCES routines(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_routine_rules_routine ON routine_rules(routine_id);
+
+  CREATE TABLE IF NOT EXISTS routine_groups (
+    routine_id  TEXT NOT NULL,
+    group_id    TEXT NOT NULL,
+    PRIMARY KEY (routine_id, group_id),
+    FOREIGN KEY (routine_id) REFERENCES routines(id)         ON DELETE CASCADE,
+    FOREIGN KEY (group_id)   REFERENCES planner_groups(id)   ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_rg_routine ON routine_groups(routine_id);
+  CREATE INDEX IF NOT EXISTS idx_rg_group   ON routine_groups(group_id);
+
+  CREATE INDEX IF NOT EXISTS idx_routines_arc     ON routines(arc_id);
+  CREATE INDEX IF NOT EXISTS idx_routines_project ON routines(project_id);
+
+  CREATE TRIGGER IF NOT EXISTS routines_ts AFTER UPDATE ON routines
+  BEGIN
+    UPDATE routines SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
     `;
 
     // Apply the full schema every time
@@ -340,16 +231,51 @@ export async function setupDb(): Promise<Database> {
     console.log("Schema applied/updated successfully.");
 
     // Column migrations — idempotent (SQLite throws if column already exists)
+    // Drop old routine_occurrences table (replaced by is_routine + routine_id on nodes)
+    try {
+      await db.execute(`DROP TABLE IF EXISTS routine_occurrences`);
+    } catch {
+      /* */
+    }
+
     const columnMigrations = [
-      `ALTER TABLE nodes ADD COLUMN recurrence_rule TEXT`,
-      `ALTER TABLE nodes ADD COLUMN recurrence_exceptions TEXT`,
       `ALTER TABLE nodes ADD COLUMN is_frog_pinned BOOLEAN DEFAULT 0`,
-      `ALTER TABLE nodes ADD COLUMN is_pre_node BOOLEAN DEFAULT 0`,
-      `ALTER TABLE nodes ADD COLUMN tendril_pos_x REAL`,
-      `ALTER TABLE nodes ADD COLUMN tendril_pos_y REAL`,
+      `ALTER TABLE nodes ADD COLUMN is_routine INTEGER DEFAULT 0`,
+      `ALTER TABLE nodes ADD COLUMN routine_id TEXT`,
     ];
     for (const sql of columnMigrations) {
-      try { await db.execute(sql); } catch { /* column already exists */ }
+      try {
+        await db.execute(sql);
+      } catch {
+        /* column already exists */
+      }
+    }
+
+    // Remove duplicate routine nodes — must run with FK off to avoid cascade conflicts
+    try {
+      await db.execute(`PRAGMA foreign_keys = OFF`);
+      await db.execute(`
+        DELETE FROM nodes WHERE id NOT IN (
+          SELECT MIN(id) FROM nodes
+          WHERE routine_id IS NOT NULL
+          GROUP BY routine_id, substr(planned_start_at, 1, 10)
+        ) AND routine_id IS NOT NULL
+      `);
+    } catch { /* */ } finally {
+      await db.execute(`PRAGMA foreign_keys = ON`);
+    }
+
+    // Indexes that depend on migrated columns — must run after migrations
+    const indexMigrations = [
+      `CREATE INDEX IF NOT EXISTS idx_nodes_routine_id ON nodes(routine_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_nodes_is_routine ON nodes(is_routine)`,
+    ];
+    for (const sql of indexMigrations) {
+      try {
+        await db.execute(sql);
+      } catch {
+        /* index already exists */
+      }
     }
 
     // Trigger migrations — DROP + recreate to apply fixes (IF NOT EXISTS guards against
@@ -376,6 +302,9 @@ export async function setupDb(): Promise<Database> {
 }
 
 export function getDb(): Database {
-  if (!_db) throw new Error("Database not initialized. Ensure setupDb() has completed before calling getDb().");
+  if (!_db)
+    throw new Error(
+      "Database not initialized. Ensure setupDb() has completed before calling getDb().",
+    );
   return _db;
 }

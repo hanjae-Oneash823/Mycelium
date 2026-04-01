@@ -62,8 +62,6 @@ export function scoreSuggestion(node: PlannerNode, today: Date): number {
     else if (daysLeft <= 7) score += 10;
   }
 
-  // Recovery bonus
-  if (node.is_recovery) score += 25;
 
   // Effort: quick wins get bonus, heavy lifts get penalty
   const hrs = (node.estimated_duration_minutes ?? 60) / 60;

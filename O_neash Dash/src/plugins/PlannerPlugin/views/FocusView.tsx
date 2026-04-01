@@ -57,11 +57,9 @@ interface FieldRanges {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isCurrentArc(arc: Arc, today: string): boolean {
-  if (arc.is_archived) return false;
-  const started = !arc.start_date || arc.start_date <= today;
-  const notEnded = !arc.end_date || arc.end_date >= today;
-  return started && notEnded;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function isCurrentArc(_arc: Arc, _today: string): boolean {
+  return true;
 }
 
 function daysUntil(dateStr: string, now: Date): number {
@@ -90,7 +88,7 @@ function computeFieldRanges(active: PlannerNode[], now: Date): FieldRanges {
 
   return {
     dayMin:     0,
-    dayMax:     allDays.length ? Math.max(1, Math.max(...allDays)) : 14,
+    dayMax:     allDays.length ? Math.min(10, Math.max(1, Math.max(...allDays))) : 10,
     impHrsMin:  imp.length   ? Math.min(...imp)   : 0,
     impHrsMax:  imp.length   ? Math.max(...imp)   : 8,
     noHrsMin:   noImp.length ? Math.min(...noImp) : 0,
@@ -153,7 +151,6 @@ function nodeArcColor(
   }
   if (node.project_id) {
     const proj = projects.find((p) => p.id === node.project_id);
-    if (proj?.color_hex) return proj.color_hex;
     if (proj?.arc_id) {
       const arc = arcs.find((a) => a.id === proj.arc_id);
       if (arc) return arc.color_hex;
@@ -319,7 +316,7 @@ function NodeTreeCanvas({
           id: proj.id,
           type: "project",
           label: proj.name,
-          color: proj.color_hex ?? arc.color_hex,
+          color: arc.color_hex,
           taskCount: projPending(proj.id),
           x: ptx + (Math.random() - 0.5) * 20,
           y: pty + (Math.random() - 0.5) * 20,
@@ -333,7 +330,7 @@ function NodeTreeCanvas({
             type: "project",
             id: proj.id,
             label: proj.name,
-            color: proj.color_hex ?? arc.color_hex,
+            color: arc.color_hex,
             arcId: arc.id,
             arcLabel: arc.name,
           },
@@ -352,7 +349,7 @@ function NodeTreeCanvas({
           id: proj.id,
           type: "project",
           label: proj.name,
-          color: proj.color_hex ?? "#888",
+          color: "#888",
           taskCount: projPending(proj.id),
           x: ptx,
           y: pty,
@@ -365,7 +362,7 @@ function NodeTreeCanvas({
             type: "project",
             id: proj.id,
             label: proj.name,
-            color: proj.color_hex ?? "#888",
+            color: "#888",
           },
         });
       });
@@ -804,8 +801,8 @@ function FieldCanvas({
   const [isDragging, setIsDragging] = useState(false);
 
   const dots = useMemo<FieldDot[]>(() => {
-    const active = nodes.filter((n) => !n.is_completed);
-    const ranges = computeFieldRanges(allNodes.filter((n) => !n.is_completed), now);
+    const active = nodes.filter((n) => !n.is_completed && !(n.planned_start_at && daysUntil(n.planned_start_at, now) > 10));
+    const ranges = computeFieldRanges(allNodes.filter((n) => !n.is_completed && !(n.planned_start_at && daysUntil(n.planned_start_at, now) > 10)), now);
     rangesRef.current = ranges;
     return active.map((node) => {
       const ov = overrides.get(node.id);
@@ -1627,8 +1624,9 @@ function TaskListPanel({
     );
   }
 
-  const ranges = computeFieldRanges(nodes, now);
-  const sorted = [...nodes].sort((a, b) => {
+  const visibleNodes = nodes.filter(n => !(n.planned_start_at && daysUntil(n.planned_start_at, now) > 10));
+  const ranges = computeFieldRanges(visibleNodes, now);
+  const sorted = [...visibleNodes].sort((a, b) => {
     const da = Math.hypot(1 - fieldX(a, now, ranges), 1 - fieldY(a, ranges));
     const db = Math.hypot(1 - fieldX(b, now, ranges), 1 - fieldY(b, ranges));
     return da - db;

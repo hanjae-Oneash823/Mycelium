@@ -20,17 +20,16 @@ interface PlannerStore {
   rescheduleNode: (id: string, date: string) => Promise<void>;
   completeNode: (id: string) => Promise<void>;
   replaceNodeGroups: (nodeId: string, groupIds: string[]) => Promise<void>;
-  addRecurrenceException: (templateId: string, dateStr: string) => Promise<void>;
-  createGroup: (data: { name: string; color_hex: string; is_daily_life?: boolean }) => Promise<string>;
+  createGroup: (data: { name: string; color_hex: string }) => Promise<string>;
   updateGroup: (id: string, patch: { name?: string; color_hex?: string }) => Promise<void>;
   deleteGroup: (id: string) => Promise<void>;
   // Arc CRUD
-  createArc: (data: { name: string; color_hex: string; start_date?: string; end_date?: string }) => Promise<string>;
+  createArc: (data: { name: string; color_hex: string }) => Promise<string>;
   updateArc: (id: string, patch: Record<string, unknown>) => Promise<void>;
   archiveArc: (id: string) => Promise<void>;
   deleteArc: (id: string) => Promise<void>;
   // Project CRUD
-  createProject: (data: { name: string; color_hex?: string; arc_id?: string }) => Promise<string>;
+  createProject: (data: { name: string; arc_id?: string }) => Promise<string>;
   updateProject: (id: string, patch: Record<string, unknown>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   uncompleteNode: (id: string) => Promise<void>;
@@ -126,13 +125,6 @@ export const usePlannerStore = create<PlannerStore>((set, get) => ({
     await db.replaceNodeGroups(nodeId, groupIds);
     const nodes = await db.loadNodes();
     set({ nodes });
-  },
-
-  addRecurrenceException: async (templateId, dateStr) => {
-    await db.addRecurrenceException(templateId, dateStr);
-    const nodes = await db.loadNodes();
-    set({ nodes });
-    toast.success('occurrence skipped');
   },
 
   createGroup: async (data) => {

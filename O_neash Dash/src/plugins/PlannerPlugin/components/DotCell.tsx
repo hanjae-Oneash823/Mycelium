@@ -11,9 +11,10 @@ interface DotCellProps {
   dotScale?: number;
   arcId?: string;
   projectId?: string;
+  isToday?: boolean;
 }
 
-export default function DotCell({ nodeDate, rowId, nodes, dotScale = 1, arcId, projectId }: DotCellProps) {
+export default function DotCell({ nodeDate, rowId, nodes, dotScale = 1, arcId, projectId, isToday }: DotCellProps) {
   const { isOver, setNodeRef } = useDroppable({ id: `cell-${rowId}-${nodeDate}` });
   const { completeNode, deleteNode } = usePlannerStore();
   const { openTaskForm, openTaskFormEdit } = useViewStore();
@@ -53,6 +54,7 @@ export default function DotCell({ nodeDate, rowId, nodes, dotScale = 1, arcId, p
           key={node.id}
           node={node}
           scale={dotScale}
+          isToday={isToday}
           onComplete={() => completeNode(node.id)}
           onDelete={() => deleteNode(node.id)}
           onEdit={() => openTaskFormEdit(node)}

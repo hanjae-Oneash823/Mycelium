@@ -1,4 +1,4 @@
-export type PlannerViewType = 'today' | 'eisenhower' | 'focus' | 'arc' | 'tendrils';
+export type PlannerViewType = 'today' | 'eisenhower' | 'focus' | 'routines';
 export type NodeType = 'task' | 'event';
 /** User-facing binary input stored in DB: 0 = normal, 1 = important */
 export type UserImportance = 0 | 1;
@@ -9,10 +9,7 @@ export interface PlannerGroup {
   id: string;
   name: string;
   color_hex: string;
-  icon?: string | null;
   sort_order: number;
-  is_visible: boolean;
-  is_daily_life: boolean;
   is_ungrouped: boolean;
   created_at: string;
 }
@@ -21,9 +18,6 @@ export interface Arc {
   id: string;
   name: string;
   color_hex: string;
-  start_date?: string | null;
-  end_date?: string | null;
-  is_archived: boolean;
   created_at: string;
 }
 
@@ -31,10 +25,6 @@ export interface Project {
   id: string;
   arc_id?: string | null;
   name: string;
-  color_hex?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  is_archived: boolean;
   created_at: string;
 }
 
@@ -43,42 +33,32 @@ export interface PlannerNode {
   project_id?: string | null;
   arc_id?: string | null;
   title: string;
-  description?: string | null;
   node_type: NodeType;
   planned_start_at?: string | null;
   due_at?: string | null;
   actual_completed_at?: string | null;
   estimated_duration_minutes?: number | null;
-  actual_duration_minutes?: number | null;
   importance_level: UserImportance;
   computed_urgency_level: ImportanceLevel;
   is_completed: boolean;
   is_locked: boolean;
   is_overdue: boolean;
-  is_recovery: boolean;
   is_pinned: boolean;
   is_missed_schedule?: boolean;
-  recovery_set_at?: string | null;
-  parent_node_id?: string | null;
   created_at: string;
   updated_at: string;
-  // Recurrence (JSON strings stored in DB)
-  recurrence_rule?: string | null;
-  recurrence_exceptions?: string | null;
   // Computed join fields
   groups?: PlannerGroup[];
   sub_total?: number;
   sub_done?: number;
-  linked_note_count?: number;
   /** Marked as the "eat the frog" task for today. Persisted to DB. */
   is_frog_pinned?: boolean;
   /** True for virtual instances expanded from a recurring template. Not persisted. */
   is_virtual?: boolean;
-  /** Placeholder node in a Tendrils graph — has no date, not yet actionable. */
-  is_pre_node?: boolean;
-  /** Saved canvas position in a Tendrils graph. */
-  tendril_pos_x?: number | null;
-  tendril_pos_y?: number | null;
+  /** True when this node was generated from a routine template. */
+  is_routine?: boolean;
+  /** FK to routines.id — set when is_routine is true. */
+  routine_id?: string | null;
 }
 
 export interface SubTask {
@@ -98,6 +78,45 @@ export interface UserCapacity {
   updated_at: string;
 }
 
+/** A single recurrence rule — one row in the routine_rules table. */
+export interface RoutineRule {
+  id:                string;
+  routine_id?:       string;
+  sort_order?:       number;
+  freq:              'daily' | 'weekly' | 'monthly' | 'manual';
+  repeat_interval:   number;
+  days?:             number[] | null;    // for weekly: [0=Sun … 6=Sat], stored as JSON string in DB
+  start_date:        string;             // YYYY-MM-DD — for manual rules, this IS the one-off date
+  end_mode:          'date' | 'count';
+  end_count?:        number | null;
+  end_date?:         string | null;
+  start_time?:       string | null;      // HH:MM
+  duration_minutes?: number | null;
+  exceptions?:       string[] | null;    // YYYY-MM-DD dates to skip for this rule
+}
+
+/** A manually-added occurrence passed through the form (not yet in DB). */
+export interface ManualOccInput {
+  id:                string;
+  date:              string;   // YYYY-MM-DD
+  start_time?:       string;   // HH:MM
+  duration_minutes?: number;
+}
+
+export interface Routine {
+  id:               string;
+  title:            string;
+  node_type:        NodeType;
+  arc_id?:          string | null;
+  project_id?:      string | null;
+  importance_level: UserImportance;
+  created_at:       string;
+  updated_at:       string;
+  // Hydrated — not DB columns
+  rules?:           RoutineRule[];
+  group_ids?:       string[];
+}
+
 export interface RecurrenceRule {
   freq: 'daily' | 'weekly' | 'monthly';
   /** Every N units (1 = every day/week/month, 2 = every other, etc.) */
@@ -110,7 +129,6 @@ export interface RecurrenceRule {
 
 export interface CreateNodeData {
   title: string;
-  description?: string;
   node_type?: NodeType;
   planned_start_at?: string;
   due_at?: string;
@@ -119,7 +137,6 @@ export interface CreateNodeData {
   project_id?: string;
   arc_id?: string;
   group_ids?: string[];
-  recurrence_rule?: RecurrenceRule | null;
 }
 
 export interface FocusContext {
@@ -168,14 +185,13 @@ export function getDotColor(node: PlannerNode): string {
   if (node.is_overdue)        return DOT_COLOR_OVERDUE;
   if (node.is_missed_schedule) return DOT_COLOR_MISSED;
   if (node.node_type === 'event') return DOT_COLOR_EVENT;
-  if (node.is_recovery) return DOT_COLORS[4];
   return DOT_COLORS[node.computed_urgency_level] ?? DOT_COLORS[0];
 }
 
 export function getDotAnimClass(node: PlannerNode): string {
   if (node.is_overdue)         return 'dot-anim-red';
   if (node.is_missed_schedule) return 'dot-anim-missed';
-  if (node.is_recovery || node.computed_urgency_level === 4) return 'dot-anim-urgent';
+  if (node.computed_urgency_level === 4) return 'dot-anim-urgent';
   if (node.computed_urgency_level === 3) return 'dot-anim-wiggle';
   return '';
 }

@@ -81,9 +81,8 @@ export default function ProjectForm({ open, editProject, defaultArcId, onClose }
     try {
       if (isEditMode && editProject) {
         await updateProject(editProject.id, {
-          name:      name.trim(),
-          color_hex: null,
-          arc_id:    arcId || null,
+          name:   name.trim(),
+          arc_id: arcId || null,
         });
       } else {
         await createProject({
@@ -163,7 +162,7 @@ export default function ProjectForm({ open, editProject, defaultArcId, onClose }
                     </SelectTrigger>
                     <SelectContent className="rounded-none bg-black border-[rgba(255,255,255,0.15)]" style={{ fontFamily: VT }}>
                       <SelectItem value="__none__" style={{ fontFamily: VT, fontSize: 15, letterSpacing: 1 }}>none</SelectItem>
-                      {arcs.filter(a => !a.is_archived).map(a => (
+                      {arcs.map(a => (
                         <SelectItem key={a.id} value={a.id} style={{ fontFamily: VT, fontSize: 15, letterSpacing: 1 }}>
                           {a.name}
                         </SelectItem>

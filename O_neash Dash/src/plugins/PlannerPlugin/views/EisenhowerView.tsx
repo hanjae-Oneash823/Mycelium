@@ -63,6 +63,7 @@ export default function EisenhowerView() {
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor,  { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
+  const [futureOffset, setFutureOffset] = useState(0);
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [collapsedArcs, setCollapsedArcs] = useState<Set<string>>(() => new Set(arcs.map(a => a.id)));
   const [arcCollapseKeys, setArcCollapseKeys] = useState<Record<string, number>>({});
@@ -103,13 +104,21 @@ export default function EisenhowerView() {
     rescheduleNode(active.id as string, dateStr);
   };
 
-  // OOPS + today + 5 more days = 7 columns
+  const hasOverdue = useMemo(
+    () => nodes.some(n => (n.is_overdue || n.is_missed_schedule) && !n.is_completed),
+    [nodes],
+  );
+
+  // Conditionally show OOPS + today + 5 sliding future days
   const columns = useMemo<ColDef[]>(() => {
-    const cols: ColDef[] = [
-      { key: 'overdue', monthDay: '', dayName: 'OOPS!', isOverdue: true, dayColor: '#ff5555' },
-    ];
+    const cols: ColDef[] = [];
+    if (hasOverdue) {
+      cols.push({ key: 'overdue', monthDay: '', dayName: 'OOPS!', isOverdue: true, dayColor: '#ff5555' });
+    }
+    // TODAY is always slot 0; future slots slide by futureOffset
     for (let i = 0; i < 6; i++) {
-      const dt = addDays(now, i);
+      const dayIndex = i === 0 ? 0 : i + futureOffset;
+      const dt = addDays(now, dayIndex);
       const key = toDateString(dt);
       const local = new Date(key + 'T12:00:00');
       cols.push({
@@ -121,7 +130,7 @@ export default function EisenhowerView() {
       });
     }
     return cols;
-  }, []);
+  }, [hasOverdue, futureOffset]);
 
   const rows = useMemo<GridRow[]>(() => {
     const result: GridRow[] = [];
@@ -139,17 +148,21 @@ export default function EisenhowerView() {
       result.push({ id: `arc-${arc.id}`, label: arc.name, indent: 0, color: arc.color_hex, hasChildren: arcProjects.length > 0, nodes: arcDirectNodes, arcId: arc.id });
       for (const proj of arcProjects) {
         const projNodes = getNodesByContext(undefined, proj.id);
-        result.push({ id: `proj-${proj.id}`, label: proj.name, indent: 1, color: proj.color_hex ?? arc.color_hex, hasChildren: false, nodes: projNodes, arcId: arc.id, projectId: proj.id });
+        result.push({ id: `proj-${proj.id}`, label: proj.name, indent: 1, color: arc.color_hex, hasChildren: false, nodes: projNodes, arcId: arc.id, projectId: proj.id });
       }
     }
 
     for (const proj of projects.filter(p => !p.arc_id)) {
       const projNodes = getNodesByContext(undefined, proj.id);
-      result.push({ id: `proj-${proj.id}`, label: proj.name, indent: 0, color: proj.color_hex ?? 'rgba(255,255,255,0.6)', hasChildren: false, nodes: projNodes, projectId: proj.id });
+      result.push({ id: `proj-${proj.id}`, label: proj.name, indent: 0, color: 'rgba(255,255,255,0.6)', hasChildren: false, nodes: projNodes, projectId: proj.id });
     }
 
-    const ungrouped = getNodesByContext();
-    result.push({ id: 'ungrouped', label: 'no project', indent: 0, color: 'rgba(255,255,255,0.4)', hasChildren: false, nodes: ungrouped });
+    // Collect all node IDs that were assigned to a row above
+    const assignedIds = new Set(result.flatMap(r => r.nodes.map(n => n.id)));
+    // Ungrouped: nodes with no project/arc, PLUS any orphaned nodes missed by the rows above
+    const ungrouped = nodes.filter(n => !assignedIds.has(n.id) && (!n.arc_id && !n.project_id));
+    const orphaned  = nodes.filter(n => !assignedIds.has(n.id) && (n.arc_id || n.project_id));
+    result.push({ id: 'ungrouped', label: 'no project', indent: 0, color: 'rgba(255,255,255,0.4)', hasChildren: false, nodes: [...ungrouped, ...orphaned] });
 
     return result;
   }, [nodes, arcs, projects]);
@@ -179,9 +192,35 @@ export default function EisenhowerView() {
   const capacityMinutes = capacity?.daily_minutes ?? 480;
 
 
+  const todayColIndex = columns.findIndex(c => c.isToday);
+
+  const getDayMinutes = (dateStr: string) =>
+    nodes
+      .filter(n => !n.is_completed && !n.is_overdue && isSameDay(n.planned_start_at, new Date(dateStr + 'T12:00:00')))
+      .reduce((sum, n) => sum + (n.estimated_duration_minutes ?? 0), 0);
+
+  const navBtn: React.CSSProperties = {
+    background: 'none', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.6)',
+    fontFamily: "'VT323', monospace", fontSize: '1.1rem', letterSpacing: '1px',
+    padding: '0.1rem 0.6rem', cursor: 'pointer', lineHeight: 1,
+  };
+
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: '2rem' }}>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: '1rem' }}>
+
+        {/* Future-day navigation */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', padding: '0 1.2rem 0.5rem' }}>
+          <button style={{ ...navBtn, opacity: futureOffset === 0 ? 0.25 : 1 }} disabled={futureOffset === 0} onClick={() => setFutureOffset(o => Math.max(0, o - 5))}>
+            ‹ prev
+          </button>
+          <span style={{ fontFamily: "'VT323', monospace", fontSize: '1rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', minWidth: 72, textAlign: 'center' }}>
+            {futureOffset === 0 ? 'next 5 days' : `+${futureOffset + 1} – +${futureOffset + 5}`}
+          </span>
+          <button style={navBtn} onClick={() => setFutureOffset(o => o + 5)}>
+            next ›
+          </button>
+        </div>
 
         {/* Scrollable body — header lives inside so column widths share the same layout context,
             keeping the sticky header and row cells perfectly aligned */}
@@ -205,7 +244,7 @@ export default function EisenhowerView() {
               >
                 {!col.isOverdue && !col.isToday && (
                   <div style={{
-                    fontSize: '0.85rem', letterSpacing: '1.5px',
+                    fontSize: '1.1rem', letterSpacing: '1.5px',
                     color: 'rgba(255,255,255,0.4)',
                     marginBottom: '0px', fontFamily: "'VT323', monospace",
                   }}>
@@ -213,7 +252,7 @@ export default function EisenhowerView() {
                   </div>
                 )}
                 <div style={{
-                  fontSize: col.isOverdue || col.isToday ? '1.4rem' : '1.35rem',
+                  fontSize: col.isOverdue || col.isToday ? '1.7rem' : '1.6rem',
                   letterSpacing: col.isOverdue || col.isToday ? '4px' : '2px',
                   color: col.dayColor,
                   fontFamily: "'VT323', monospace",
@@ -221,11 +260,19 @@ export default function EisenhowerView() {
                 }}>
                   {col.isOverdue || col.isToday ? `[ ${col.dayName} ]` : col.dayName}
                 </div>
-                {!col.isOverdue && (
-                  <div style={{ marginTop: '8px' }}>
-                    <DensityBar ratio={getDensityRatio(nodes, col.key, capacityMinutes)} />
-                  </div>
-                )}
+                {!col.isOverdue && (() => {
+                  const mins = getDayMinutes(col.key);
+                  return (
+                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                      <DensityBar ratio={getDensityRatio(nodes, col.key, capacityMinutes)} />
+                      {mins > 0 && (
+                        <span style={{ fontFamily: "'VT323', monospace", fontSize: '0.82rem', letterSpacing: '0.5px', padding: '0.1rem 0.45rem', background: 'rgba(255,255,255,0.18)', color: '#fff' }}>
+                          {(mins / 60).toFixed(1)}h
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -236,11 +283,10 @@ export default function EisenhowerView() {
             {/* TODAY column overlay — spans only the rows, never the empty viewport below */}
             <div style={{
               position: 'absolute',
-              left:  `calc(${LABEL_COL_W}px + (100% - ${LABEL_COL_W}px) / ${columns.length})`,
+              left:  `calc(${LABEL_COL_W}px + ${todayColIndex} * (100% - ${LABEL_COL_W}px) / ${columns.length})`,
               width: `calc((100% - ${LABEL_COL_W}px) / ${columns.length})`,
-              top: 0, bottom: 0,
-              borderLeft:  '1px solid rgba(255,255,255,0.5)',
-              borderRight: '1px solid rgba(255,255,255,0.5)',
+              top: 24, bottom: 0,
+              background: 'rgba(255,255,255,0.07)',
               pointerEvents: 'none',
               zIndex: 3,
             }} />
@@ -264,13 +310,23 @@ export default function EisenhowerView() {
                   minHeight: row.indent > 0 ? ROW_H_SUB : ROW_H,
                 }}
               >
-                {/* Horizontal center baseline */}
+                {/* Horizontal center baseline + column tick marks */}
                 <div style={{
                   position: 'absolute', left: LABEL_COL_W, right: 0,
                   top: '50%', height: 2,
                   background: 'rgba(255,255,255,0.18)',
                   pointerEvents: 'none', zIndex: 0,
-                }} />
+                }}>
+                  {columns.slice(1).map((_, i) => (
+                    <div key={i} style={{
+                      position: 'absolute',
+                      left: `${((i + 1) / columns.length) * 100}%`,
+                      top: '50%', transform: 'translate(-50%, -50%)',
+                      width: 1, height: 8,
+                      background: 'rgba(255,255,255,0.35)',
+                    }} />
+                  ))}
+                </div>
 
                 {/* Row label */}
                 <div
@@ -330,6 +386,7 @@ export default function EisenhowerView() {
                         dotScale={1.2}
                         arcId={row.arcId}
                         projectId={row.projectId}
+                        isToday={!!col.isToday}
                       />
                     </div>
                   );

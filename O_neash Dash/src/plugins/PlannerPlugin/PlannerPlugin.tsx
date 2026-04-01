@@ -1,6 +1,7 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback } from 'react';
 import './PlannerPlugin.css';
 import { usePlannerStore } from './store/usePlannerStore';
+import { fillMissingRoutineNodes } from './lib/routineDb';
 import { useViewStore } from './store/useViewStore';
 import { useLogicEngine } from './store/useLogicEngine';
 import ViewSwitcher from './components/ViewSwitcher';
@@ -9,52 +10,30 @@ import CommandPalette from './components/CommandPalette';
 import TodayView from './views/TodayView';
 import EisenhowerView from './views/EisenhowerView';
 import FocusView from './views/FocusView';
-import ArcView from './views/ArcView';
-import TendrilsView from './views/TendrilsView';
+import RoutinesView from './views/RoutinesView';
 import type { PlannerViewType } from './types';
 
 function renderView(v: PlannerViewType) {
   if (v === 'today')      return <TodayView />;
   if (v === 'eisenhower') return <EisenhowerView />;
   if (v === 'focus')      return <FocusView />;
-  if (v === 'arc')        return <ArcView />;
-  if (v === 'tendrils')   return <TendrilsView />;
+  if (v === 'routines')   return <RoutinesView />;
   return null;
 }
 
-function AnimatedContent({ view }: { view: PlannerViewType }) {
-  const [displayed, setDisplayed] = useState(view);
-  const [exiting, setExiting]     = useState<PlannerViewType | null>(null);
-
-  useEffect(() => {
-    if (view === displayed) return;
-    setExiting(displayed);
-    setDisplayed(view);
-    const t = setTimeout(() => setExiting(null), 220);
-    return () => clearTimeout(t);
-  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {exiting && (
-        <div style={{ position: 'absolute', inset: 0, animation: 'plannerViewOut 0.2s ease forwards', pointerEvents: 'none', zIndex: 1 }}>
-          {renderView(exiting)}
-        </div>
-      )}
-      <div style={{ position: 'absolute', inset: 0, animation: 'plannerViewIn 0.22s ease forwards', zIndex: 2 }}>
-        {renderView(displayed)}
-      </div>
-    </div>
-  );
-}
 
 export default function PlannerPlugin() {
   const { loadAll } = usePlannerStore();
   const { activeView, taskFormOpen, commandPaletteOpen, openCommandPalette, closeCommandPalette } = useViewStore();
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    const init = async () => {
+      // Fill any missing routine nodes for the next year (non-destructive)
+      try { await fillMissingRoutineNodes(); } catch (e) { console.error('routine fill error:', e); }
+      await loadAll();
+    };
+    init();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useLogicEngine();
 
@@ -79,7 +58,7 @@ export default function PlannerPlugin() {
     <div className="planner-plugin">
       <ViewSwitcher />
       <div className="planner-content">
-        <AnimatedContent view={activeView} />
+        {renderView(activeView)}
       </div>
       {taskFormOpen && <TaskForm />}
       {commandPaletteOpen && <CommandPalette />}

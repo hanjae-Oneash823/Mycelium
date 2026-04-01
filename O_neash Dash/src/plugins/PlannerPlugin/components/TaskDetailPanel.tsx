@@ -2,10 +2,8 @@ import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckboxOn, PenSquare, SkullSharp } from 'pixelarticons/react';
-import type { PlannerNode, NoteHit } from '../types';
+import type { PlannerNode } from '../types';
 import { formatDueLabel, formatEffortLabel } from '../lib/logicEngine';
-import { getLinkedNoteIds, unlinkNoteFromTask } from '../lib/noteLinks';
-import { loadNotesByIds } from '../lib/noteSearch';
 
 interface TaskDetailPanelProps {
   node:       PlannerNode;
@@ -15,6 +13,8 @@ interface TaskDetailPanelProps {
   onComplete: () => void;
   onEdit:     () => void;
   onDelete:   () => void;
+  /** False when the dot is in a future column — finish must be earned by dragging to TODAY first */
+  isToday?:   boolean;
 }
 
 const DIVIDER: CSSProperties = { borderTop: '1px solid rgba(255,255,255,0.07)', margin: '8px 0' };
@@ -23,7 +23,7 @@ const VAL:     CSSProperties = { color: 'rgba(255,255,255,0.70)', fontSize: '0.9
 const ROW:     CSSProperties = { display: 'flex', gap: 10, alignItems: 'baseline', letterSpacing: '0.4px' };
 
 export default function TaskDetailPanel({
-  node, anchorX, anchorY, onClose, onComplete, onEdit, onDelete,
+  node, anchorX, anchorY, onClose, onComplete, onEdit, onDelete, isToday = true,
 }: TaskDetailPanelProps) {
   const panelRef    = useRef<HTMLDivElement>(null);
   const now         = new Date();
@@ -31,27 +31,18 @@ export default function TaskDetailPanel({
   const whenLabel   = formatDueLabel(node.planned_start_at, now);
   const effortLabel = formatEffortLabel(node.estimated_duration_minutes);
 
-  const [linkedNotes, setLinkedNotes] = useState<NoteHit[]>([]);
-  const [top, setTop]                 = useState(anchorY - 220);
+  const [top, setTop] = useState(anchorY - 220);
 
   const w    = 300;
   const left = Math.max(8, Math.min(anchorX - w / 2, window.innerWidth - w - 8));
 
   const visibleGroups = node.groups?.filter(g => !g.is_ungrouped) ?? [];
 
-  useEffect(() => {
-    let cancelled = false;
-    getLinkedNoteIds(node.id)
-      .then(ids => loadNotesByIds(ids))
-      .then(hits => { if (!cancelled) setLinkedNotes(hits); });
-    return () => { cancelled = true; };
-  }, [node.id]);
-
   useLayoutEffect(() => {
     if (panelRef.current) {
       setTop(Math.max(8, anchorY - panelRef.current.offsetHeight - 12));
     }
-  }, [linkedNotes.length, anchorY]);
+  }, [anchorY]);
 
   // Close on Escape
   useEffect(() => {
@@ -76,11 +67,6 @@ export default function TaskDetailPanel({
       if (handler) document.removeEventListener('mousedown', handler, true);
     };
   }, [onClose]);
-
-  const handleUnlink = async (compositeId: string) => {
-    await unlinkNoteFromTask(compositeId, node.id);
-    setLinkedNotes(prev => prev.filter(n => n.compositeId !== compositeId));
-  };
 
   return createPortal(
     <div
@@ -139,12 +125,6 @@ export default function TaskDetailPanel({
             </span>
           </div>
         )}
-        {node.is_recovery && (
-          <div style={ROW}>
-            <span style={KEY}>&nbsp;</span>
-            <span style={{ ...VAL, color: '#ff6b35' }}>⚠ recovery</span>
-          </div>
-        )}
         {node.is_missed_schedule && (
           <div style={ROW}>
             <span style={KEY}>&nbsp;</span>
@@ -153,53 +133,34 @@ export default function TaskDetailPanel({
         )}
       </div>
 
-      {/* Description */}
-      {node.description && (
-        <>
-          <div style={DIVIDER} />
-          <div style={{ fontSize: '0.88rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.55, letterSpacing: '0.3px' }}>
-            {node.description.length > 160 ? node.description.slice(0, 160) + '…' : node.description}
-          </div>
-        </>
-      )}
-
-      {/* Linked notes */}
-      {linkedNotes.length > 0 && (
-        <>
-          <div style={DIVIDER} />
-          {linkedNotes.map(n => (
-            <div key={n.compositeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: n.groupColor, flexShrink: 0, display: 'inline-block' }} />
-              <span style={{ fontSize: '0.88rem', color: '#c084fc', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {n.title || '(untitled)'}
-              </span>
-              <button
-                onClick={() => handleUnlink(n.compositeId)}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.28)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1rem', padding: '0 2px', lineHeight: 1 }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </>
-      )}
-
       <div style={DIVIDER} />
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '1.4rem', alignItems: 'center', justifyContent: 'center' }}>
-        <button onClick={onComplete} style={actionBtn('#4ade80')}>
+        <button
+          onClick={isToday ? onComplete : undefined}
+          title={isToday ? undefined : 'drag to TODAY first'}
+          style={{ ...actionBtn(isToday ? '#4ade80' : 'rgba(255,255,255,0.18)'), cursor: isToday ? 'pointer' : 'not-allowed' }}
+        >
           <CheckboxOn size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
           done
         </button>
-        <button onClick={onEdit} style={actionBtn('rgba(255,255,255,0.50)')}>
-          <PenSquare size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
-          edit
-        </button>
-        <button onClick={onDelete} style={actionBtn('#ff3b3b')}>
-          <SkullSharp size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
-          del
-        </button>
+        {node.is_routine ? (
+          <span style={{ fontSize: '0.78rem', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.22)', fontFamily: "'VT323', monospace" }}>
+            edit in routines view
+          </span>
+        ) : (
+          <>
+            <button onClick={onEdit} style={actionBtn('rgba(255,255,255,0.50)')}>
+              <PenSquare size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
+              edit
+            </button>
+            <button onClick={onDelete} style={actionBtn('#ff3b3b')}>
+              <SkullSharp size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
+              del
+            </button>
+          </>
+        )}
       </div>
     </div>,
     document.body,

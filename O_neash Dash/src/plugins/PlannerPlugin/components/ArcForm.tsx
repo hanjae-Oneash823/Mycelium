@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GitBranch, Calendar } from 'pixelarticons/react';
+import { GitBranch } from 'pixelarticons/react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import DatePickerField from './DatePickerField';
 import { usePlannerStore } from '../store/usePlannerStore';
-import { toDate, toDateStr } from '../lib/dateUtils';
 import type { Arc } from '../types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,8 +51,6 @@ export default function ArcForm({ open, editArc, onClose }: ArcFormProps) {
 
   const [name, setName]           = useState('');
   const [color, setColor]         = useState(SWATCH_COLORS[0]);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate]     = useState('');
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
   const [isClosing, setIsClosing] = useState(false);
@@ -69,13 +65,9 @@ export default function ArcForm({ open, editArc, onClose }: ArcFormProps) {
     if (editArc) {
       setName(editArc.name);
       setColor(editArc.color_hex);
-      setStartDate(editArc.start_date ?? '');
-      setEndDate(editArc.end_date ?? '');
     } else {
       setName('');
       setColor(SWATCH_COLORS[0]);
-      setStartDate('');
-      setEndDate('');
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -90,26 +82,16 @@ export default function ArcForm({ open, editArc, onClose }: ArcFormProps) {
     setSaving(true);
     try {
       if (isEditMode && editArc) {
-        await updateArc(editArc.id, {
-          name:       name.trim(),
-          color_hex:  color,
-          start_date: startDate || null,
-          end_date:   endDate   || null,
-        });
+        await updateArc(editArc.id, { name: name.trim(), color_hex: color });
       } else {
-        await createArc({
-          name:       name.trim(),
-          color_hex:  color,
-          start_date: startDate || undefined,
-          end_date:   endDate   || undefined,
-        });
+        await createArc({ name: name.trim(), color_hex: color });
       }
       onClose();
     } catch (e) {
       setError(String(e));
       setSaving(false);
     }
-  }, [name, color, startDate, endDate, isEditMode, editArc, createArc, updateArc, onClose]);
+  }, [name, color, isEditMode, editArc, createArc, updateArc, onClose]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') handleClose();
@@ -203,50 +185,9 @@ export default function ArcForm({ open, editArc, onClose }: ArcFormProps) {
             </div>
           </Block>
 
-          {/* TIMELINE block */}
-          <Block label="TIMELINE" icon={Calendar}>
-            <div className="flex flex-col gap-2">
-
-              {/* start row */}
-              <div className="flex items-center gap-2">
-                <span style={{ fontFamily: VT, fontSize: 15, letterSpacing: 1, color: 'rgba(255,255,255,0.65)', width: 52, flexShrink: 0 }}>start:</span>
-                <div className="flex items-center flex-1">
-                  <span style={{ fontFamily: VT, fontSize: 16, color: 'rgba(255,255,255,0.45)' }}>[</span>
-                  <DatePickerField
-                    value={toDate(startDate)}
-                    onChange={d => setStartDate(toDateStr(d))}
-                    placeholder="no start date"
-                    hideIcon
-                    triggerClassName="h-auto py-0 px-0.5 bg-transparent border-0 shadow-none text-base text-[rgba(255,255,255,0.8)] hover:text-white hover:bg-transparent focus-visible:ring-0 rounded-none"
-                    triggerStyle={{ fontFamily: VT, letterSpacing: 1 }}
-                  />
-                  <span style={{ fontFamily: VT, fontSize: 16, color: 'rgba(255,255,255,0.45)' }}>]</span>
-                </div>
-              </div>
-
-              {/* end row */}
-              <div className="flex items-center gap-2">
-                <span style={{ fontFamily: VT, fontSize: 15, letterSpacing: 1, color: 'rgba(255,255,255,0.65)', width: 52, flexShrink: 0 }}>end:</span>
-                <div className="flex items-center flex-1">
-                  <span style={{ fontFamily: VT, fontSize: 16, color: 'rgba(255,255,255,0.45)' }}>[</span>
-                  <DatePickerField
-                    value={toDate(endDate)}
-                    onChange={d => setEndDate(toDateStr(d))}
-                    placeholder="no end date"
-                    hideIcon
-                    triggerClassName="h-auto py-0 px-0.5 bg-transparent border-0 shadow-none text-base text-[rgba(255,255,255,0.8)] hover:text-white hover:bg-transparent focus-visible:ring-0 rounded-none"
-                    triggerStyle={{ fontFamily: VT, letterSpacing: 1 }}
-                  />
-                  <span style={{ fontFamily: VT, fontSize: 16, color: 'rgba(255,255,255,0.45)' }}>]</span>
-                </div>
-              </div>
-
-              <span style={{ fontFamily: VT, fontSize: 11, letterSpacing: 2, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', marginTop: 2 }}>
-                ctrl+enter to save · esc to cancel
-              </span>
-
-            </div>
-          </Block>
+          <span style={{ fontFamily: VT, fontSize: 11, letterSpacing: 2, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', marginTop: 2, padding: '0 0.75rem 0.75rem' }}>
+            ctrl+enter to save · esc to cancel
+          </span>
 
         </div>
 

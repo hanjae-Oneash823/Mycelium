@@ -1,4 +1,5 @@
-import React from "react";
+import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import usePluginStore from "../store/usePluginStore";
 import {
   Terminal,
@@ -22,251 +23,394 @@ import {
   ImageSharp,
   Zap,
 } from "pixelarticons/react";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "../components/ui/navigation-menu";
 
-interface ListItemProps extends Omit<React.HTMLAttributes<HTMLLIElement>, "title"> {
-  title: React.ReactNode;
-  children?: React.ReactNode;
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+interface AppItem {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  desc: string;
   pluginId?: string;
-  whiteText?: boolean;
 }
 
-function ListItem({ title, children, pluginId, whiteText, ...props }: ListItemProps) {
-  const setActivePlugin = usePluginStore((state) => state.setActivePlugin);
-  return (
-    <li {...props}>
-      <button
-        type="button"
-        className={`flex flex-col gap-1 text-base w-full text-left px-2 py-1.5 hover:bg-gray-800 rounded ${whiteText ? "text-neutral-200" : ""}`}
-        onClick={() => pluginId && setActivePlugin(pluginId)}
-      >
-        <div
-          className={`leading-none font-normal text-base ${whiteText ? "text-white" : ""}`}
-        >
-          {title}
-        </div>
-        <div
-          className={`text-muted-foreground line-clamp-2 text-sm ${whiteText ? "text-white" : ""}`}
-        >
-          {children}
-        </div>
-      </button>
-    </li>
-  );
+interface Category {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  apps: AppItem[];
 }
+
+const CATEGORIES: Category[] = [
+  {
+    id: "basic",
+    label: "BASIC",
+    icon: <Terminal size={18} />,
+    apps: [
+      {
+        id: "notes",
+        label: "Notes",
+        icon: <Notes size={14} />,
+        desc: "thoughts, ideas, memos",
+        pluginId: "notes",
+      },
+      {
+        id: "todo",
+        label: "Todo List",
+        icon: <CheckDouble size={14} />,
+        desc: "eisenhower matrix task tracker",
+        pluginId: "todo-list",
+      },
+      {
+        id: "planner",
+        label: "Planner",
+        icon: <Zap size={14} />,
+        desc: "tasks, deadlines, project arcs",
+        pluginId: "planner",
+      },
+      {
+        id: "journal",
+        label: "Journal",
+        icon: <PcCase size={14} />,
+        desc: "daily log. persistence is key",
+      },
+      {
+        id: "settings",
+        label: "Settings",
+        icon: <SettingsCog2 size={14} />,
+        desc: "widgets, layout, preferences",
+        pluginId: "settings",
+      },
+      {
+        id: "monitor",
+        label: "System Resource Monitor",
+        icon: <Analytics size={14} />,
+        desc: "",
+      },
+    ],
+  },
+  {
+    id: "lab",
+    label: "the LAB",
+    icon: <CoffeeSharp size={18} />,
+    apps: [
+      {
+        id: "projects",
+        label: "Projects",
+        icon: <TeachSharp size={14} />,
+        desc: "deadlines, milestones, progress",
+      },
+      {
+        id: "academic",
+        label: "Academic Planner",
+        icon: <BookOpen size={14} />,
+        desc: "study goals & assignments",
+      },
+      {
+        id: "protocol",
+        label: "Protocol Manager",
+        icon: <Clipboard size={14} />,
+        desc: "experimental protocol archive",
+      },
+      {
+        id: "papers",
+        label: "Paper Library",
+        icon: <StickyNoteText size={14} />,
+        desc: "papers database & RSS feed",
+      },
+    ],
+  },
+  {
+    id: "studio",
+    label: "the STUDIO",
+    icon: <Camera size={18} />,
+    apps: [
+      {
+        id: "geo-portal",
+        label: "Geo-Portal",
+        icon: <MapPin size={14} />,
+        desc: "travel logs & bucket list",
+        pluginId: "geo-portal",
+      },
+      {
+        id: "film",
+        label: "Film Neg Lab",
+        icon: <ImageSharp size={14} />,
+        desc: "photo archive",
+      },
+      {
+        id: "canvas",
+        label: "CANVAS",
+        icon: <Grid2x22 size={14} />,
+        desc: "open moodboard",
+      },
+    ],
+  },
+  {
+    id: "clinic",
+    label: "the CLINIC",
+    icon: <Human size={18} />,
+    apps: [
+      {
+        id: "habits",
+        label: "Habits and Health",
+        icon: <Trophy size={14} />,
+        desc: "habit & health analytics",
+      },
+      {
+        id: "sleep",
+        label: "SleepTracker",
+        icon: <Bed size={14} />,
+        desc: "sleep log & schedule fix",
+      },
+      {
+        id: "diet",
+        label: "Diet Log",
+        icon: <Fish size={14} />,
+        desc: "meal prep & diet planner",
+      },
+    ],
+  },
+];
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function LaunchMenu() {
+  const setActivePlugin = usePluginStore((s) => s.setActivePlugin);
+  const [activeCat, setActiveCat] = useState(0);
+  const [activeApp, setActiveApp] = useState(0);
+
+  const apps = CATEGORIES[activeCat].apps;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+
+      // 1–4: switch category
+      const catIdx = parseInt(e.key) - 1;
+      if (!isNaN(catIdx) && catIdx >= 0 && catIdx < CATEGORIES.length) {
+        setActiveCat(catIdx);
+        setActiveApp(0);
+        return;
+      }
+
+      const currentApps = CATEGORIES[activeCat].apps;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveApp((i) => Math.min(i + 1, currentApps.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveApp((i) => Math.max(i - 1, 0));
+      } else if (e.key === "ArrowRight") {
+        setActiveCat((c) => {
+          const n = Math.min(c + 1, CATEGORIES.length - 1);
+          setActiveApp(0);
+          return n;
+        });
+      } else if (e.key === "ArrowLeft") {
+        setActiveCat((c) => {
+          const n = Math.max(c - 1, 0);
+          setActiveApp(0);
+          return n;
+        });
+      } else if (e.key === "Enter") {
+        const app = currentApps[activeApp];
+        if (app?.pluginId) setActivePlugin(app.pluginId);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [activeCat, activeApp, setActivePlugin]);
+
   return (
-    <NavigationMenu>
-      <NavigationMenuList>
-        {/* TERMINAL */}
-        <NavigationMenuItem className="relative">
-          <NavigationMenuTrigger>
-            <span className="flex items-center gap-2">
-              <Terminal size={14} />
-              BASIC
-            </span>
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="w-96">
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Notes size={14} /> Notes
-                  </span>
-                }
-                pluginId="notes"
-              >
-                capture thoughts, ideas, and important memos.
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <CheckDouble size={14} /> Todo List
-                  </span>
-                }
-                pluginId="todo-list"
-              >
-                track important tasks via a modified eisenhower matrix.
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Zap size={14} /> Planner
-                  </span>
-                }
-                pluginId="planner"
-              >
-                tasks, deadlines, and project arcs.
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <PcCase size={14} /> Journal
-                  </span>
-                }
-              >
-                simple journal. persistence is key.
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <SettingsCog2 size={14} /> Settings
-                  </span>
-                }
-                whiteText
-              />
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Analytics size={14} /> System Resource Monitor
-                  </span>
-                }
-                whiteText
-              />
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
+    <div style={{ fontFamily: "'VT323', monospace", width: "100%" }}>
+      <style>{`
+        @keyframes icon-blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.3; }
+        }
+        .app-icon-blink { animation: icon-blink 1s step-start infinite; }
+      `}</style>
 
-        {/* LAB */}
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>
-            <span className="flex items-center gap-2">
-              <CoffeeSharp size={14} />
-              the LAB
-            </span>
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="w-96">
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <TeachSharp size={14} /> Projects
-                  </span>
-                }
+      {/* ── Category row ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "2.4rem",
+          paddingBottom: "0.6rem",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
+      >
+        {CATEGORIES.map((cat, i) => {
+          const active = activeCat === i;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => {
+                setActiveCat(i);
+                setActiveApp(0);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                lineHeight: 1,
+                transition: "all 0.12s ease",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "1.2rem",
+                  color: active ? "#00c4a7" : "rgba(255,255,255,0.22)",
+                  transition: "color 0.12s ease",
+                }}
               >
-                plan projects, set deadlines, and track progress
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <BookOpen size={14} /> Academic Planner
-                  </span>
-                }
+                {i + 1}
+              </span>
+              {active && (
+                <span
+                  style={{
+                    color: "#00c4a7",
+                    display: "flex",
+                    alignItems: "center",
+                    transform: "scale(1.25)",
+                    transformOrigin: "center",
+                    margin: "0 8px",
+                  }}
+                >
+                  {cat.icon}
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: active ? "2.4rem" : "1.5rem",
+                  color: active ? "#fff" : "rgba(255,255,255,0.28)",
+                  textTransform: active ? "uppercase" : "lowercase",
+                  letterSpacing: active ? "3px" : "1.5px",
+                  transition: "font-size 0.12s ease, color 0.12s ease",
+                }}
               >
-                organize study goals and manage assignments
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Clipboard size={14} /> Protocol Manager
-                  </span>
-                }
-              >
-                archive important experimental protocols
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <StickyNoteText size={14} /> Paper Library
-                  </span>
-                }
-              >
-                database for major academic papers & live RSS feed
-              </ListItem>
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
+                {cat.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* DARKROOM */}
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>
-            <span className="flex items-center gap-2">
-              <Camera size={14} />
-              the STUDIO
-            </span>
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="w-96">
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <MapPin size={14} /> Geo-Portal
-                  </span>
-                }
+      {/* ── Terminal app list ── */}
+      <div style={{ marginTop: 10 }}>
+        {apps.map((app, i) => {
+          const sel = activeApp === i;
+          const available = !!app.pluginId;
+          return (
+            <button
+              key={app.id}
+              onClick={() => {
+                setActiveApp(i);
+                if (app.pluginId) setActivePlugin(app.pluginId);
+              }}
+              onMouseEnter={() => setActiveApp(i)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 18,
+                width: "100%",
+                padding: "1px 0",
+                background: "none",
+                border: "none",
+                cursor: available ? "pointer" : "default",
+                opacity: 1,
+                transition: "opacity 0.1s",
+              }}
+            >
+              {/* cursor */}
+              <span
+                style={{
+                  width: 12,
+                  flexShrink: 0,
+                  fontSize: "1.1rem",
+                  color: sel ? "#00c4a7" : "transparent",
+                }}
               >
-                field notes for past travels & bucket list for future travel
-                destinations
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <ImageSharp size={14} /> Film Neg Lab
-                  </span>
-                }
+                {">"}
+              </span>
+              {/* inner pill — only wraps the content, not the full row */}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 14,
+                  padding: "1px 7px",
+                  background: sel ? "rgba(255,255,255,0.88)" : "none",
+                  transition: "background 0.1s",
+                }}
               >
-                archive and view photos
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Grid2x22 size={14} /> CANVAS
+                {/* index */}
+                <span
+                  style={{
+                    width: 16,
+                    flexShrink: 0,
+                    textAlign: "right",
+                    fontSize: "1.1rem",
+                    color: sel ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.28)",
+                  }}
+                >
+                  {i + 1}
+                </span>
+                {/* icon */}
+                <span
+                  className={sel ? "app-icon-blink" : undefined}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexShrink: 0,
+                    color: sel ? "rgba(0,0,0,0.7)" : "rgba(0,196,167,0.55)",
+                    transition: "color 0.1s",
+                  }}
+                >
+                  {app.icon}
+                </span>
+                {/* name */}
+                <span
+                  style={{
+                    fontSize: "1.2rem",
+                    letterSpacing: "1px",
+                    minWidth: 190,
+                    textAlign: "left",
+                    color: sel ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.55)",
+                    transition: "color 0.1s",
+                  }}
+                >
+                  {app.label}
+                </span>
+                {/* description */}
+                {app.desc && (
+                  <span
+                    style={{
+                      fontSize: "1rem",
+                      letterSpacing: "0.5px",
+                      color: sel ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.2)",
+                    }}
+                  >
+                    {app.desc}
                   </span>
-                }
-              >
-                open moodboard for design ideas
-              </ListItem>
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-
-        {/* VITALS */}
-        <NavigationMenuItem>
-          <NavigationMenuTrigger>
-            <span className="flex items-center gap-2">
-              <Human size={14} />
-              the CLINIC
-            </span>
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="w-96">
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Trophy size={14} /> Habits and Health
-                  </span>
-                }
-              >
-                track habits/health & view analytics
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Bed size={14} /> SleepTracker
-                  </span>
-                }
-              >
-                log sleep data daily. fix irregular sleep schedules
-              </ListItem>
-              <ListItem
-                title={
-                  <span className="flex items-center gap-2">
-                    <Fish size={14} /> Diet Log
-                  </span>
-                }
-              >
-                meal prep and diet planner
-              </ListItem>
-            </ul>
-          </NavigationMenuContent>
-        </NavigationMenuItem>
-      </NavigationMenuList>
-    </NavigationMenu>
+                )}
+              </span>
+              {/* end inner pill */}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

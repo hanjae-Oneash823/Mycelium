@@ -176,7 +176,7 @@ export default function ArcView() {
                   {/* Projects — only when not collapsed */}
                   {!isCollapsed && projects.filter(p => p.arc_id === ap.arc.id).map(p => {
                     const hasBar = ap.projects.some(pp => pp.project.id === p.id);
-                    const color = p.color_hex ?? ap.arc.color_hex;
+                    const color = ap.arc.color_hex;
                     return (
                       <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
                         <button
@@ -261,7 +261,7 @@ export default function ArcView() {
                           top: 10 + BAR_H + 4 + pi * (PROJ_BAR_H + 2),
                           height: PROJ_BAR_H,
                           background: 'rgba(255,255,255,0.04)',
-                          border: `1px solid ${pp.project.color_hex ?? ap.arc.color_hex}44`,
+                          border: `1px solid ${ap.arc.color_hex}44`,
                           cursor: 'pointer',
                           overflow: 'hidden',
                           display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
@@ -271,7 +271,7 @@ export default function ArcView() {
                         title={`${pp.project.name} (right-click to edit/delete)`}
                       >
                         {/* Completion fill */}
-                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${donePct}%`, background: `${pp.project.color_hex ?? ap.arc.color_hex}44`, transition: 'width 0.3s' }} />
+                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${donePct}%`, background: `${ap.arc.color_hex}44`, transition: 'width 0.3s' }} />
                         <span style={{ position: 'relative', fontSize: '0.8rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.6)', paddingLeft: 5, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                           {pp.project.name}
                         </span>

@@ -29,7 +29,6 @@ async function wipeAll(): Promise<void> {
   const db = getDb();
   // Drop the trigger that blocks cascade deletes, then re-create after wipe
   await db.execute(`DROP TRIGGER IF EXISTS readd_ungrouped_if_empty`);
-  await db.execute(`DELETE FROM note_task_links`);
   await db.execute(`DELETE FROM sub_tasks`);
   await db.execute(`DELETE FROM node_groups`);
   await db.execute(`DELETE FROM nodes`);
@@ -62,15 +61,15 @@ export async function generateDummyData(): Promise<void> {
   const gCreative = await createGroup({ name: 'creative', color_hex: '#c084fc' });
 
   // ── Arcs ──────────────────────────────────────────────────────────────────
-  const arcLaunch   = await createArc({ name: 'Product Launch',   color_hex: '#64c8ff', start_date: daysFromNow(-30) });
-  const arcGrowth   = await createArc({ name: 'Personal Growth',  color_hex: '#4ade80', start_date: daysFromNow(-14) });
-  const arcFreelance = await createArc({ name: 'Freelance',       color_hex: '#c084fc', start_date: daysFromNow(-7)  });
+  const arcLaunch    = await createArc({ name: 'Product Launch',  color_hex: '#64c8ff' });
+  const arcGrowth    = await createArc({ name: 'Personal Growth', color_hex: '#4ade80' });
+  const arcFreelance = await createArc({ name: 'Freelance',       color_hex: '#c084fc' });
 
   // ── Projects ──────────────────────────────────────────────────────────────
-  const projBackend  = await createProject({ name: 'Backend API',   color_hex: '#64c8ff', arc_id: arcLaunch   });
-  const projDesign   = await createProject({ name: 'UI Design',     color_hex: '#7ecfff', arc_id: arcLaunch   });
-  const projMindset  = await createProject({ name: 'Mindset',       color_hex: '#4ade80', arc_id: arcGrowth   });
-  const projBranding = await createProject({ name: 'Client Brand',  color_hex: '#c084fc', arc_id: arcFreelance });
+  const projBackend  = await createProject({ name: 'Backend API',  arc_id: arcLaunch   });
+  const projDesign   = await createProject({ name: 'UI Design',    arc_id: arcLaunch   });
+  const projMindset  = await createProject({ name: 'Mindset',      arc_id: arcGrowth   });
+  const projBranding = await createProject({ name: 'Client Brand', arc_id: arcFreelance });
 
   // ── OVERDUE tasks (due date in the past) ──────────────────────────────────
   await createNode({

@@ -23,6 +23,8 @@ import {
 } from "pixelarticons/react";
 import { Checkbox } from "pixelarticons/react/Checkbox";
 import { ChevronRight } from "pixelarticons/react/ChevronRight";
+import { ChevronLeft } from "pixelarticons/react/ChevronLeft";
+import { Switch } from "pixelarticons/react/Switch";
 import { Plus } from "pixelarticons/react/Plus";
 import { usePlannerStore } from "../store/usePlannerStore";
 import { useViewStore } from "../store/useViewStore";
@@ -40,18 +42,21 @@ import {
   loadArcNodeCounts,
   loadTodayCompletedNodes,
   loadFrogsDoneToday,
+  loadEventNodesForWeek,
   setNodeFrogPinned,
   type TodayDoneSummary,
   type ArcNodeCount,
 } from "../lib/plannerDb";
 import DotNode from "../components/DotNode";
-import type { PlannerNode } from "../types";
+import type { PlannerNode, Arc, Project } from "../types";
 
 const SUGGESTION_LIMIT = 3;
 
 export default function TodayView() {
   const {
     nodes,
+    arcs,
+    projects,
     capacity,
     subTasksByNode,
     completeNode,
@@ -74,6 +79,7 @@ export default function TodayView() {
   );
   const [frogsDone, setFrogsDone] = useState(0);
   const [diceOpen, setDiceOpen] = useState(false);
+  const [panelMode, setPanelMode] = useState<'analytics' | 'calendar'>('analytics');
   const [addTaskHovered, setAddTaskHovered] = useState(false);
   const [suggestionsOn, setSuggestionsOn] = useState(true);
   const [clockStr, setClockStr] = useState(() => {
@@ -237,6 +243,7 @@ export default function TodayView() {
     const candidates = nodes.filter(
       (n) =>
         n.node_type !== "event" &&
+        !n.is_routine &&
         !n.is_completed &&
         !n.is_overdue &&
         !n.is_missed_schedule &&
@@ -387,6 +394,7 @@ export default function TodayView() {
         }}
       >
         {/* Left: task column */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div
           className="today-task-col"
           style={{
@@ -476,8 +484,16 @@ export default function TodayView() {
               label={`today · ${todayNodes.length}`}
               color="#00c4a7"
             />
-            {todayNodes.length === 0 && !(suggestionsOn && suggestions.length > 0) ? (
-              <div style={{ padding: '0.75rem 0', fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.15)' }}>
+            {todayNodes.length === 0 &&
+            !(suggestionsOn && suggestions.length > 0) ? (
+              <div
+                style={{
+                  padding: "0.75rem 0",
+                  fontSize: "1rem",
+                  letterSpacing: "2px",
+                  color: "rgba(255,255,255,0.15)",
+                }}
+              >
                 nothing scheduled
               </div>
             ) : (
@@ -489,28 +505,17 @@ export default function TodayView() {
                     rescheduleTomorrow={() => rescheduleNode(node.id, tomorrow)}
                   />
                 ))}
-                {suggestionsOn && suggestions.map((node) => (
-                  <SuggestionCard
-                    key={`sug-${node.id}`}
-                    {...cardProps(node)}
-                    rescheduleToday={() => rescheduleNode(node.id, today)}
-                  />
-                ))}
+                {suggestionsOn &&
+                  suggestions.map((node) => (
+                    <SuggestionCard
+                      key={`sug-${node.id}`}
+                      {...cardProps(node)}
+                      rescheduleToday={() => rescheduleNode(node.id, today)}
+                    />
+                  ))}
               </CardGrid>
             )}
 
-            {/* Done strip */}
-            {todayDone.length > 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.9rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-                <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.45)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                  <CheckboxOn size={13} /> {todayDone.length} done
-                </span>
-                <div style={{ width: 10, height: 1, background: 'rgba(255,255,255,0.18)', flexShrink: 0 }} />
-                {todayDone.map(node => (
-                  <DoneChip key={node.id} node={node} onUncomplete={() => uncompleteNode(node.id)} />
-                ))}
-              </div>
-            )}
           </section>
 
           {/* Empty state */}
@@ -551,20 +556,85 @@ export default function TodayView() {
             )}
         </div>
 
-        {/* Right: analytics sidebar */}
+        {/* Done strip — fixed to bottom of left column */}
+        {todayDone.length > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem",
+            padding: "0.5rem 1.5rem", borderTop: "1px solid rgba(255,255,255,0.12)",
+            flexShrink: 0, background: "#000", zIndex: 10,
+          }}>
+            <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: "1rem", letterSpacing: "2px", color: "rgba(255,255,255,0.45)", flexShrink: 0, display: "flex", alignItems: "center", gap: "0.55rem" }}>
+              <CheckboxOn size={13} /> {todayDone.length} done
+            </span>
+            <div style={{ width: 10, height: 1, background: "rgba(255,255,255,0.18)", flexShrink: 0 }} />
+            {todayDone.map((node) => (
+              <DoneChip key={node.id} node={node} onUncomplete={() => uncompleteNode(node.id)} />
+            ))}
+          </div>
+        )}
+        </div>{/* closes left outer wrapper */}
+
+        {/* Right: analytics / calendar panel */}
         <div
           style={{
             width: "28%",
             flexShrink: 0,
-            overflowY: "auto",
             display: "flex",
             flexDirection: "column",
+            borderLeft: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
-          <PressureGaugePanel pressure={pressure} />
-          <EatTheFrogPanel frogsDone={frogsDone} />
-          <OngoingArcsPanel />
+          {/* Mode toggle header */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0.5rem 1rem 0.4rem",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            flexShrink: 0,
+          }}>
+            <span style={{
+              fontFamily: "'VT323', monospace",
+              fontSize: "0.95rem",
+              letterSpacing: "2px",
+              color: "rgba(255,255,255,0.45)",
+              textTransform: "uppercase",
+            }}>
+              {panelMode === 'analytics' ? 'analytics' : 'events'}
+            </span>
+            <button
+              onClick={() => setPanelMode(m => m === 'analytics' ? 'calendar' : 'analytics')}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", padding: 0, display: "flex", alignItems: "center" }}
+            >
+              <Switch width={16} height={16} />
+            </button>
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column", overflowY: "auto",
+              opacity: panelMode === 'analytics' ? 1 : 0,
+              transform: panelMode === 'analytics' ? 'translateX(0)' : 'translateX(-12px)',
+              transition: "opacity 0.18s ease, transform 0.18s ease",
+              pointerEvents: panelMode === 'analytics' ? 'auto' : 'none',
+            }}>
+              <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
+              <PressureGaugePanel pressure={pressure} />
+              <EatTheFrogPanel frogsDone={frogsDone} />
+              <OngoingArcsPanel />
+            </div>
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", flexDirection: "column",
+              opacity: panelMode === 'calendar' ? 1 : 0,
+              transform: panelMode === 'calendar' ? 'translateX(0)' : 'translateX(12px)',
+              transition: "opacity 0.18s ease, transform 0.18s ease",
+              pointerEvents: panelMode === 'calendar' ? 'auto' : 'none',
+            }}>
+              <EventCalendarPanel arcs={arcs} projects={projects} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -694,11 +764,17 @@ function DiceButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function SuggestionsToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+function SuggestionsToggle({
+  on,
+  onToggle,
+}: {
+  on: boolean;
+  onToggle: () => void;
+}) {
   const [hovered, setHovered] = useState(false);
-  const label = on ? '[ SUGGESTIONS: ON ]' : '[ SUGGESTIONS: OFF ]';
-  const chars = label.split('');
-  const nonSpaceCount = chars.filter(c => c !== ' ').length;
+  const label = on ? "[ SUGGESTIONS: ON ]" : "[ SUGGESTIONS: OFF ]";
+  const chars = label.split("");
+  const nonSpaceCount = chars.filter((c) => c !== " ").length;
   let nsIdx = 0;
 
   return (
@@ -707,22 +783,32 @@ function SuggestionsToggle({ on, onToggle }: { on: boolean; onToggle: () => void
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: 'transparent', border: 'none',
-        padding: '0.3rem 0', fontSize: '1.05rem', letterSpacing: '2px',
-        cursor: 'pointer', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-        color: 'inherit',
+        background: "transparent",
+        border: "none",
+        padding: "0.3rem 0",
+        fontSize: "1.05rem",
+        letterSpacing: "2px",
+        cursor: "pointer",
+        fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+        color: "inherit",
       }}
     >
       {chars.map((ch, i) => {
-        if (ch === ' ') return <span key={i}>&nbsp;</span>;
+        if (ch === " ") return <span key={i}>&nbsp;</span>;
         const delay = `${((nsIdx++ / nonSpaceCount) * 2.4).toFixed(2)}s`;
         return (
-          <span key={i} style={{
-            color: (hovered || on) ? '#64c8ff' : undefined,
-            animation: (hovered || on) ? 'none' : `suggPulse 2.4s ease-in-out ${delay} infinite both`,
-            transition: 'color 0.15s',
-            display: 'inline-block',
-          }}>
+          <span
+            key={i}
+            style={{
+              color: hovered || on ? "#64c8ff" : undefined,
+              animation:
+                hovered || on
+                  ? "none"
+                  : `suggPulse 2.4s ease-in-out ${delay} infinite both`,
+              transition: "color 0.15s",
+              display: "inline-block",
+            }}
+          >
             {ch}
           </span>
         );
@@ -821,11 +907,13 @@ function MiniCard({
         gap: "0.4rem",
         padding: "1.35rem 0.75rem 2.75rem",
         background: hovered
-          ? 'rgba(255,255,255,0.08)'
-          : suggestion ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)',
+          ? "rgba(255,255,255,0.08)"
+          : suggestion
+            ? "rgba(255,255,255,0.03)"
+            : "rgba(255,255,255,0.06)",
         border: suggestion
-          ? `1px dashed ${hovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)'}`
-          : `1px solid ${hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)'}`,
+          ? `1px dashed ${hovered ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.12)"}`
+          : `1px solid ${hovered ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.07)"}`,
         opacity: suggestion && !hovered ? 0.72 : 1,
         transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
         breakInside: "avoid",
@@ -834,11 +922,14 @@ function MiniCard({
     >
       {/* Suggestion label */}
       {suggestion && (
-        <span style={{
-          fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-          fontSize: '0.72rem', letterSpacing: '3px',
-          color: 'rgba(255,255,255,0.25)',
-        }}>
+        <span
+          style={{
+            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontSize: "0.72rem",
+            letterSpacing: "3px",
+            color: "rgba(255,255,255,0.25)",
+          }}
+        >
           SUGGESTION
         </span>
       )}
@@ -954,9 +1045,7 @@ function MiniCard({
             <span style={{ color: "rgba(255,255,255,0.2)" }}>{" > "}</span>
           )}
           {proj && (
-            <span
-              style={{ color: proj.color_hex ?? arc?.color_hex ?? "#00c4a7" }}
-            >
+            <span style={{ color: arc?.color_hex ?? "#00c4a7" }}>
               {proj.name}
             </span>
           )}
@@ -1025,37 +1114,61 @@ function MiniCard({
   );
 }
 
-function DoneChip({ node, onUncomplete }: { node: PlannerNode; onUncomplete: () => void }) {
+function DoneChip({
+  node,
+  onUncomplete,
+}: {
+  node: PlannerNode;
+  onUncomplete: () => void;
+}) {
   const [hovered, setHovered] = useState(false);
-  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const mono: React.CSSProperties = {
+    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+  };
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-        padding: '0.15rem 0.5rem 0.15rem 0.6rem',
-        background: hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
-        border: '1px solid rgba(255,255,255,0.14)',
-        transition: 'background 0.12s',
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.35rem",
+        padding: "0.15rem 0.5rem 0.15rem 0.6rem",
+        background: hovered
+          ? "rgba(255,255,255,0.12)"
+          : "rgba(255,255,255,0.07)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        transition: "background 0.12s",
         maxWidth: 220,
       }}
     >
-      <span style={{
-        ...mono, fontSize: '1rem', letterSpacing: '0.5px',
-        color: 'rgba(255,255,255,0.5)', textDecoration: 'line-through',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
+      <span
+        style={{
+          ...mono,
+          fontSize: "1rem",
+          letterSpacing: "0.5px",
+          color: "rgba(255,255,255,0.5)",
+          textDecoration: "line-through",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
         {node.title}
       </span>
       <button
         onClick={onUncomplete}
         title="undo"
         style={{
-          background: 'transparent', border: 'none', padding: 0,
-          color: hovered ? '#f5c842' : 'transparent',
-          cursor: 'pointer', display: 'flex', alignItems: 'center',
-          flexShrink: 0, transition: 'color 0.12s',
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          color: hovered ? "#f5c842" : "transparent",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          flexShrink: 0,
+          transition: "color 0.12s",
         }}
       >
         <Undo size={12} />
@@ -1424,9 +1537,9 @@ function TaskCard({
             )}
           </div>
 
-          {/* Right: D-XX */}
+          {/* Right: D-XX (hidden when D-0 — redundant in today view) */}
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            {dCountdown !== null && (
+            {dCountdown !== null && dCountdown !== 0 && (
               <span
                 style={{
                   ...mono,
@@ -1476,9 +1589,7 @@ function TaskCard({
               <span style={{ color: "rgba(255,255,255,0.2)" }}>{" > "}</span>
             )}
             {proj && (
-              <span
-                style={{ color: proj.color_hex ?? arc?.color_hex ?? "#00c4a7" }}
-              >
+              <span style={{ color: arc?.color_hex ?? "#00c4a7" }}>
                 {proj.name}
               </span>
             )}
@@ -1662,6 +1773,242 @@ function actionBtn(color: string): React.CSSProperties {
   };
 }
 
+// ─── Event Calendar Panel ─────────────────────────────────────────────────────
+
+const CAL_MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CAL_DAY_SHORT   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function calToDS(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function calAddDays(d: Date, n: number): Date {
+  const r = new Date(d); r.setDate(r.getDate() + n); return r;
+}
+function calGetWeekMon(offset: number): Date {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dow = today.getDay();
+  return calAddDays(today, (dow === 0 ? -6 : 1 - dow) + offset * 7);
+}
+function calAddMins(time: string, mins: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + mins;
+  return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
+}
+function calNormTime(t: string): string {
+  if (t.includes(':')) return t;
+  if (t.length === 4) return `${t.slice(0,2)}:${t.slice(2)}`;
+  return t;
+}
+function getArcColorCal(n: PlannerNode, arcs: Arc[], projects: Project[]): string {
+  if (n.arc_id) return arcs.find(a => a.id === n.arc_id)?.color_hex ?? '#c084fc';
+  if (n.project_id) {
+    const proj = projects.find(p => p.id === n.project_id);
+    if (proj?.arc_id) return arcs.find(a => a.id === proj.arc_id)?.color_hex ?? '#c084fc';
+  }
+  return '#c084fc';
+}
+
+function EventCalendarPanel({ arcs, projects }: { arcs: Arc[]; projects: Project[] }) {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [eventNodes, setEventNodes] = useState<PlannerNode[]>([]);
+  const [nowCal, setNowCal] = useState(new Date());
+  const [tooltip, setTooltip] = useState<{ title: string; x: number; y: number } | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [hourH, setHourH] = useState(28);
+
+  const END_HOUR = 24;
+
+  useEffect(() => {
+    const id = setInterval(() => setNowCal(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const mon  = calGetWeekMon(weekOffset);
+  const days = Array.from({ length: 7 }, (_, i) => calAddDays(mon, i));
+  const today = calToDS(new Date());
+
+  useEffect(() => {
+    const from = calToDS(mon);
+    const to   = calToDS(calAddDays(mon, 6));
+    loadEventNodesForWeek(from, to).then(setEventNodes);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekOffset]);
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, PlannerNode[]>();
+    for (const d of days) map.set(calToDS(d), []);
+    for (const n of eventNodes) {
+      const k = (n.planned_start_at ?? '').slice(0, 10);
+      if (map.has(k)) map.get(k)!.push(n);
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventNodes, weekOffset]);
+
+  // Dynamically lower START_HOUR if any event this week starts before 9AM
+  const START_HOUR = useMemo(() => {
+    let earliest = 9;
+    for (const n of eventNodes) {
+      const t = n.planned_start_at;
+      if (t && t.length > 10) {
+        const h = parseInt(t.slice(11, 13), 10);
+        if (!isNaN(h) && h < earliest) earliest = h;
+      }
+    }
+    return earliest;
+  }, [eventNodes]);
+
+  const TOTAL_HRS = END_HOUR - START_HOUR;
+
+  useEffect(() => {
+    if (!gridRef.current) return;
+    const obs = new ResizeObserver(([entry]) => {
+      setHourH(Math.max(16, entry.contentRect.height / TOTAL_HRS));
+    });
+    obs.observe(gridRef.current);
+    return () => obs.disconnect();
+  }, [TOTAL_HRS]);
+
+  const LABEL_W = 26;
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0.75rem 1rem', minHeight: 0, border: '1px solid rgba(255,255,255,0.18)', margin: '0.5rem' }}>
+      {/* Week nav */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, flexShrink: 0, gap: 6 }}>
+        <button onClick={() => setWeekOffset(0)}
+          style={{ ...mono, background: weekOffset === 0 ? 'rgba(0,196,167,0.12)' : 'none',
+            border: `1px solid ${weekOffset === 0 ? 'rgba(0,196,167,0.4)' : 'rgba(255,255,255,0.12)'}`,
+            color: weekOffset === 0 ? 'var(--teal)' : 'rgba(255,255,255,0.4)',
+            fontSize: '0.85rem', padding: '1px 8px', cursor: 'pointer', letterSpacing: 1 }}>
+          this week
+        </button>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <button onClick={() => setWeekOffset(weekOffset - 1)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 0 }}>
+            <ChevronLeft width={14} height={14} />
+          </button>
+          <span style={{ ...mono, fontSize: '0.88rem', color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }}>
+            {CAL_MONTH_SHORT[mon.getMonth()]} {mon.getDate()} – {calAddDays(mon, 6).getDate()}
+          </span>
+          <button onClick={() => setWeekOffset(weekOffset + 1)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 0 }}>
+            <ChevronRight width={14} height={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display: 'flex', paddingLeft: LABEL_W, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 4, marginBottom: 2 }}>
+        {days.map(d => {
+          const key = calToDS(d);
+          const isToday = key === today;
+          return (
+            <div key={key} style={{ flex: 1, textAlign: 'center' }}>
+              <div style={{ ...mono, fontSize: '0.7rem', color: isToday ? 'var(--teal)' : 'rgba(255,255,255,0.3)', letterSpacing: 1 }}>
+                {CAL_DAY_SHORT[d.getDay()].slice(0,2).toUpperCase()}
+              </div>
+              <div style={{ ...mono, fontSize: '1rem', color: isToday ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+                {d.getDate()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Time grid */}
+      <div ref={gridRef} style={{ flex: 1, position: 'relative', display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+          {/* Hour labels */}
+          <div style={{ width: LABEL_W, flexShrink: 0, position: 'relative' }}>
+            {Array.from({ length: TOTAL_HRS }, (_, i) => (
+              <div key={i} style={{ position: 'absolute', top: i * hourH - 6, right: 3,
+                ...mono, fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)', lineHeight: 1, userSelect: 'none' }}>
+                {String(i + START_HOUR).padStart(2, '0')}
+              </div>
+            ))}
+          </div>
+
+          {/* Grid + day columns */}
+          <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
+            {/* Hour lines */}
+            {Array.from({ length: TOTAL_HRS }, (_, i) => {
+              const h = i + START_HOUR;
+              return (
+                <div key={h} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0,
+                  height: h % 3 === 0 ? 2 : 1,
+                  background: h % 3 === 0 ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.14)',
+                  pointerEvents: 'none' }} />
+              );
+            })}
+
+            {days.map((d, di) => {
+              const key = calToDS(d);
+              const isToday = key === today;
+              const dayNodes = byDay.get(key) ?? [];
+
+              return (
+                <div key={key} style={{ flex: 1, position: 'relative',
+                  borderLeft: di === 0 ? 'none' : '1px solid rgba(255,255,255,0.18)',
+                  background: isToday ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+
+                  {/* Current-time line */}
+                  {isToday && (() => {
+                    const topPct = (nowCal.getHours() * 60 + nowCal.getMinutes()) / 60 - START_HOUR;
+                    if (topPct < 0 || topPct > TOTAL_HRS) return null;
+                    return (
+                      <div style={{ position: 'absolute', top: topPct * hourH, left: 0, right: 0,
+                        height: 2, background: '#ff3b3b', zIndex: 5, pointerEvents: 'none' }}>
+                        <div style={{ position: 'absolute', left: -3, top: -3,
+                          width: 6, height: 6, borderRadius: '50%', background: '#ff3b3b' }} />
+                      </div>
+                    );
+                  })()}
+
+                  {dayNodes.map(n => {
+                    const timeStr = n.planned_start_at && n.planned_start_at.length > 10
+                      ? n.planned_start_at.slice(11, 16) : null;
+                    if (!timeStr) return null;
+                    const [h, m] = timeStr.split(':').map(Number);
+                    const topPx = (h + m / 60 - START_HOUR) * hourH;
+                    if (topPx < 0) return null;
+                    const dur = n.estimated_duration_minutes ?? 30;
+                    const heightPx = Math.max(4, dur / 60 * hourH);
+                    const color = getArcColorCal(n, arcs, projects);
+                    const normTime = calNormTime(timeStr);
+                    const endTime = dur ? calAddMins(normTime, dur) : null;
+                    const label = endTime ? `${normTime}–${endTime}` : normTime;
+
+                    return (
+                      <div key={n.id}
+                        onMouseEnter={e => setTooltip({ title: `${n.title} · ${label}`, x: e.clientX, y: e.clientY })}
+                        onMouseMove={e => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                        onMouseLeave={() => setTooltip(null)}
+                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx,
+                          background: color, opacity: n.is_completed ? 0.3 : 0.85,
+                          zIndex: 2, cursor: 'default', transition: 'opacity 0.1s' }} />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {tooltip && createPortal(
+        <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y - 28,
+          background: '#111', border: '1px solid rgba(255,255,255,0.15)', color: '#fff',
+          ...mono, fontSize: '0.95rem', letterSpacing: '0.5px', padding: '2px 10px',
+          pointerEvents: 'none', zIndex: 9999, whiteSpace: 'nowrap' }}>
+          {tooltip.title}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 // ─── Analytics sidebar ────────────────────────────────────────────────────────
 
 function SidebarPanel({
@@ -1678,15 +2025,15 @@ function SidebarPanel({
   return (
     <div
       style={{
-        padding: "1.25rem 1.25rem 1.1rem",
+        padding: "0.65rem 1.1rem 0.6rem",
       }}
     >
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "0.7rem",
-          marginBottom: "0.9rem",
+          gap: "0.5rem",
+          marginBottom: "0.5rem",
         }}
       >
         {Icon && <Icon size={15} style={{ color: "#f5c842", flexShrink: 0 }} />}
@@ -1982,12 +2329,11 @@ function OngoingArcsPanel() {
       .filter((n) => n.arc_id === arcId)
       .reduce((max, n) => (n.updated_at > max ? n.updated_at : max), "");
   const activeArcs = arcs
-    .filter((a) => !a.is_archived)
     .sort((a, b) =>
       latestNodeUpdate(b.id).localeCompare(latestNodeUpdate(a.id)),
     )
     .slice(0, 3);
-  const totalArcs = arcs.filter((a) => !a.is_archived).length;
+  const totalArcs = arcs.length;
   const [arcCounts, setArcCounts] = useState<ArcNodeCount[]>([]);
   const mono: React.CSSProperties = {
     fontFamily: "'VT323', 'HBIOS-SYS', monospace",
@@ -2055,7 +2401,7 @@ function OngoingArcsPanel() {
       </div>
       {totalArcs > 3 && (
         <div
-          onClick={() => setActiveView("arc")}
+          onClick={() => setActiveView("focus")}
           style={{
             ...mono,
             fontSize: "0.9rem",
