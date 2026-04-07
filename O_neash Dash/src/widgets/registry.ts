@@ -1,10 +1,13 @@
 import type { WidgetDef } from './types';
 import { PressureGauge }   from './widgets/PressureGauge';
-import { DeadlineHorizon } from './widgets/DeadlineHorizon';
 import { TheFrog }         from './widgets/TheFrog';
-import { OverdueDebt }     from './widgets/OverdueDebt';
 import { DailyTasks }      from './widgets/DailyTasks';
-import { PlaceholderWidget } from './widgets/PlaceholderWidget';
+import { ConwaysLife }     from './widgets/ConwaysLife';
+import { LangtonsAnt }     from './widgets/LangtonsAnt';
+import { BriansBrain }     from './widgets/BriansBrain';
+import { CodiCA }          from './widgets/CodiCA';
+import { Wireworld }       from './widgets/Wireworld';
+import { DayAndNight }     from './widgets/DayAndNight';
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
   // ── Analytics — Planner ──────────────────────────────────────────────────────
@@ -35,80 +38,60 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     allowedSizes: ['2x1', '4x1'],
     component:    DailyTasks,
   },
-  {
-    id:           'overdue-debt',
-    label:        'Overdue Debt',
-    description:  'Count and total hours of overdue tasks.',
-    category:     'analytics-planner',
-    defaultSize:  '2x1',
-    allowedSizes: ['2x1', '2x2'],
-    component:    OverdueDebt,
-  },
-  {
-    id:           'deadline-horizon',
-    label:        'Deadline Horizon',
-    description:  '14-day dot timeline coloured by urgency level.',
-    category:     'analytics-planner',
-    defaultSize:  '4x1',
-    allowedSizes: ['4x1', '4x2'],
-    component:    DeadlineHorizon,
-  },
-  // ── Utility (placeholders) ───────────────────────────────────────────────────
-  {
-    id:           'world-clock',
-    label:        'World Clock',
-    description:  'Multiple timezone display.',
-    category:     'utility',
-    defaultSize:  '2x1',
-    allowedSizes: ['2x1', '2x2'],
-    component:    PlaceholderWidget,
-  },
-  {
-    id:           'pomodoro',
-    label:        'Pomodoro Timer',
-    description:  'Focus timer strip with session tracking.',
-    category:     'utility',
-    defaultSize:  '4x1',
-    allowedSizes: ['4x1'],
-    component:    PlaceholderWidget,
-  },
-  // ── Fun (placeholders) ───────────────────────────────────────────────────────
+  // ── Fun ──────────────────────────────────────────────────────────────────────
   {
     id:           'conways-life',
     label:        "Conway's Game of Life",
-    description:  'Seeded from today\'s date. Loops.',
+    description:  'Cellular automaton — seeded from today\'s date.',
     category:     'fun',
     defaultSize:  '2x2',
-    allowedSizes: ['2x2'],
-    component:    PlaceholderWidget,
+    allowedSizes: ['2x2', '4x2'],
+    component:    ConwaysLife,
   },
   {
-    id:           'desktop-pet',
-    label:        'Desktop Pet',
-    description:  'Reacts to your pressure score. Panics when critical.',
+    id:           'langtons-ant',
+    label:        "Langton's Ant",
+    description:  'Emergent highway pattern from simple rules.',
     category:     'fun',
-    defaultSize:  '1x2',
-    allowedSizes: ['1x1', '1x2'],
-    component:    PlaceholderWidget,
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    LangtonsAnt,
   },
   {
-    id:           'pixel-aquarium',
-    label:        'Pixel Aquarium',
-    description:  'Fish count = tasks completed this week.',
+    id:           'brians-brain',
+    label:        "Brian's Brain",
+    description:  '3-state cellular automaton with dying cells.',
     category:     'fun',
-    defaultSize:  '2x1',
-    allowedSizes: ['2x1', '4x1'],
-    component:    PlaceholderWidget,
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    BriansBrain,
   },
-  // ── Personal (placeholders) ──────────────────────────────────────────────────
   {
-    id:           'photo-of-day',
-    label:        'Photo of the Day',
-    description:  'Random pull from Film Neg Lab.',
-    category:     'personal',
-    defaultSize:  '1x2',
-    allowedSizes: ['1x1', '1x2', '2x2'],
-    component:    PlaceholderWidget,
+    id:           'codi-ca',
+    label:        'CoDI-CA',
+    description:  '4-state cyclic cellular automaton.',
+    category:     'fun',
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    CodiCA,
+  },
+  {
+    id:           'wireworld',
+    label:        'Wireworld',
+    description:  'Electron signals flowing through a conductor circuit.',
+    category:     'fun',
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    Wireworld,
+  },
+  {
+    id:           'day-and-night',
+    label:        'Day and Night',
+    description:  'B368/S34678 — symmetric two-state CA with island patterns.',
+    category:     'fun',
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    DayAndNight,
   },
 ];
 

@@ -35,15 +35,6 @@ export function isNodeOverdue(node: PlannerNode, now: Date): boolean {
   return new Date(normalized) < now;
 }
 
-// ─── Missed schedule detection (flexible tasks only) ─────────────────────────
-export function isMissedSchedule(node: PlannerNode, now: Date): boolean {
-  if (node.is_completed || node.is_overdue || node.due_at) return false;
-  if (!node.planned_start_at) return false;
-  const scheduledDay = new Date(node.planned_start_at.slice(0, 10) + 'T00:00:00');
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  return scheduledDay < today;
-}
 
 // ─── Suggestion scoring (Today view) ─────────────────────────────────────────
 export function scoreSuggestion(node: PlannerNode, today: Date): number {

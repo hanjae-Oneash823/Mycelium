@@ -506,6 +506,7 @@ export default function RoutinesView() {
   const [formOpen,         setFormOpen]         = useState(false);
   const [editRoutine,      setEditRoutine]      = useState<Routine | null>(null);
   const [hoveredRoutineId, setHoveredRoutineId] = useState<string | null>(null);
+  const [collapsedArcs,    setCollapsedArcs]    = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAll().then(() => reloadNodes());
@@ -561,6 +562,8 @@ export default function RoutinesView() {
         .routine-add-btn:hover { border-color: rgba(0,196,167,0.75) !important; background: rgba(0,196,167,0.06) !important; }
         @keyframes routine-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.12; } }
         .routine-today-blink { animation: routine-blink 1.1s infinite; }
+        .routine-scroll::-webkit-scrollbar { display: none; }
+        .routine-scroll { scrollbar-width: none; }
       `}</style>
 
       {/* Header */}
@@ -596,22 +599,24 @@ export default function RoutinesView() {
           />
         </div>
 
-        {/* Right: 3-column grid */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+        {/* Right: arc-grouped sections */}
+        <div className="routine-scroll" style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
           {routines.length === 0 && (
             <div style={{ color: 'rgba(255,255,255,0.2)', fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem' }}>
               no routines yet — create one with [ new routine ]
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-            {[...routines].sort((a, b) => {
-              const today = toDateStr(new Date());
+          {(() => {
+            const today = toDateStr(new Date());
+            const sortByNext = (a: Routine, b: Routine) => {
               const nextFor = (id: string) => (nodesByRoutine.get(id) ?? [])
                 .map(n => (n.planned_start_at ?? '').slice(0, 10))
                 .filter(d => d >= today)
                 .sort()[0] ?? '9999-99-99';
               return nextFor(a.id).localeCompare(nextFor(b.id));
-            }).map(r => {
+            };
+
+            const renderCard = (r: Routine) => {
               const arc     = arcs.find(a => a.id === r.arc_id);
               const project = projects.find(p => p.id === r.project_id);
               return (
@@ -632,8 +637,69 @@ export default function RoutinesView() {
                   })}
                 />
               );
-            })}
-          </div>
+            };
+
+            const toggleArc = (key: string) =>
+              setCollapsedArcs(prev => {
+                const next = new Set(prev);
+                next.has(key) ? next.delete(key) : next.add(key);
+                return next;
+              });
+
+            // Arcs that have at least one routine, in arcs-array order
+            const arcSections = arcs
+              .map(arc => ({ arc, items: [...routines].filter(r => r.arc_id === arc.id).sort(sortByNext) }))
+              .filter(s => s.items.length > 0);
+
+            const noArcItems = [...routines].filter(r => !r.arc_id).sort(sortByNext);
+
+            const renderSection = (key: string, label: string, color: string, items: Routine[]) => {
+              const collapsed = collapsedArcs.has(key);
+              return (
+                <div key={key} style={{ marginBottom: 16 }}>
+                  {/* Section header */}
+                  <button
+                    onClick={() => toggleArc(key)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      padding: '4px 0', marginBottom: collapsed ? 0 : 8,
+                      borderBottom: `1px solid ${collapsed ? 'rgba(255,255,255,0.06)' : color + '33'}`,
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: 0, background: color, flexShrink: 0, display: 'inline-block' }} />
+                    <span style={{
+                      fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem',
+                      letterSpacing: 2, color, textTransform: 'uppercase',
+                    }}>{label}</span>
+                    <span style={{
+                      fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.82rem',
+                      color: 'rgba(255,255,255,0.22)', letterSpacing: 1,
+                    }}>[{items.length}]</span>
+                    <span style={{ marginLeft: 'auto', fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.9rem', color: 'rgba(255,255,255,0.28)' }}>
+                      {collapsed ? '▶' : '▼'}
+                    </span>
+                  </button>
+                  {!collapsed && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {items.map(renderCard)}
+                    </div>
+                  )}
+                </div>
+              );
+            };
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {arcSections.map(({ arc, items }) =>
+                  renderSection(arc.id, arc.name, arc.color_hex, items)
+                )}
+                {noArcItems.length > 0 &&
+                  renderSection('__none__', 'no arc', 'rgba(255,255,255,0.28)', noArcItems)
+                }
+              </div>
+            );
+          })()}
         </div>
       </div>
 

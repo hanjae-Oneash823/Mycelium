@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
-import { Frown } from 'pixelarticons/react/Frown';
+import { PixelFrog } from '../../plugins/PlannerPlugin/components/PixelFrog';
 import { usePlannerStore } from '../../plugins/PlannerPlugin/store/usePlannerStore';
 import { pickFrogNode, toDateString } from '../../plugins/PlannerPlugin/lib/logicEngine';
 import type { WidgetProps } from '../types';
 
-const GOLD  = '#d4a52a';
 const GREEN = '#4ade80';
 
 const BODY_TEXTS = [
@@ -29,20 +28,22 @@ export function TheFrog({ }: WidgetProps) {
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'VT323', monospace",
-      padding: '10px 12px',
+      padding: '12px 14px',
       boxSizing: 'border-box',
       gap: 8,
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, flexWrap: 'wrap' }}>
-        <Frown width={14} height={14} style={{ color: GOLD }} />
-        <span style={{ fontSize: '0.82rem', letterSpacing: '2px', color: GOLD, lineHeight: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, flexWrap: 'wrap' }}>
+        <PixelFrog px={2} />
+        <span style={{ fontSize: '1.05rem', letterSpacing: '2px', color: GREEN, lineHeight: 1 }}>
           EAT-THE-FROG
         </span>
-        {frogCount > 0 && (
-          <span style={{ fontSize: '0.95rem', lineHeight: 1, letterSpacing: 0 }}>
-            {'🐸'.repeat(frogCount)}
-          </span>
+        {frogCount > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {Array.from({ length: frogCount - 1 }).map((_, i) => (
+              <PixelFrog key={i} px={2} dim />
+            ))}
+          </div>
         )}
       </div>
 
@@ -51,12 +52,13 @@ export function TheFrog({ }: WidgetProps) {
           {/* Body flavour text */}
           <div style={{
             flex: 1,
-            fontSize: '0.78rem',
+            fontSize: '0.82rem',
             letterSpacing: '0.5px',
             color: GREEN,
             lineHeight: 1.45,
             whiteSpace: 'pre-line',
             overflow: 'hidden',
+            opacity: 0.78,
           }}>
             {bodyText}
           </div>
@@ -64,7 +66,7 @@ export function TheFrog({ }: WidgetProps) {
           {/* Next frog pointer */}
           <div style={{ flexShrink: 0 }}>
             <div style={{
-              fontSize: '0.72rem',
+              fontSize: '0.75rem',
               color: 'rgba(255,255,255,0.3)',
               letterSpacing: '1px',
               marginBottom: 2,
@@ -72,7 +74,7 @@ export function TheFrog({ }: WidgetProps) {
               {'>'}&nbsp; next frog:
             </div>
             <div style={{
-              fontSize: '0.88rem',
+              fontSize: '0.95rem',
               color: '#fff',
               letterSpacing: '0.5px',
               overflow: 'hidden',
@@ -88,7 +90,7 @@ export function TheFrog({ }: WidgetProps) {
         <div style={{
           flex: 1,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.8rem', letterSpacing: '1.5px',
+          fontSize: '0.85rem', letterSpacing: '1.5px',
           color: 'rgba(255,255,255,0.15)',
         }}>
           no frogs today

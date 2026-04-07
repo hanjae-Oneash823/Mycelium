@@ -1,19 +1,27 @@
+import { useEffect } from "react";
 import ClockPlugin from "../plugins/ClockPlugin/ClockPlugin";
 import { LaunchMenu } from "./LaunchMenu";
 import { WidgetPanel } from "../widgets/WidgetPanel";
+import { usePlannerStore } from "../plugins/PlannerPlugin/store/usePlannerStore";
 
 const BORDER = "1px solid rgba(0,196,167,0.45)";
 const BG = "rgba(0,196,167,0.02)";
 
 function HomePage() {
+  const loadAll = usePlannerStore(s => s.loadAll);
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
   return (
     <div
       style={{
         height: "100%",
         display: "flex",
         flexDirection: "row",
-        padding: "15vh 10vw",
-        gap: "5vw",
+        padding: "12vh 5vw",
+        gap: "4vw",
         boxSizing: "border-box",
       }}
     >

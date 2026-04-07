@@ -4,7 +4,7 @@ import type { WidgetInstance, WidgetSize } from '../types';
 import { WIDGET_REGISTRY } from '../registry';
 
 // Bumped to v2 to clear old layout and apply new defaults
-const STORAGE_KEY = 'oneash-widgets-v2';
+const STORAGE_KEY = 'oneash-widgets-v3';
 
 interface WidgetStore {
   instances: WidgetInstance[];
@@ -12,16 +12,16 @@ interface WidgetStore {
   removeWidget: (instanceId: string) => void;
   resizeWidget: (instanceId: string, size: WidgetSize) => void;
   reorderWidget:(instanceId: string, direction: 'up' | 'down') => void;
+  moveWidgetTo: (draggedId: string, targetId: string) => void;
+  placeWidget:  (instanceId: string, col: number, row: number) => void;
   resetToDefault: () => void;
 }
 
 function defaultInstances(): WidgetInstance[] {
   return [
-    { instanceId: 'default-pressure', widgetId: 'pressure-gauge',   size: '2x2', order: 0 },
-    { instanceId: 'default-frog',     widgetId: 'the-frog',         size: '2x2', order: 1 },
-    { instanceId: 'default-tasks',    widgetId: 'daily-tasks',      size: '2x1', order: 2 },
-    { instanceId: 'default-overdue',  widgetId: 'overdue-debt',     size: '2x1', order: 3 },
-    { instanceId: 'default-horizon',  widgetId: 'deadline-horizon', size: '4x1', order: 4 },
+    { instanceId: 'default-pressure', widgetId: 'pressure-gauge', size: '2x2', order: 0 },
+    { instanceId: 'default-frog',     widgetId: 'the-frog',       size: '2x2', order: 1 },
+    { instanceId: 'default-tasks',    widgetId: 'daily-tasks',    size: '2x1', order: 2 },
   ];
 }
 
@@ -68,6 +68,28 @@ const useWidgetStore = create<WidgetStore>()(
           if (swapIdx < 0 || swapIdx >= sorted.length) return s;
           const updated = [...sorted];
           [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+          return { instances: updated.map((i, n) => ({ ...i, order: n })) };
+        });
+      },
+
+      placeWidget: (instanceId, col, row) => {
+        set(s => ({
+          instances: s.instances.map(i =>
+            i.instanceId === instanceId ? { ...i, col, row } : i
+          ),
+        }));
+      },
+
+      moveWidgetTo: (draggedId, targetId) => {
+        if (draggedId === targetId) return;
+        set(s => {
+          const sorted = [...s.instances].sort((a, b) => a.order - b.order);
+          const fromIdx = sorted.findIndex(i => i.instanceId === draggedId);
+          const toIdx   = sorted.findIndex(i => i.instanceId === targetId);
+          if (fromIdx === -1 || toIdx === -1) return s;
+          const updated = [...sorted];
+          const [moved] = updated.splice(fromIdx, 1);
+          updated.splice(toIdx, 0, moved);
           return { instances: updated.map((i, n) => ({ ...i, order: n })) };
         });
       },

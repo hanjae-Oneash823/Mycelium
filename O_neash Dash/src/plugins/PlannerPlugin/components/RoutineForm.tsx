@@ -502,7 +502,7 @@ export default function RoutineForm({ initial, onSave, onCancel, onRemoveManualO
                     style={{ color: arcId?(arcs.find(a=>a.id===arcId)?.color_hex??'rgba(255,255,255,0.55)'):'rgba(255,255,255,0.35)' }}>
                     <SelectValue placeholder="arc"/>
                   </TS>
-                  <TC className="bg-black border-[rgba(255,255,255,0.09)] rounded-none">
+                  <TC className="bg-black border-[rgba(255,255,255,0.09)] rounded-none z-[600]">
                     <TI value="__none__" className="font-mono text-sm" style={{ color:'rgba(255,255,255,0.3)' }}>no arc</TI>
                     {arcs.map(a=>(
                       <TI key={a.id} value={a.id} className="font-mono text-sm" style={{ color:a.color_hex }}>{a.name}</TI>
@@ -514,7 +514,7 @@ export default function RoutineForm({ initial, onSave, onCancel, onRemoveManualO
                     style={{ color:'rgba(255,255,255,0.35)' }}>
                     <SelectValue placeholder={arcId?'project':'—'}/>
                   </TS>
-                  <TC className="bg-black border-[rgba(255,255,255,0.09)] rounded-none">
+                  <TC className="bg-black border-[rgba(255,255,255,0.09)] rounded-none z-[600]">
                     <TI value="__none__" className="font-mono text-sm" style={{ color:'rgba(255,255,255,0.3)' }}>no project</TI>
                     {projects.filter(p=>p.arc_id===arcId).map(p=>(
                       <TI key={p.id} value={p.id} className="font-mono text-sm">{p.name}</TI>

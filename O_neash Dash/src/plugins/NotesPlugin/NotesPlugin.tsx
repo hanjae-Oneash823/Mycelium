@@ -1,166 +1,90 @@
-import { useState, useEffect } from 'react';
-import './NotesPlugin.css';
-import GroupGrid from './GroupGrid';
-import GroupCreator from './GroupCreator';
-import NotesView from './NotesView';
-import ConfirmDialog from './ConfirmDialog';
-import { BaseDirectory, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
-import type { NoteGroup } from '@/types';
+import { useEffect, useState } from 'react';
+import { CommentText, Notebook } from 'pixelarticons/react';
+import MemoPool from './views/MemoPool';
+import DocumentsView from './views/DocumentsView';
 
-const DEFAULT_GROUPS: NoteGroup[] = [
-  { id: 'quick-notes', name: 'quick notes', color: '#4A90E2' },
-  { id: 'shopping-list', name: 'shopping list', color: '#5B9BD5' },
-  { id: 'ideas', name: 'ideas', color: '#7BA3CC' },
+type Tab = 'memos' | 'docs';
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'memos', label: 'memos',     icon: <CommentText size={18} /> },
+  { id: 'docs',  label: 'documents', icon: <Notebook    size={18} /> },
 ];
 
-/**
- * NotesPlugin - Multi-group note-taking system with force-directed graphs
- */
-function NotesPlugin() {
-  const [view, setView] = useState<'grid' | 'notes'>('grid');
-  const [groups, setGroups] = useState<NoteGroup[]>(DEFAULT_GROUPS);
-  const [selectedGroup, setSelectedGroup] = useState<NoteGroup | null>(null);
-  const [isCreatorOpen, setIsCreatorOpen] = useState<boolean>(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true);
-  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+export default function NotesPlugin() {
+  const [tab, setTab] = useState<Tab>('memos');
 
-  // Load groups from file on mount
   useEffect(() => {
-    const loadGroups = async () => {
-      try {
-        console.log('Initializing notes plugin...');
-        // Ensure notes directory exists
-        const dirExists = await exists('notes', { baseDir: BaseDirectory.AppData });
-        console.log('Notes directory exists:', dirExists);
-        if (!dirExists) {
-          console.log('Creating notes directory...');
-          await mkdir('notes', { baseDir: BaseDirectory.AppData });
-        }
-
-        // Try to load groups file
-        const groupsFileExists = await exists('notes/groups.json', { baseDir: BaseDirectory.AppData });
-        if (groupsFileExists) {
-          const data = await readTextFile('notes/groups.json', { baseDir: BaseDirectory.AppData });
-          const loadedGroups: NoteGroup[] = JSON.parse(data);
-          setGroups(loadedGroups);
-        } else {
-          // Save default groups
-          await writeTextFile('notes/groups.json', JSON.stringify(DEFAULT_GROUPS, null, 2), { baseDir: BaseDirectory.AppData });
-        }
-        setIsInitialLoad(false);
-      } catch (error) {
-        console.error('Failed to load groups:', error);
-        setIsInitialLoad(false);
-      }
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLElement && e.target.isContentEditable) return;
+      const idx = parseInt(e.key) - 1;
+      if (idx >= 0 && idx < TABS.length) setTab(TABS[idx].id);
     };
-    loadGroups();
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Save groups whenever they change (after initial load)
-  useEffect(() => {
-    if (isInitialLoad) return;
-
-    const saveGroups = async () => {
-      try {
-        await writeTextFile('notes/groups.json', JSON.stringify(groups, null, 2), { baseDir: BaseDirectory.AppData });
-      } catch (error) {
-        console.error('Failed to save groups:', error);
-      }
-    };
-    if (groups.length > 0) {
-      saveGroups();
-    }
-  }, [groups, isInitialLoad]);
-
-  const handleGroupSelect = (group: NoteGroup) => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setSelectedGroup(group);
-      setView('notes');
-      setTimeout(() => setIsTransitioning(false), 50);
-    }, 300);
-  };
-
-  const handleBackToGrid = () => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setView('grid');
-      setSelectedGroup(null);
-      setTimeout(() => setIsTransitioning(false), 50);
-    }, 300);
-  };
-
-  const handleCreateGroup = () => {
-    setIsCreatorOpen(true);
-  };
-
-  const handleSaveGroup = (groupData: Omit<NoteGroup, 'id'>) => {
-    const newGroup: NoteGroup = {
-      ...groupData,
-      id: groupData.name.toLowerCase().replace(/\s+/g, '-'),
-    };
-    setGroups([...groups, newGroup]);
-    setIsCreatorOpen(false);
-  };
-
-  const handleCloseCreator = () => {
-    setIsCreatorOpen(false);
-  };
-
-  const handleDeleteGroup = (groupId: string) => {
-    console.log('Attempting to delete group:', groupId);
-    setConfirmDelete(groupId);
-  };
-
-  const handleConfirmDelete = () => {
-    if (confirmDelete) {
-      console.log('Confirmed deletion of:', confirmDelete);
-      const updatedGroups = groups.filter(g => g.id !== confirmDelete);
-      console.log('Updated groups:', updatedGroups);
-      setGroups(updatedGroups);
-      setConfirmDelete(null);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setConfirmDelete(null);
-  };
-
   return (
-    <>
-      <div className={`notes-page page-transition ${isTransitioning ? 'transitioning' : ''}`}>
-        {view === 'grid' ? (
-          <GroupGrid
-            groups={groups}
-            onGroupSelect={handleGroupSelect}
-            onCreateGroup={handleCreateGroup}
-            onDeleteGroup={handleDeleteGroup}
-          />
-        ) : (
-          <NotesView
-            group={selectedGroup!}
-            onBack={handleBackToGrid}
-          />
-        )}
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+      {/* Tab bar — same design as Planner ViewSwitcher */}
+      <div style={{
+        display:    'flex',
+        alignItems: 'center',
+        gap:        '2.4rem',
+        padding:    '112px 160px 0.7rem 160px',
+        background: '#000',
+        flexShrink: 0,
+      }}>
+        {TABS.map((t, i) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              style={{
+                background:    'none',
+                border:        'none',
+                padding:       0,
+                cursor:        'pointer',
+                fontFamily:    "'VT323', monospace",
+                letterSpacing: active ? '3px' : '1.5px',
+                lineHeight:    1,
+                display:       'flex',
+                alignItems:    'center',
+                gap:           '0.4rem',
+                transition:    'all 0.12s ease',
+              }}
+            >
+              <span style={{
+                fontSize:   '1.1rem',
+                color:      active ? '#00c4a7' : 'rgba(255,255,255,0.22)',
+                transition: 'color 0.12s ease',
+              }}>
+                {i + 1}
+              </span>
+              {active && (
+                <span style={{ color: '#00c4a7', display: 'flex', alignItems: 'center' }}>
+                  {t.icon}
+                </span>
+              )}
+              <span style={{
+                fontSize:      active ? '2.6rem' : '1.45rem',
+                color:         active ? '#fff' : 'rgba(255,255,255,0.28)',
+                textTransform: active ? 'uppercase' : 'lowercase',
+                transition:    'font-size 0.12s ease, color 0.12s ease',
+              }}>
+                {t.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {isCreatorOpen && (
-        <GroupCreator
-          onSave={handleSaveGroup}
-          onClose={handleCloseCreator}
-        />
-      )}
-
-      {confirmDelete && (
-        <ConfirmDialog
-          message="Are you sure you want to delete this group? All notes in this group will be deleted."
-          onConfirm={handleConfirmDelete}
-          onCancel={handleCancelDelete}
-        />
-      )}
-    </>
+      {/* Content */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {tab === 'memos' ? <MemoPool /> : <DocumentsView />}
+      </div>
+    </div>
   );
 }
-
-export default NotesPlugin;

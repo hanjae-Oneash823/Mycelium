@@ -224,6 +224,47 @@ export async function setupDb(): Promise<Database> {
   BEGIN
     UPDATE routines SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
   END;
+
+  -- ─────────────────── NOTES PLUGIN ────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS notes (
+    id            TEXT PRIMARY KEY,
+    note_type     TEXT NOT NULL DEFAULT 'memo'
+                      CHECK(note_type IN('memo','document')),
+    title         TEXT,
+    content_plain TEXT,
+    content_json  TEXT,
+    status        TEXT NOT NULL DEFAULT 'active'
+                      CHECK(status IN('active','archived')),
+    arc_id        TEXT,
+    project_id    TEXT,
+    pinned        BOOLEAN NOT NULL DEFAULT 0,
+    color_hex     TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(arc_id)     REFERENCES arcs(id)     ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+  );
+
+  CREATE TRIGGER IF NOT EXISTS notes_ts AFTER UPDATE ON notes
+  BEGIN
+    UPDATE notes SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE TABLE IF NOT EXISTS note_groups (
+    note_id   TEXT NOT NULL,
+    group_id  TEXT NOT NULL,
+    PRIMARY KEY(note_id, group_id),
+    FOREIGN KEY(note_id)  REFERENCES notes(id)          ON DELETE CASCADE,
+    FOREIGN KEY(group_id) REFERENCES planner_groups(id)  ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notes_type    ON notes(note_type);
+  CREATE INDEX IF NOT EXISTS idx_notes_status  ON notes(note_type, status);
+  CREATE INDEX IF NOT EXISTS idx_notes_arc     ON notes(arc_id);
+  CREATE INDEX IF NOT EXISTS idx_notes_project ON notes(project_id);
+  CREATE INDEX IF NOT EXISTS idx_ng_note       ON note_groups(note_id);
+  CREATE INDEX IF NOT EXISTS idx_ng_group      ON note_groups(group_id);
     `;
 
     // Apply the full schema every time

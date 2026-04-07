@@ -137,14 +137,27 @@ export default function TaskDetailPanel({
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: '1.4rem', alignItems: 'center', justifyContent: 'center' }}>
-        <button
-          onClick={isToday ? onComplete : undefined}
-          title={isToday ? undefined : 'drag to TODAY first'}
-          style={{ ...actionBtn(isToday ? '#4ade80' : 'rgba(255,255,255,0.18)'), cursor: isToday ? 'pointer' : 'not-allowed' }}
-        >
-          <CheckboxOn size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
-          done
-        </button>
+        {(() => {
+          const subTotal = node.sub_total ?? 0;
+          const subDone  = node.sub_done  ?? 0;
+          const blockedBySubtasks = subTotal > 0 && subDone < subTotal;
+          const canComplete = isToday && !blockedBySubtasks;
+          const title = !isToday
+            ? 'drag to TODAY first'
+            : blockedBySubtasks
+              ? `finish subtasks first (${subDone}/${subTotal})`
+              : undefined;
+          return (
+            <button
+              onClick={canComplete ? onComplete : undefined}
+              title={title}
+              style={{ ...actionBtn(canComplete ? '#4ade80' : 'rgba(255,255,255,0.18)'), cursor: canComplete ? 'pointer' : 'not-allowed', opacity: blockedBySubtasks ? 0.4 : 1 }}
+            >
+              <CheckboxOn size={13} style={{ verticalAlign: 'middle', marginRight: 4, marginBottom: 2 }} />
+              done
+            </button>
+          );
+        })()}
         {node.is_routine ? (
           <span style={{ fontSize: '0.78rem', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.22)', fontFamily: "'VT323', monospace" }}>
             edit in routines view

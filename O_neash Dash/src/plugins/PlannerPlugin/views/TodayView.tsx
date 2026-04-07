@@ -26,6 +26,7 @@ import { ChevronRight } from "pixelarticons/react/ChevronRight";
 import { ChevronLeft } from "pixelarticons/react/ChevronLeft";
 import { Switch } from "pixelarticons/react/Switch";
 import { Plus } from "pixelarticons/react/Plus";
+import { PixelFrog } from "../components/PixelFrog";
 import { usePlannerStore } from "../store/usePlannerStore";
 import { useViewStore } from "../store/useViewStore";
 import {
@@ -197,18 +198,6 @@ export default function TodayView() {
     };
   }, [runScramble]);
 
-  const frogNode = useMemo(() => pickFrogNode(nodes, today), [nodes, today]);
-
-  // When completing the current frog node, pin it before completing so we can count it
-  const handleCompleteNode = useCallback(
-    async (node: PlannerNode) => {
-      if (frogNode?.id === node.id && !node.is_frog_pinned) {
-        await setNodeFrogPinned(node.id, true);
-      }
-      completeNode(node.id);
-    },
-    [frogNode, completeNode],
-  );
   const tomorrow = toDateString(
     new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
   );
@@ -237,6 +226,19 @@ export default function TodayView() {
           (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now)),
       ),
     [nodes, now],
+  );
+
+  const frogNode = useMemo(() => pickFrogNode(todayNodes, today), [todayNodes, today]);
+
+  // When completing the current frog node, pin it before completing so we can count it
+  const handleCompleteNode = useCallback(
+    async (node: PlannerNode) => {
+      if (frogNode?.id === node.id && !node.is_frog_pinned) {
+        await setNodeFrogPinned(node.id, true);
+      }
+      completeNode(node.id);
+    },
+    [frogNode, completeNode],
   );
 
   const suggestions = useMemo(() => {
@@ -577,7 +579,7 @@ export default function TodayView() {
         {/* Right: analytics / calendar panel */}
         <div
           style={{
-            width: "28%",
+            width: "22%",
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
@@ -621,7 +623,7 @@ export default function TodayView() {
             }}>
               <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
               <PressureGaugePanel pressure={pressure} />
-              <EatTheFrogPanel frogsDone={frogsDone} />
+              <EatTheFrogPanel frogsDone={frogsDone} frogNode={frogNode} arcs={arcs} projects={projects} />
               <OngoingArcsPanel />
             </div>
             <div style={{
@@ -632,7 +634,7 @@ export default function TodayView() {
               transition: "opacity 0.18s ease, transform 0.18s ease",
               pointerEvents: panelMode === 'calendar' ? 'auto' : 'none',
             }}>
-              <EventCalendarPanel arcs={arcs} projects={projects} />
+              <EventCalendarPanel arcs={arcs} projects={projects} nodes={nodes} />
             </div>
           </div>
         </div>
@@ -1084,15 +1086,20 @@ function MiniCard({
             {primaryAction.label}
           </button>
         )}
-        {onComplete && (
-          <button
-            onClick={onComplete}
-            title="done"
-            style={actionBtn("#4ade80")}
-          >
-            <CheckboxOn size={11} />
-          </button>
-        )}
+        {onComplete && (() => {
+          const subTotal = node.sub_total ?? 0;
+          const subDone  = node.sub_done  ?? 0;
+          const blocked  = subTotal > 0 && subDone < subTotal;
+          return (
+            <button
+              onClick={blocked ? undefined : onComplete}
+              title={blocked ? `finish subtasks first (${subDone}/${subTotal})` : "done"}
+              style={{ ...actionBtn("#4ade80"), opacity: blocked ? 0.35 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}
+            >
+              <CheckboxOn size={11} />
+            </button>
+          );
+        })()}
         <button
           onClick={onEdit}
           title="edit"
@@ -1808,7 +1815,7 @@ function getArcColorCal(n: PlannerNode, arcs: Arc[], projects: Project[]): strin
   return '#c084fc';
 }
 
-function EventCalendarPanel({ arcs, projects }: { arcs: Arc[]; projects: Project[] }) {
+function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]; projects: Project[]; nodes: PlannerNode[] }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [eventNodes, setEventNodes] = useState<PlannerNode[]>([]);
   const [nowCal, setNowCal] = useState(new Date());
@@ -1832,7 +1839,7 @@ function EventCalendarPanel({ arcs, projects }: { arcs: Arc[]; projects: Project
     const to   = calToDS(calAddDays(mon, 6));
     loadEventNodesForWeek(from, to).then(setEventNodes);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekOffset]);
+  }, [weekOffset, storeNodes]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, PlannerNode[]>();
@@ -2948,59 +2955,11 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
   );
 }
 
-// ─── Pixel Frog ───────────────────────────────────────────────────────────────
-
-const FROG_MAP = [
-  [0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0], // r0: eye stalks
-  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // r1: head
-  [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0], // r2: eyes
-  [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0], // r3: eyes
-  [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], // r4: nostrils
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // r5: body
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // r6: gap
-  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], // r7: jaw
-  [0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0], // r8: feet
-];
-
-function PixelFrog({
-  px = 3,
-  color = "#4ade80",
-  dim = false,
-}: {
-  px?: number;
-  color?: string;
-  dim?: boolean;
-}) {
-  const col = dim ? "rgba(74,222,128,0.2)" : color;
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(11, ${px}px)`,
-        gridTemplateRows: `repeat(9, ${px}px)`,
-        gap: 0,
-        flexShrink: 0,
-      }}
-    >
-      {FROG_MAP.flat().map((on, i) => (
-        <div
-          key={i}
-          style={{
-            width: px,
-            height: px,
-            background: on ? col : "transparent",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 // ─── Panel 5 — Eat the Frog ───────────────────────────────────────────────────
 
 const FROG_GOAL = 3;
 
-function EatTheFrogPanel({ frogsDone }: { frogsDone: number }) {
+function EatTheFrogPanel({ frogsDone, frogNode, arcs, projects }: { frogsDone: number; frogNode: PlannerNode | null; arcs: Arc[]; projects: Project[] }) {
   const mono: React.CSSProperties = {
     fontFamily: "'VT323', 'HBIOS-SYS', monospace",
   };
@@ -3028,6 +2987,11 @@ function EatTheFrogPanel({ frogsDone }: { frogsDone: number }) {
     </div>
   );
 
+  const arc = frogNode?.arc_id ? arcs.find((a) => a.id === frogNode.arc_id) : null;
+  const proj = frogNode?.project_id ? projects.find((p) => p.id === frogNode.project_id) : null;
+  const projArc = proj?.arc_id && !arc ? arcs.find((a) => a.id === proj.arc_id) : null;
+  const effectiveArc = arc ?? projArc ?? null;
+
   return (
     <SidebarPanel title="eat the frog" icon={Frown} titleRight={counter}>
       <div
@@ -3037,7 +3001,7 @@ function EatTheFrogPanel({ frogsDone }: { frogsDone: number }) {
           letterSpacing: "0.5px",
           color: "rgba(74,222,128,0.78)",
           lineHeight: 1.5,
-          marginBottom: "0.75rem",
+          marginBottom: frogNode ? "0.5rem" : "0.75rem",
           paddingLeft: "0.6rem",
         }}
       >
@@ -3054,6 +3018,38 @@ function EatTheFrogPanel({ frogsDone }: { frogsDone: number }) {
           </>
         )}
       </div>
+      {frogNode && !allDone && (
+        <div
+          style={{
+            ...mono,
+            paddingLeft: "0.6rem",
+            paddingRight: "0.4rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.15rem",
+          }}
+        >
+          {(effectiveArc || proj) && (
+            <div style={{ fontSize: "0.78rem", letterSpacing: "0.5px", color: "rgba(255,255,255,0.4)" }}>
+              {">"}{" "}
+              {effectiveArc && <span style={{ color: effectiveArc.color_hex }}>{effectiveArc.name}</span>}
+              {effectiveArc && proj && <span style={{ color: "rgba(255,255,255,0.2)" }}>{" > "}</span>}
+              {proj && <span style={{ color: effectiveArc ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.4)" }}>{proj.name}</span>}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: "1rem",
+              letterSpacing: "0.5px",
+              color: "#fff",
+              lineHeight: 1.3,
+              wordBreak: "break-word",
+            }}
+          >
+            {frogNode.title}
+          </div>
+        </div>
+      )}
     </SidebarPanel>
   );
 }

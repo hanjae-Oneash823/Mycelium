@@ -1,15 +1,11 @@
 import { useState, useEffect } from 'react';
 import './ClockPlugin.css';
 
-interface ClockPluginProps {
-  onOpenFocusTimer?: () => void;
-}
-
 /**
  * Clock Plugin Component
  * Displays current time and date with second animation
  */
-function ClockPlugin({ onOpenFocusTimer }: ClockPluginProps) {
+function ClockPlugin() {
   const [time, setTime] = useState<Date>(new Date());
   const biosStyle = true; // Toggle between original and BIOS style
 

@@ -45,8 +45,8 @@ export function DailyTasks({ }: WidgetProps) {
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-        <MenuSquare width={14} height={14} style={{ color: GOLD }} />
-        <span style={{ fontSize: '0.82rem', letterSpacing: '2px', color: GOLD, lineHeight: 1 }}>
+        <MenuSquare width={18} height={18} style={{ color: GOLD }} />
+        <span style={{ fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1 }}>
           DAILY-TASKS
         </span>
       </div>

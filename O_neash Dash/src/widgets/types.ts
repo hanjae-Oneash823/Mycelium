@@ -57,5 +57,7 @@ export interface WidgetInstance {
   instanceId: string;   // unique per placement
   widgetId:   string;   // references WidgetDef.id
   size:       WidgetSize;
-  order:      number;   // display order in grid
+  order:      number;   // display order (used for auto-flow fallback)
+  col?:       number;   // 1-based explicit grid column (set after manual drag)
+  row?:       number;   // 1-based explicit grid row
 }
