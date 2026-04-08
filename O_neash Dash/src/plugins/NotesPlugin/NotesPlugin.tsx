@@ -1,24 +1,47 @@
-import { useEffect, useState } from 'react';
-import { CommentText, Notebook } from 'pixelarticons/react';
+import { useEffect, useState, useCallback } from 'react';
+import { Shapes, CommentText, Notebook, GitBranch } from 'pixelarticons/react';
+import HubView from './views/HubView';
 import MemoPool from './views/MemoPool';
 import DocumentsView from './views/DocumentsView';
+import GraphView from './views/GraphView';
+import type { NoteRow } from './lib/notesDb';
 
-type Tab = 'memos' | 'docs';
+type Tab = 'hub' | 'memos' | 'docs' | 'graph';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'hub',   label: 'hub',       icon: <Shapes     size={18} /> },
   { id: 'memos', label: 'memos',     icon: <CommentText size={18} /> },
-  { id: 'docs',  label: 'documents', icon: <Notebook    size={18} /> },
+  { id: 'docs',  label: 'documents', icon: <Notebook   size={18} /> },
+  { id: 'graph', label: 'graph',     icon: <GitBranch  size={18} /> },
 ];
 
 export default function NotesPlugin() {
-  const [tab, setTab] = useState<Tab>('memos');
+  const [tab, setTab] = useState<Tab>('hub');
+  const [pendingDoc, setPendingDoc] = useState<NoteRow | null>(null);
+
+  const handlePromoteToDoc = useCallback((doc: NoteRow) => {
+    setPendingDoc(doc);
+    setTab('docs');
+  }, []);
+
+  const handleDocOpened = useCallback(() => {
+    setPendingDoc(null);
+  }, []);
+
+  const handleOpenDoc = useCallback((doc: NoteRow) => {
+    setPendingDoc(doc);
+    setTab('docs');
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.target instanceof HTMLElement && e.target.isContentEditable) return;
       const idx = parseInt(e.key) - 1;
-      if (idx >= 0 && idx < TABS.length) setTab(TABS[idx].id);
+      if (idx >= 0 && idx < TABS.length) {
+        setTab(TABS[idx].id);
+        if (TABS[idx].id !== 'docs') setPendingDoc(null);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -27,7 +50,7 @@ export default function NotesPlugin() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Tab bar — same design as Planner ViewSwitcher */}
+      {/* Tab bar */}
       <div style={{
         display:    'flex',
         alignItems: 'center',
@@ -41,7 +64,8 @@ export default function NotesPlugin() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => { setTab(t.id); if (t.id !== 'docs') setPendingDoc(null); }}
+
               style={{
                 background:    'none',
                 border:        'none',
@@ -83,7 +107,10 @@ export default function NotesPlugin() {
 
       {/* Content */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {tab === 'memos' ? <MemoPool /> : <DocumentsView />}
+        {tab === 'hub'   && <HubView onOpenDoc={handleOpenDoc} />}
+        {tab === 'memos' && <MemoPool onPromoteToDoc={handlePromoteToDoc} />}
+        {tab === 'docs'  && <DocumentsView defaultOpenDoc={pendingDoc} onDefaultDocOpened={handleDocOpened} />}
+        {tab === 'graph' && <GraphView onOpenDoc={handleOpenDoc} />}
       </div>
     </div>
   );

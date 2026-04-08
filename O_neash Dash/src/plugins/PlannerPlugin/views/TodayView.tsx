@@ -20,6 +20,7 @@ import {
   SpeedSlow,
   PartyPopper,
   Loader,
+  AlarmClock,
 } from "pixelarticons/react";
 import { Checkbox } from "pixelarticons/react/Checkbox";
 import { ChevronRight } from "pixelarticons/react/ChevronRight";
@@ -220,11 +221,29 @@ export default function TodayView() {
     () =>
       nodes.filter(
         (n) =>
+          n.node_type !== "event" &&
           !n.is_overdue &&
           !n.is_missed_schedule &&
           !n.is_completed &&
           (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now)),
       ),
+    [nodes, now],
+  );
+
+  const todayEvents = useMemo(
+    () =>
+      nodes
+        .filter(
+          (n) =>
+            n.node_type === "event" &&
+            !n.is_completed &&
+            isSameDay(n.planned_start_at, now),
+        )
+        .sort((a, b) => {
+          const ta = a.planned_start_at ?? "";
+          const tb = b.planned_start_at ?? "";
+          return ta < tb ? -1 : ta > tb ? 1 : 0;
+        }),
     [nodes, now],
   );
 
@@ -479,6 +498,30 @@ export default function TodayView() {
             </section>
           )}
 
+          {/* EVENTS */}
+          {todayEvents.length > 0 && (
+            <section style={{ marginBottom: "0.5rem" }}>
+              <SectionLabel
+                icon={<AlarmClock size={20} />}
+                label={`events · ${todayEvents.length}`}
+                color="rgba(192,132,252,1)"
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                {todayEvents.map((node) => (
+                  <EventRow
+                    key={node.id}
+                    node={node}
+                    arcs={arcs}
+                    projects={projects}
+                    onComplete={() => handleCompleteNode(node)}
+                    onEdit={() => openTaskFormEdit(node)}
+                    onDelete={() => deleteNode(node.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* TODAY */}
           <section>
             <SectionLabel
@@ -523,6 +566,7 @@ export default function TodayView() {
           {/* Empty state */}
           {overdue.length === 0 &&
             todayNodes.length === 0 &&
+            todayEvents.length === 0 &&
             todayDone.length === 0 &&
             suggestions.length === 0 && (
               <div
@@ -623,7 +667,7 @@ export default function TodayView() {
             }}>
               <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
               <PressureGaugePanel pressure={pressure} />
-              <EatTheFrogPanel frogsDone={frogsDone} frogNode={frogNode} arcs={arcs} projects={projects} />
+              <EatTheFrogPanel frogsDone={frogsDone} />
               <OngoingArcsPanel />
             </div>
             <div style={{
@@ -815,6 +859,138 @@ function SuggestionsToggle({
           </span>
         );
       })}
+    </button>
+  );
+}
+
+// ─── EventRow ─────────────────────────────────────────────────────────────────
+function EventRow({
+  node, arcs, projects, onComplete, onEdit, onDelete,
+}: {
+  node: PlannerNode;
+  arcs: Arc[];
+  projects: Project[];
+  onComplete: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+
+  const arc  = node.arc_id     ? arcs.find(a => a.id === node.arc_id)         : null;
+  const proj = node.project_id ? projects.find(p => p.id === node.project_id) : null;
+
+  const timeRange = (() => {
+    if (!node.planned_start_at || node.planned_start_at.length <= 10) return null;
+    const start = node.planned_start_at.slice(11, 16);
+    if (!(node.estimated_duration_minutes ?? 0)) return `${start} ~ --:--`;
+    const [h, m] = start.split(":").map(Number);
+    const endTotal = h * 60 + m + node.estimated_duration_minutes!;
+    const end = `${String(Math.floor(endTotal / 60) % 24).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`;
+    return `${start} ~ ${end}`;
+  })();
+
+  const VT = "'VT323', 'HBIOS-SYS', monospace";
+  const PURPLE = "rgba(192,132,252,1)";
+
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.65rem",
+        padding: "0.3rem 0.5rem",
+        background: hov ? "rgba(192,132,252,0.06)" : "transparent",
+        border: `1px solid ${hov ? "rgba(192,132,252,0.18)" : "rgba(192,132,252,0.08)"}`,
+        transition: "background 0.1s, border-color 0.1s",
+        fontFamily: VT,
+        fontSize: "1.05rem",
+        letterSpacing: "1px",
+        minHeight: "2rem",
+      }}
+    >
+      {/* Time — black on white chip */}
+      {timeRange && (
+        <span style={{
+          background: "rgba(255,255,255,0.75)", color: "#000",
+          padding: "0 6px", lineHeight: 1.5,
+          flexShrink: 0, fontSize: "0.95rem", letterSpacing: "0.5px",
+        }}>
+          {timeRange}
+        </span>
+      )}
+
+      {/* Name */}
+      <span style={{ color: "#fff", flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {node.title}
+      </span>
+
+      {/* Arc */}
+      {arc && (
+        <span style={{
+          color: arc.color_hex, flexShrink: 0,
+          fontSize: "0.82rem", letterSpacing: "1.5px", opacity: 0.85,
+          border: `1px solid ${arc.color_hex}44`, padding: "0 5px", lineHeight: 1.5,
+        }}>
+          {arc.name}
+        </span>
+      )}
+
+      {/* Project */}
+      {proj && (
+        <span style={{
+          color: "rgba(255,255,255,0.45)", flexShrink: 0,
+          fontSize: "0.82rem", letterSpacing: "1.5px",
+        }}>
+          {proj.name}
+        </span>
+      )}
+
+      {/* Groups */}
+      {node.groups && node.groups.length > 0 && (
+        <span style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
+          {node.groups.map(g => (
+            <span key={g.id} style={{
+              fontSize: "0.72rem", letterSpacing: "1px",
+              color: g.color_hex, border: `1px solid ${g.color_hex}55`,
+              padding: "0 4px", lineHeight: 1.5,
+            }}>
+              {g.name}
+            </span>
+          ))}
+        </span>
+      )}
+
+      {/* Spacer */}
+      <span style={{ flex: 1 }} />
+
+      {/* Actions */}
+      <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+        <IconAction icon={<CheckboxOn size={14} />} color="#4ade80"             title="complete" onClick={onComplete} />
+        <IconAction icon={<PenSquare   size={14} />} color="rgba(255,255,255,0.7)" title="edit"     onClick={onEdit}     />
+        <IconAction icon={<SkullSharp  size={14} />} color="#ef4444"               title="delete"   onClick={onDelete}   />
+      </span>
+    </div>
+  );
+}
+
+function IconAction({ icon, color, title, onClick }: { icon: React.ReactNode; color: string; title: string; onClick: () => void }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      title={title}
+      onClick={e => { e.stopPropagation(); onClick(); }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        all: "unset", cursor: "pointer",
+        color: hov ? color : "rgba(255,255,255,0.28)",
+        display: "flex", alignItems: "center",
+        transition: "color 0.1s",
+      }}
+    >
+      {icon}
     </button>
   );
 }
@@ -2565,23 +2741,25 @@ function PressureSummaryPopup({
         zIndex: 950,
         background: "rgba(0,0,0,0.72)",
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         justifyContent: "center",
-        overflowY: "auto",
-        padding: "3rem 0",
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        className="pressure-popup-inner"
         style={{
           background: "#0a0a0a",
           border: "1px solid rgba(255,255,255,0.14)",
           padding: "1.5rem 1.75rem",
           width: 420,
+          maxHeight: "80vh",
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
           gap: "0.6rem",
+          overflowY: "auto",
+          scrollbarWidth: "none",
         }}
       >
         {/* Header */}
@@ -2945,11 +3123,12 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
         </div>
       </div>
 
-      {summaryOpen && (
+      {summaryOpen && createPortal(
         <PressureSummaryPopup
           pressure={pressure}
           onClose={() => setSummaryOpen(false)}
-        />
+        />,
+        document.body,
       )}
     </SidebarPanel>
   );
@@ -2959,7 +3138,7 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
 
 const FROG_GOAL = 3;
 
-function EatTheFrogPanel({ frogsDone, frogNode, arcs, projects }: { frogsDone: number; frogNode: PlannerNode | null; arcs: Arc[]; projects: Project[] }) {
+function EatTheFrogPanel({ frogsDone }: { frogsDone: number }) {
   const mono: React.CSSProperties = {
     fontFamily: "'VT323', 'HBIOS-SYS', monospace",
   };
@@ -2987,11 +3166,6 @@ function EatTheFrogPanel({ frogsDone, frogNode, arcs, projects }: { frogsDone: n
     </div>
   );
 
-  const arc = frogNode?.arc_id ? arcs.find((a) => a.id === frogNode.arc_id) : null;
-  const proj = frogNode?.project_id ? projects.find((p) => p.id === frogNode.project_id) : null;
-  const projArc = proj?.arc_id && !arc ? arcs.find((a) => a.id === proj.arc_id) : null;
-  const effectiveArc = arc ?? projArc ?? null;
-
   return (
     <SidebarPanel title="eat the frog" icon={Frown} titleRight={counter}>
       <div
@@ -3001,7 +3175,7 @@ function EatTheFrogPanel({ frogsDone, frogNode, arcs, projects }: { frogsDone: n
           letterSpacing: "0.5px",
           color: "rgba(74,222,128,0.78)",
           lineHeight: 1.5,
-          marginBottom: frogNode ? "0.5rem" : "0.75rem",
+          marginBottom: "0.75rem",
           paddingLeft: "0.6rem",
         }}
       >
@@ -3018,38 +3192,6 @@ function EatTheFrogPanel({ frogsDone, frogNode, arcs, projects }: { frogsDone: n
           </>
         )}
       </div>
-      {frogNode && !allDone && (
-        <div
-          style={{
-            ...mono,
-            paddingLeft: "0.6rem",
-            paddingRight: "0.4rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.15rem",
-          }}
-        >
-          {(effectiveArc || proj) && (
-            <div style={{ fontSize: "0.78rem", letterSpacing: "0.5px", color: "rgba(255,255,255,0.4)" }}>
-              {">"}{" "}
-              {effectiveArc && <span style={{ color: effectiveArc.color_hex }}>{effectiveArc.name}</span>}
-              {effectiveArc && proj && <span style={{ color: "rgba(255,255,255,0.2)" }}>{" > "}</span>}
-              {proj && <span style={{ color: effectiveArc ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.4)" }}>{proj.name}</span>}
-            </div>
-          )}
-          <div
-            style={{
-              fontSize: "1rem",
-              letterSpacing: "0.5px",
-              color: "#fff",
-              lineHeight: 1.3,
-              wordBreak: "break-word",
-            }}
-          >
-            {frogNode.title}
-          </div>
-        </div>
-      )}
     </SidebarPanel>
   );
 }

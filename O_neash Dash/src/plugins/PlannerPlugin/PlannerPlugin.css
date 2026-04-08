@@ -197,6 +197,8 @@
 /* Hide scrollbar on pressure popup overlay */
 .pressure-popup-overlay::-webkit-scrollbar { display: none; }
 .pressure-popup-overlay { scrollbar-width: none; }
+.pressure-popup-inner::-webkit-scrollbar { display: none; }
+.pressure-popup-inner { scrollbar-width: none; }
 
 /* Hide scrollbar on checklist scroll area */
 .checklist-scroll::-webkit-scrollbar { display: none; }

@@ -61,6 +61,15 @@ declare module "pixelarticons/react" {
   export const Undo: PixelIcon;
   export const SpeedSlow: PixelIcon;
   export const Loader: PixelIcon;
+  export const Search: PixelIcon;
+  export const Shapes: PixelIcon;
+  export const ArrowDownDiamond: PixelIcon;
+  export const Laugh: PixelIcon;
+  export const Computer: PixelIcon;
+  export const Archive: PixelIcon;
+  export const TextStartA: PixelIcon;
+  export const Notebook: PixelIcon;
+  export const CommentText: PixelIcon;
   // Catch-all for any other icons used in future
   const _: Record<string, PixelIcon>;
   export default _;

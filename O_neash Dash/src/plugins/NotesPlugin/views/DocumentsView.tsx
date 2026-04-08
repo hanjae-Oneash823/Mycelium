@@ -8,20 +8,45 @@ import TypewriterEditor from '../components/TypewriterEditor';
 
 const transition = { duration: 0.32, ease: [0.22, 1, 0.36, 1] };
 
-export default function DocumentsView() {
-  const { loadDocuments, createDocument, updateDocument } = useNotesStore();
+interface DocumentsViewProps {
+  defaultOpenDoc?: NoteRow | null;
+  onDefaultDocOpened?: () => void;
+}
+
+export default function DocumentsView({ defaultOpenDoc, onDefaultDocOpened }: DocumentsViewProps) {
+  const { loadDocuments, createDocument, updateDocument, deleteNote } = useNotesStore();
   const [openDoc, setOpenDoc] = useState<NoteRow | null>(null);
   const dirRef = useRef<1 | -1>(1);
 
   useEffect(() => { loadDocuments(); }, []);
+
+  // Auto-open a doc passed in from the promote flow
+  useEffect(() => {
+    if (!defaultOpenDoc) return;
+    dirRef.current = 1;
+    setOpenDoc(defaultOpenDoc);
+    onDefaultDocOpened?.();
+  }, [defaultOpenDoc?.id]);
 
   const handleSave = useCallback(async (title: string, contentJson: string) => {
     if (!openDoc) return;
     await updateDocument(openDoc.id, title, contentJson);
   }, [openDoc?.id, updateDocument]);
 
-  const openEditor = (doc: NoteRow) => { dirRef.current = 1;  setOpenDoc(doc); };
-  const closeEditor = ()             => { dirRef.current = -1; setOpenDoc(null); loadDocuments(); };
+  const openEditor  = useCallback((doc: NoteRow) => { dirRef.current = 1;  setOpenDoc(doc); }, []);
+  const closeEditor = useCallback(()             => { dirRef.current = -1; setOpenDoc(null); loadDocuments(); }, [loadDocuments]);
+
+  const handleNavigate = useCallback(async (docId: string) => {
+    const docs = await loadNotes('document');
+    const target = docs.find(d => d.id === docId) ?? null;
+    if (target) openEditor(target);
+  }, [openEditor]);
+
+  const handleDeleteDoc = useCallback(async (id: string) => {
+    await deleteNote(id);
+    // If the deleted doc is currently open, go back to the file system
+    if (openDoc?.id === id) closeEditor();
+  }, [deleteNote, openDoc?.id, closeEditor]);
 
   const handleCreateDoc = async (arcId: string | null, projectId: string | null) => {
     const id  = await createDocument('New Document', arcId, projectId);
@@ -34,14 +59,20 @@ export default function DocumentsView() {
       <AnimatePresence mode="popLayout" custom={dirRef.current}>
         {openDoc ? (
           <motion.div
-            key="editor"
+            key={openDoc.id}
             initial={{ x: '6%', opacity: 0, scale: 0.98 }}
             animate={{ x: 0,    opacity: 1, scale: 1    }}
             exit={{    x: '6%', opacity: 0, scale: 0.98 }}
             transition={transition}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <TypewriterEditor doc={openDoc} onSave={handleSave} onBack={closeEditor} />
+            <TypewriterEditor
+              doc={openDoc}
+              onSave={handleSave}
+              onBack={closeEditor}
+              onDelete={() => handleDeleteDoc(openDoc.id)}
+              onNavigate={handleNavigate}
+            />
           </motion.div>
         ) : (
           <motion.div
@@ -52,7 +83,7 @@ export default function DocumentsView() {
             transition={transition}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <FileSystemView onOpenDoc={openEditor} onCreateDoc={handleCreateDoc} />
+            <FileSystemView onOpenDoc={openEditor} onCreateDoc={handleCreateDoc} onDeleteDoc={handleDeleteDoc} />
           </motion.div>
         )}
       </AnimatePresence>

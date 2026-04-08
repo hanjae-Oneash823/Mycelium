@@ -101,6 +101,7 @@ export function computePressureScore(
 
   // ── 1. Today pressure (0–40) ──────────────────────────────────────────────
   const todayIncomplete = nodes.filter(n =>
+    n.node_type !== 'event' &&
     !n.is_completed && !n.is_overdue && !n.is_missed_schedule &&
     (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now)),
   );
@@ -116,7 +117,7 @@ export function computePressureScore(
   const todayScore = Math.min(45, todayPts);
 
   // ── 2. Overdue pressure (0–30) ────────────────────────────────────────────
-  const overdueNodes = nodes.filter(n => n.is_overdue || n.is_missed_schedule);
+  const overdueNodes = nodes.filter(n => n.node_type !== 'event' && (n.is_overdue || n.is_missed_schedule));
   const overdueItems: PressureBreakdown['overdueItems'] = [];
   let overduePts = 0;
   for (const n of overdueNodes) {
@@ -134,7 +135,7 @@ export function computePressureScore(
   // ── 3. Horizon pressure — next 7 days (0–30) ─────────────────────────────
   const horizonItems: PressureBreakdown['horizonItems'] = [];
   let horizonPts = 0;
-  const horizon = nodes.filter(n => !n.is_completed && !n.is_overdue && !n.is_missed_schedule);
+  const horizon = nodes.filter(n => n.node_type !== 'event' && !n.is_completed && !n.is_overdue && !n.is_missed_schedule);
   for (const n of horizon) {
     const ref = n.due_at ?? n.planned_start_at;
     if (!ref) continue;

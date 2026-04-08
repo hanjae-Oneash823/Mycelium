@@ -265,6 +265,30 @@ export async function setupDb(): Promise<Database> {
   CREATE INDEX IF NOT EXISTS idx_notes_project ON notes(project_id);
   CREATE INDEX IF NOT EXISTS idx_ng_note       ON note_groups(note_id);
   CREATE INDEX IF NOT EXISTS idx_ng_group      ON note_groups(group_id);
+
+  -- ─────────────────── DOC COMMENTS ────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS doc_comments (
+    id          TEXT PRIMARY KEY,
+    doc_id      TEXT NOT NULL,
+    mark_id     TEXT NOT NULL,
+    body        TEXT NOT NULL,
+    resolved    INTEGER DEFAULT 0,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(doc_id) REFERENCES notes(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_comments_doc ON doc_comments(doc_id);
+
+  -- ─────────────────── NOTE LINKS (wiki-link backlink cache) ───────────────────
+
+  CREATE TABLE IF NOT EXISTS note_links (
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    PRIMARY KEY (source_id, target_id),
+    FOREIGN KEY (source_id) REFERENCES notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_links_target ON note_links(target_id);
     `;
 
     // Apply the full schema every time

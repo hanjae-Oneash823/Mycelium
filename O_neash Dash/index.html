@@ -7,8 +7,15 @@
     <title>Tauri + React</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Gowun+Dodum&family=Odibee+Sans&family=PT+Sans:ital,wght@0,400;0,700;1,400&family=Inconsolata:wght@400;700&family=IBM+Plex+Mono+KR:wght@400;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=SUSE:wght@400;700&family=Gowun+Dodum&family=Odibee+Sans&family=PT+Sans:ital,wght@0,400;0,700;1,400&family=Inconsolata:wght@400;700&family=IBM+Plex+Mono+KR:wght@400;700&display=swap" rel="stylesheet" />
       <style>
+        @font-face {
+          font-family: 'KOTRAGothic';
+          src: url('/fonts/KOTRA_GOTHIC.otf') format('opentype');
+          font-weight: normal;
+          font-style: normal;
+        }
+
         #splash-screen {
           position: fixed;
           inset: 0;
@@ -34,7 +41,7 @@
       </style>
   </head>
 
-  <body>
+  <body autocorrect="off" autocapitalize="off" spellcheck="false">
     <div id="splash-screen">
       <div class="splash-dot"></div>
     </div>
