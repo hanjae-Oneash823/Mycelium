@@ -108,9 +108,9 @@ export async function deleteComment(id: string): Promise<void> {
   await db.execute(`DELETE FROM doc_comments WHERE id = ?`, [id]);
 }
 
-export async function resolveComment(id: string): Promise<void> {
+export async function updateComment(id: string, body: string): Promise<void> {
   const db = getDb();
-  await db.execute(`UPDATE doc_comments SET resolved = 1 WHERE id = ?`, [id]);
+  await db.execute(`UPDATE doc_comments SET body = ? WHERE id = ?`, [body, id]);
 }
 
 // ── Wiki-link graph ────────────────────────────────────────────────────────────

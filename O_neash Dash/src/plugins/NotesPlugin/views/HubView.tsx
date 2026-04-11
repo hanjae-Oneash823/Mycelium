@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
-import { ArrowDownDiamond, Laugh, Notes, Computer, Search } from 'pixelarticons/react';
+import { ArrowDownDiamond, Laugh, Notes, Computer, Search, Folder } from 'pixelarticons/react';
 import { useNotesStore } from '../store/useNotesStore';
 import { usePlannerStore } from '../../PlannerPlugin/store/usePlannerStore';
 import { loadNotes } from '../lib/notesDb';
 import type { NoteRow } from '../lib/notesDb';
 import PixelIcon from '../components/PixelIcon';
-import { DocPreview, extractPreviewLines } from '../components/FileSystemView';
+import { DocPreview, extractPreviewLines, Tile } from '../components/FileSystemView';
 import { ArcProjectModal } from '../components/ArcProjectModal';
 
 const FONT      = "'VT323', 'HBIOS-SYS', monospace";
@@ -348,10 +348,12 @@ function DocSearchSection({
 
 // ── HubView ───────────────────────────────────────────────────────────────────
 interface HubViewProps {
-  onOpenDoc: (doc: NoteRow) => void;
+  onOpenDoc:  (doc: NoteRow) => void;
+  onOpenMemo: (memo: NoteRow) => void;
+  onGoToDocs: () => void;
 }
 
-export default function HubView({ onOpenDoc }: HubViewProps) {
+export default function HubView({ onOpenDoc, onOpenMemo, onGoToDocs }: HubViewProps) {
   const { memos, documents, loadMemos, loadDocuments, createMemo, createDocument } = useNotesStore();
   const { arcs, projects, loadAll } = usePlannerStore();
   const [recentDocs,      setRecentDocs]      = useState<NoteRow[]>([]);
@@ -474,6 +476,49 @@ export default function HubView({ onOpenDoc }: HubViewProps) {
           </div>
         )}
 
+        {/* KEY ARCS / PROJECTS */}
+        {(() => {
+          const topArcs = [...arcs]
+            .sort((a, b) => allDocs.filter(d => d.arc_id === b.id).length - allDocs.filter(d => d.arc_id === a.id).length)
+            .slice(0, 2);
+          const topProjects = [...projects]
+            .sort((a, b) => allDocs.filter(d => d.project_id === b.id).length - allDocs.filter(d => d.project_id === a.id).length)
+            .slice(0, 2);
+          if (topArcs.length === 0 && topProjects.length === 0) return null;
+          return (
+            <div style={{ marginBottom: '2.8rem' }}>
+              <SectionHead icon={<Folder size={22} />} label="key arcs / projects" />
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                {topArcs.map(a => (
+                  <Tile
+                    key={a.id}
+                    icon="arc"
+                    label={a.name}
+                    arcColor={a.color_hex}
+                    badgeCount={allDocs.filter(d => d.arc_id === a.id).length}
+                    tileWidth={120}
+                    onClick={onGoToDocs}
+                  />
+                ))}
+                {topProjects.map(p => {
+                  const arc = p.arc_id ? arcs.find(a => a.id === p.arc_id) : null;
+                  return (
+                    <Tile
+                      key={p.id}
+                      icon="folder"
+                      label={p.name}
+                      arcColor={arc?.color_hex ?? null}
+                      badgeCount={allDocs.filter(d => d.project_id === p.id).length}
+                      tileWidth={120}
+                      onClick={onGoToDocs}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
       </div>
 
       {/* ── RIGHT COLUMN ────────────────────────────────────────────── */}
@@ -517,8 +562,8 @@ export default function HubView({ onOpenDoc }: HubViewProps) {
           </div>
         </div>
 
-        {/* SPEAK YOUR MIND */}
-        <SectionHead icon={<Laugh size={22} />} label="speak your mind" />
+        {/* MEMOS - SPEAK YOUR MIND */}
+        <SectionHead icon={<Laugh size={22} />} label='memos - "speak your mind"' />
 
         {/* Launch ghost portal */}
         {launchItem && createPortal(
@@ -547,7 +592,7 @@ export default function HubView({ onOpenDoc }: HubViewProps) {
         <motion.div
           ref={boxRef}
           animate={squishCtrl}
-          style={{ maxWidth: 440, marginLeft: '1.6rem', marginBottom: '2.2rem' }}
+          style={{ maxWidth: 440, marginLeft: '1.6rem', marginBottom: '0.5rem' }}
         >
           {/* Inner focus/border */}
           <motion.div
@@ -621,6 +666,46 @@ export default function HubView({ onOpenDoc }: HubViewProps) {
             </button>
           </motion.div>
         </motion.div>
+
+        {/* Recent memos list */}
+        {(() => {
+          const recent = [...memos]
+            .sort((a, b) => b.created_at.localeCompare(a.created_at))
+            .slice(0, 3);
+          if (recent.length === 0) return null;
+          return (
+            <div style={{ maxWidth: 440, marginLeft: '1.6rem', marginBottom: '1.6rem', marginTop: '0.4rem', display: 'flex', flexDirection: 'column' }}>
+              {recent.map((memo, i) => {
+                const text = (memo.content_plain ?? '').replace(/\n/g, ' ').trim();
+                const label = text.length > 44 ? text.slice(0, 43) + '…' : text || '(empty)';
+                const ts = fmtActivity(memo.created_at);
+                return (
+                  <button
+                    key={memo.id}
+                    onClick={() => onOpenMemo(memo)}
+                    style={{
+                      background: 'none', border: 'none',
+                      borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                      padding: '2px 0',
+                      textAlign: 'left', cursor: 'pointer',
+                      fontFamily: FONT, fontSize: '0.92rem', letterSpacing: 0.4,
+                      color: 'rgba(255,255,255,0.32)',
+                      lineHeight: 1.2,
+                      transition: 'color 0.12s',
+                      display: 'flex', alignItems: 'baseline', gap: '0.7rem',
+                      whiteSpace: 'nowrap', overflow: 'hidden',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.72)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.32)')}
+                  >
+                    <span style={{ color: '#2255dd', flexShrink: 0, fontSize: '0.88rem' }}>{ts}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ACTIVITY LOG */}
         <SectionHead icon={<Computer size={22} />} label="activity log" />

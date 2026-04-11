@@ -16,6 +16,19 @@
           font-style: normal;
         }
 
+        #root {
+          opacity: 0;
+          transform: scale(0.97) translateY(10px);
+          filter: blur(5px);
+        }
+        .app-enter {
+          animation: app-reveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes app-reveal {
+          0%   { opacity: 0; transform: scale(0.97) translateY(10px); filter: blur(5px); }
+          100% { opacity: 1; transform: scale(1) translateY(0);       filter: blur(0);   }
+        }
+
         #splash-screen {
           position: fixed;
           inset: 0;
@@ -26,26 +39,149 @@
           z-index: 9999;
           transition: opacity 0.5s;
         }
-        .splash-dot {
-          width: 16px;
-          height: 16px;
-          background: #fff;
-          border-radius: 50%;
-          margin: 0 auto;
-          animation: oscillate 1s ease-in-out infinite alternate;
+        .splash-inner {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 36px;
+          animation: splash-content-out 0.5s ease-in forwards;
+          animation-delay: 7s;
         }
-        @keyframes oscillate {
-          0% { transform: translateX(-32px); }
-          100% { transform: translateX(32px); }
+        @keyframes splash-content-out {
+          0%   { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        .splash-avatar {
+          position: relative;
+          width: 150px;
+          height: 150px;
+        }
+        .splash-avatar img {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+        .splash-eye {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: transparent;
+          overflow: hidden;
+        }
+        .splash-eye::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: #fff;
+          transform-origin: bottom;
+          transform: scaleY(0);
+          animation: splash-wake 6s linear forwards;
+        }
+        @keyframes splash-wake {
+          0%, 6%   { transform: scaleY(0); }
+          11%      { transform: scaleY(1); }
+          72%      { transform: scaleY(1); }
+          75%      { transform: scaleY(0); }
+          79%      { transform: scaleY(1); }
+          100%     { transform: scaleY(1); }
+        }
+        .splash-text-wrap {
+          height: 1.4em;
+          width: 320px;
+          text-align: center;
+          margin-top: -20px;
+        }
+        .splash-text {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 0.82rem;
+          color: rgba(255,255,255,0.45);
+        }
+        .splash-title {
+          font-family: 'Odibee Sans', monospace;
+          font-size: 5.5rem;
+          color: #fff;
+          margin: 0;
+          line-height: 1;
+        }
+        .splash-bar-track {
+          width: 320px;
+          height: 2px;
+          background: rgba(255,255,255,0.18);
+        }
+        .splash-bar-fill {
+          height: 100%;
+          background: rgba(255,255,255,0.65);
+          width: 0%;
+          animation: splash-load 6s linear forwards;
+        }
+        @keyframes splash-load {
+          0%   { width: 0%; }
+          15%  { width: 22%; }
+          28%  { width: 27%; }
+          40%  { width: 55%; }
+          52%  { width: 58%; }
+          60%  { width: 62%; }
+          74%  { width: 80%; }
+          84%  { width: 83%; }
+          93%  { width: 95%; }
+          100% { width: 100%; }
         }
       </style>
   </head>
 
   <body autocorrect="off" autocapitalize="off" spellcheck="false">
     <div id="splash-screen">
-      <div class="splash-dot"></div>
+      <div class="splash-inner">
+        <div class="splash-avatar">
+          <img src="/icons/character/cyphel_teal_noeyes.png" alt="" />
+          <div class="splash-eye" style="left:61px;top:75px;"></div>
+          <div class="splash-eye" style="left:80px;top:75px;"></div>
+        </div>
+        <div class="splash-title">Mycelium</div>
+        <div class="splash-bar-track">
+          <div class="splash-bar-fill"></div>
+        </div>
+        <div class="splash-text-wrap">
+          <span id="splash-msg" class="splash-text"></span>
+        </div>
+      </div>
     </div>
     <div id="root"></div>
+    <script>
+      (function () {
+        const MESSAGES = [
+          "waking up cyphel, *yawns*",
+          "doing stuff",
+          "this bar is fake but we're getting there",
+          "please work please work please work"
+        ];
+        const CHAR_DELAY = 32;
+        const MSG_PAUSE  = 800;
+
+        const el = document.getElementById('splash-msg');
+        if (!el) return;
+
+        let mi = 0, ci = 0;
+
+        function tick() {
+          if (mi >= MESSAGES.length) return;
+          const msg = MESSAGES[mi];
+          if (ci <= msg.length) {
+            el.textContent = msg.slice(0, ci);
+            ci++;
+            setTimeout(tick, CHAR_DELAY);
+          } else {
+            ci = 0; mi++;
+            if (mi < MESSAGES.length) {
+              setTimeout(function () { el.textContent = ''; tick(); }, MSG_PAUSE);
+            }
+          }
+        }
+
+        setTimeout(tick, 300);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

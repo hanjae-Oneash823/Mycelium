@@ -7,6 +7,9 @@ interface NotesStore {
   archivedMemos:  NoteRow[];
   documents:      NoteRow[];
 
+  pendingOpenDocId: string | null;
+  setPendingOpenDocId: (id: string | null) => void;
+
   loadMemos:          () => Promise<void>;
   loadArchivedMemos:  () => Promise<void>;
   loadDocuments:      () => Promise<void>;
@@ -27,6 +30,9 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
   memos:         [],
   archivedMemos: [],
   documents:     [],
+
+  pendingOpenDocId: null,
+  setPendingOpenDocId: (id) => set({ pendingOpenDocId: id }),
 
   loadMemos: async () => {
     const memos = await db.loadNotes('memo');

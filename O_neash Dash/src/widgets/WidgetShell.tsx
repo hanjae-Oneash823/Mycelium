@@ -14,8 +14,6 @@ interface WidgetShellProps {
   onDragEnd:   () => void;
 }
 
-const ARM = 16, T = 1.5, P = 5;
-const BC = 'rgba(255,255,255,0.2)';
 
 export function WidgetShell({ instance, editMode, col, row, isDragging, onDragStart, onDragEnd }: WidgetShellProps) {
   const [hovered, setHovered] = useState(false);
@@ -45,7 +43,7 @@ export function WidgetShell({ instance, editMode, col, row, isDragging, onDragSt
         gridColumn:  `${col} / span ${colSpan}`,
         gridRow:     `${row} / span ${rowSpan}`,
         border:      editMode ? '1px solid rgba(0,196,167,0.3)' : 'none',
-        background:  'rgba(255,255,255,0.018)',
+        background:  '#000',
         position:    'relative',
         overflow:    'hidden',
         // Stay below ghost cells during drag so ghost cells receive events
@@ -58,16 +56,6 @@ export function WidgetShell({ instance, editMode, col, row, isDragging, onDragSt
       }}
     >
       <Component size={instance.size} instanceId={instance.instanceId} />
-
-      {/* Corner brackets */}
-      <div style={{ position:'absolute', top:P, left:P, width:ARM, height:T, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', top:P, left:P, width:T, height:ARM, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', top:P, right:P, width:ARM, height:T, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', top:P, right:P, width:T, height:ARM, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:P, left:P, width:ARM, height:T, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:P, left:P, width:T, height:ARM, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:P, right:P, width:ARM, height:T, background:BC, pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:P, right:P, width:T, height:ARM, background:BC, pointerEvents:'none' }} />
 
       {/* Drag grip hint */}
       {editMode && !hovered && (

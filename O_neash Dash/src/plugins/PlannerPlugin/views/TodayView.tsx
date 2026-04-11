@@ -81,7 +81,9 @@ export default function TodayView() {
   );
   const [frogsDone, setFrogsDone] = useState(0);
   const [diceOpen, setDiceOpen] = useState(false);
-  const [panelMode, setPanelMode] = useState<'analytics' | 'calendar'>('analytics');
+  const [panelMode, setPanelMode] = useState<"analytics" | "calendar">(
+    "analytics",
+  );
   const [addTaskHovered, setAddTaskHovered] = useState(false);
   const [suggestionsOn, setSuggestionsOn] = useState(true);
   const [clockStr, setClockStr] = useState(() => {
@@ -247,7 +249,10 @@ export default function TodayView() {
     [nodes, now],
   );
 
-  const frogNode = useMemo(() => pickFrogNode(todayNodes, today), [todayNodes, today]);
+  const frogNode = useMemo(
+    () => pickFrogNode(todayNodes, today),
+    [todayNodes, today],
+  );
 
   // When completing the current frog node, pin it before completing so we can count it
   const handleCompleteNode = useCallback(
@@ -415,210 +420,255 @@ export default function TodayView() {
         }}
       >
         {/* Left: task column */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <div
-          className="today-task-col"
           style={{
             flex: 1,
-            overflowY: "auto",
-            padding: "1.75rem 1.5rem 1.75rem 1.5rem",
             display: "flex",
             flexDirection: "column",
-            gap: "2.25rem",
+            minHeight: 0,
           }}
         >
-          {/* OVERDUE */}
-          {overdue.length > 0 && (
-            <section>
-              <div
-                onClick={() => setOverdueCollapsed((c) => !c)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.65rem",
-                  marginBottom: "0.5rem",
-                  color: "#ff3b3b",
-                  cursor: "pointer",
-                  userSelect: "none",
-                }}
-              >
-                <span
+          <div
+            className="today-task-col"
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: "1.75rem 1.5rem 1.75rem 1.5rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "2.25rem",
+            }}
+          >
+            {/* OVERDUE */}
+            {overdue.length > 0 && (
+              <section>
+                <div
+                  onClick={() => setOverdueCollapsed((c) => !c)}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    opacity: 0.9,
+                    gap: "0.65rem",
+                    marginBottom: "0.5rem",
+                    color: "#ff3b3b",
+                    cursor: "pointer",
+                    userSelect: "none",
                   }}
                 >
-                  <Frown size={20} />
-                </span>
-                <span
-                  style={{
-                    fontSize: "1.45rem",
-                    letterSpacing: "4px",
-                    textTransform: "uppercase",
-                    lineHeight: 1,
-                    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-                  }}
-                >
-                  overdue · {overdue.length}
-                </span>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      opacity: 0.9,
+                    }}
+                  >
+                    <Frown size={20} />
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "1.45rem",
+                      letterSpacing: "4px",
+                      textTransform: "uppercase",
+                      lineHeight: 1,
+                      fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                    }}
+                  >
+                    overdue · {overdue.length}
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: 1,
+                      background: "#ff3b3b",
+                      opacity: 0.4,
+                    }}
+                  />
+                  <ChevronDown
+                    size={16}
+                    style={{
+                      transition: "transform 0.18s",
+                      transform: overdueCollapsed ? "rotate(-90deg)" : "none",
+                      opacity: 0.5,
+                    }}
+                  />
+                </div>
+                {!overdueCollapsed && (
+                  <CardGrid>
+                    {overdue.map((node) => (
+                      <OverdueCard
+                        key={node.id}
+                        {...cardProps(node)}
+                        now={now}
+                        rescheduleToday={
+                          !node.due_at
+                            ? () => rescheduleNode(node.id, today)
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </CardGrid>
+                )}
+              </section>
+            )}
+
+            {/* EVENTS */}
+            {todayEvents.length > 0 && (
+              <section style={{ marginBottom: "0.5rem" }}>
+                <SectionLabel
+                  icon={<AlarmClock size={20} />}
+                  label={`events · ${todayEvents.length}`}
+                  color="rgba(192,132,252,1)"
+                />
                 <div
                   style={{
-                    flex: 1,
-                    height: 1,
-                    background: "#ff3b3b",
-                    opacity: 0.4,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.3rem",
                   }}
-                />
-                <ChevronDown
-                  size={16}
+                >
+                  {todayEvents.map((node) => (
+                    <EventRow
+                      key={node.id}
+                      node={node}
+                      arcs={arcs}
+                      projects={projects}
+                      onComplete={() => handleCompleteNode(node)}
+                      onEdit={() => openTaskFormEdit(node)}
+                      onDelete={() => deleteNode(node.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* TODAY */}
+            <section>
+              <SectionLabel
+                icon={<HumanArmsUp size={20} />}
+                label={`today · ${todayNodes.length}`}
+                color="#00c4a7"
+              />
+              {todayNodes.length === 0 &&
+              !(suggestionsOn && suggestions.length > 0) ? (
+                <div
                   style={{
-                    transition: "transform 0.18s",
-                    transform: overdueCollapsed ? "rotate(-90deg)" : "none",
-                    opacity: 0.5,
+                    padding: "0.75rem 0",
+                    fontSize: "1rem",
+                    letterSpacing: "2px",
+                    color: "rgba(255,255,255,0.15)",
                   }}
-                />
-              </div>
-              {!overdueCollapsed && (
+                >
+                  nothing scheduled
+                </div>
+              ) : (
                 <CardGrid>
-                  {overdue.map((node) => (
-                    <OverdueCard
+                  {todayNodes.map((node) => (
+                    <TaskCard
                       key={node.id}
                       {...cardProps(node)}
-                      now={now}
-                      rescheduleToday={
-                        !node.due_at
-                          ? () => rescheduleNode(node.id, today)
-                          : undefined
+                      rescheduleTomorrow={() =>
+                        rescheduleNode(node.id, tomorrow)
                       }
                     />
                   ))}
+                  {suggestionsOn &&
+                    suggestions.map((node) => (
+                      <SuggestionCard
+                        key={`sug-${node.id}`}
+                        {...cardProps(node)}
+                        rescheduleToday={() => rescheduleNode(node.id, today)}
+                      />
+                    ))}
                 </CardGrid>
               )}
             </section>
-          )}
 
-          {/* EVENTS */}
-          {todayEvents.length > 0 && (
-            <section style={{ marginBottom: "0.5rem" }}>
-              <SectionLabel
-                icon={<AlarmClock size={20} />}
-                label={`events · ${todayEvents.length}`}
-                color="rgba(192,132,252,1)"
-              />
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-                {todayEvents.map((node) => (
-                  <EventRow
-                    key={node.id}
-                    node={node}
-                    arcs={arcs}
-                    projects={projects}
-                    onComplete={() => handleCompleteNode(node)}
-                    onEdit={() => openTaskFormEdit(node)}
-                    onDelete={() => deleteNode(node.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Empty state */}
+            {overdue.length === 0 &&
+              todayNodes.length === 0 &&
+              todayEvents.length === 0 &&
+              todayDone.length === 0 &&
+              suggestions.length === 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flex: 1,
+                    gap: "0.5rem",
+                    paddingTop: "6rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "2rem",
+                      letterSpacing: "5px",
+                      color: "rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    nothing today
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.9rem",
+                      letterSpacing: "2px",
+                      color: "rgba(255,255,255,0.07)",
+                    }}
+                  >
+                    press + task to add something
+                  </div>
+                </div>
+              )}
+          </div>
 
-          {/* TODAY */}
-          <section>
-            <SectionLabel
-              icon={<HumanArmsUp size={20} />}
-              label={`today · ${todayNodes.length}`}
-              color="#00c4a7"
-            />
-            {todayNodes.length === 0 &&
-            !(suggestionsOn && suggestions.length > 0) ? (
-              <div
+          {/* Done strip — fixed to bottom of left column */}
+          {todayDone.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "0.4rem",
+                padding: "0.5rem 1.5rem",
+                borderTop: "1px solid rgba(255,255,255,0.12)",
+                flexShrink: 0,
+                background: "#000",
+                zIndex: 10,
+              }}
+            >
+              <span
                 style={{
-                  padding: "0.75rem 0",
+                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
                   fontSize: "1rem",
                   letterSpacing: "2px",
-                  color: "rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.45)",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.55rem",
                 }}
               >
-                nothing scheduled
-              </div>
-            ) : (
-              <CardGrid>
-                {todayNodes.map((node) => (
-                  <TaskCard
-                    key={node.id}
-                    {...cardProps(node)}
-                    rescheduleTomorrow={() => rescheduleNode(node.id, tomorrow)}
-                  />
-                ))}
-                {suggestionsOn &&
-                  suggestions.map((node) => (
-                    <SuggestionCard
-                      key={`sug-${node.id}`}
-                      {...cardProps(node)}
-                      rescheduleToday={() => rescheduleNode(node.id, today)}
-                    />
-                  ))}
-              </CardGrid>
-            )}
-
-          </section>
-
-          {/* Empty state */}
-          {overdue.length === 0 &&
-            todayNodes.length === 0 &&
-            todayEvents.length === 0 &&
-            todayDone.length === 0 &&
-            suggestions.length === 0 && (
+                <CheckboxOn size={13} /> {todayDone.length} done
+              </span>
               <div
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flex: 1,
-                  gap: "0.5rem",
-                  paddingTop: "6rem",
+                  width: 10,
+                  height: 1,
+                  background: "rgba(255,255,255,0.18)",
+                  flexShrink: 0,
                 }}
-              >
-                <div
-                  style={{
-                    fontSize: "2rem",
-                    letterSpacing: "5px",
-                    color: "rgba(255,255,255,0.08)",
-                  }}
-                >
-                  nothing today
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.9rem",
-                    letterSpacing: "2px",
-                    color: "rgba(255,255,255,0.07)",
-                  }}
-                >
-                  press + task to add something
-                </div>
-              </div>
-            )}
+              />
+              {todayDone.map((node) => (
+                <DoneChip
+                  key={node.id}
+                  node={node}
+                  onUncomplete={() => uncompleteNode(node.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-
-        {/* Done strip — fixed to bottom of left column */}
-        {todayDone.length > 0 && (
-          <div style={{
-            display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.4rem",
-            padding: "0.5rem 1.5rem", borderTop: "1px solid rgba(255,255,255,0.12)",
-            flexShrink: 0, background: "#000", zIndex: 10,
-          }}>
-            <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: "1rem", letterSpacing: "2px", color: "rgba(255,255,255,0.45)", flexShrink: 0, display: "flex", alignItems: "center", gap: "0.55rem" }}>
-              <CheckboxOn size={13} /> {todayDone.length} done
-            </span>
-            <div style={{ width: 10, height: 1, background: "rgba(255,255,255,0.18)", flexShrink: 0 }} />
-            {todayDone.map((node) => (
-              <DoneChip key={node.id} node={node} onUncomplete={() => uncompleteNode(node.id)} />
-            ))}
-          </div>
-        )}
-        </div>{/* closes left outer wrapper */}
+        {/* closes left outer wrapper */}
 
         {/* Right: analytics / calendar panel */}
         <div
@@ -631,54 +681,99 @@ export default function TodayView() {
           }}
         >
           {/* Mode toggle header */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0.5rem 1rem 0.4rem",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            flexShrink: 0,
-          }}>
-            <span style={{
-              fontFamily: "'VT323', monospace",
-              fontSize: "0.95rem",
-              letterSpacing: "2px",
-              color: "rgba(255,255,255,0.45)",
-              textTransform: "uppercase",
-            }}>
-              {panelMode === 'analytics' ? 'analytics' : 'events'}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0.5rem 1rem 0.4rem",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "'VT323', monospace",
+                fontSize: "0.95rem",
+                letterSpacing: "2px",
+                color: "rgba(255,255,255,0.45)",
+                textTransform: "uppercase",
+              }}
+            >
+              {panelMode === "analytics" ? "analytics" : "events"}
             </span>
             <button
-              onClick={() => setPanelMode(m => m === 'analytics' ? 'calendar' : 'analytics')}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", padding: 0, display: "flex", alignItems: "center" }}
+              onClick={() =>
+                setPanelMode((m) =>
+                  m === "analytics" ? "calendar" : "analytics",
+                )
+              }
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "rgba(255,255,255,0.4)",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+              }}
             >
               <Switch width={16} height={16} />
             </button>
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, position: "relative", overflow: "hidden" }}>
-            <div style={{
-              position: "absolute", inset: 0,
-              display: "flex", flexDirection: "column", overflowY: "auto",
-              opacity: panelMode === 'analytics' ? 1 : 0,
-              transform: panelMode === 'analytics' ? 'translateX(0)' : 'translateX(-12px)',
-              transition: "opacity 0.18s ease, transform 0.18s ease",
-              pointerEvents: panelMode === 'analytics' ? 'auto' : 'none',
-            }}>
-              <TodayEffortPanel todayNodes={todayNodes} doneSummary={doneSummary} />
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                overflowY: "auto",
+                opacity: panelMode === "analytics" ? 1 : 0,
+                transform:
+                  panelMode === "analytics"
+                    ? "translateX(0)"
+                    : "translateX(-12px)",
+                transition: "opacity 0.18s ease, transform 0.18s ease",
+                pointerEvents: panelMode === "analytics" ? "auto" : "none",
+              }}
+            >
+              <TodayEffortPanel
+                todayNodes={todayNodes}
+                doneSummary={doneSummary}
+              />
               <PressureGaugePanel pressure={pressure} />
               <EatTheFrogPanel frogsDone={frogsDone} />
               <OngoingArcsPanel />
             </div>
-            <div style={{
-              position: "absolute", inset: 0,
-              display: "flex", flexDirection: "column",
-              opacity: panelMode === 'calendar' ? 1 : 0,
-              transform: panelMode === 'calendar' ? 'translateX(0)' : 'translateX(12px)',
-              transition: "opacity 0.18s ease, transform 0.18s ease",
-              pointerEvents: panelMode === 'calendar' ? 'auto' : 'none',
-            }}>
-              <EventCalendarPanel arcs={arcs} projects={projects} nodes={nodes} />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                opacity: panelMode === "calendar" ? 1 : 0,
+                transform:
+                  panelMode === "calendar"
+                    ? "translateX(0)"
+                    : "translateX(12px)",
+                transition: "opacity 0.18s ease, transform 0.18s ease",
+                pointerEvents: panelMode === "calendar" ? "auto" : "none",
+              }}
+            >
+              <EventCalendarPanel
+                arcs={arcs}
+                projects={projects}
+                nodes={nodes}
+              />
             </div>
           </div>
         </div>
@@ -865,7 +960,12 @@ function SuggestionsToggle({
 
 // ─── EventRow ─────────────────────────────────────────────────────────────────
 function EventRow({
-  node, arcs, projects, onComplete, onEdit, onDelete,
+  node,
+  arcs,
+  projects,
+  onComplete,
+  onEdit,
+  onDelete,
 }: {
   node: PlannerNode;
   arcs: Arc[];
@@ -876,11 +976,14 @@ function EventRow({
 }) {
   const [hov, setHov] = useState(false);
 
-  const arc  = node.arc_id     ? arcs.find(a => a.id === node.arc_id)         : null;
-  const proj = node.project_id ? projects.find(p => p.id === node.project_id) : null;
+  const arc = node.arc_id ? arcs.find((a) => a.id === node.arc_id) : null;
+  const proj = node.project_id
+    ? projects.find((p) => p.id === node.project_id)
+    : null;
 
   const timeRange = (() => {
-    if (!node.planned_start_at || node.planned_start_at.length <= 10) return null;
+    if (!node.planned_start_at || node.planned_start_at.length <= 10)
+      return null;
     const start = node.planned_start_at.slice(11, 16);
     if (!(node.estimated_duration_minutes ?? 0)) return `${start} ~ --:--`;
     const [h, m] = start.split(":").map(Number);
@@ -912,37 +1015,63 @@ function EventRow({
     >
       {/* Time — black on white chip */}
       {timeRange && (
-        <span style={{
-          background: "rgba(255,255,255,0.75)", color: "#000",
-          padding: "0 6px", lineHeight: 1.5,
-          flexShrink: 0, fontSize: "0.95rem", letterSpacing: "0.5px",
-        }}>
+        <span
+          style={{
+            background: "rgba(255,255,255,0.75)",
+            color: "#000",
+            padding: "0 6px",
+            lineHeight: 1.5,
+            flexShrink: 0,
+            fontSize: "0.95rem",
+            letterSpacing: "0.5px",
+          }}
+        >
           {timeRange}
         </span>
       )}
 
       {/* Name */}
-      <span style={{ color: "#fff", flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span
+        style={{
+          color: "#fff",
+          flex: "0 1 auto",
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
         {node.title}
       </span>
 
       {/* Arc */}
       {arc && (
-        <span style={{
-          color: arc.color_hex, flexShrink: 0,
-          fontSize: "0.82rem", letterSpacing: "1.5px", opacity: 0.85,
-          border: `1px solid ${arc.color_hex}44`, padding: "0 5px", lineHeight: 1.5,
-        }}>
+        <span
+          style={{
+            color: arc.color_hex,
+            flexShrink: 0,
+            fontSize: "0.82rem",
+            letterSpacing: "1.5px",
+            opacity: 0.85,
+            border: `1px solid ${arc.color_hex}44`,
+            padding: "0 5px",
+            lineHeight: 1.5,
+          }}
+        >
           {arc.name}
         </span>
       )}
 
       {/* Project */}
       {proj && (
-        <span style={{
-          color: "rgba(255,255,255,0.45)", flexShrink: 0,
-          fontSize: "0.82rem", letterSpacing: "1.5px",
-        }}>
+        <span
+          style={{
+            color: "rgba(255,255,255,0.45)",
+            flexShrink: 0,
+            fontSize: "0.82rem",
+            letterSpacing: "1.5px",
+          }}
+        >
           {proj.name}
         </span>
       )}
@@ -950,12 +1079,18 @@ function EventRow({
       {/* Groups */}
       {node.groups && node.groups.length > 0 && (
         <span style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
-          {node.groups.map(g => (
-            <span key={g.id} style={{
-              fontSize: "0.72rem", letterSpacing: "1px",
-              color: g.color_hex, border: `1px solid ${g.color_hex}55`,
-              padding: "0 4px", lineHeight: 1.5,
-            }}>
+          {node.groups.map((g) => (
+            <span
+              key={g.id}
+              style={{
+                fontSize: "0.72rem",
+                letterSpacing: "1px",
+                color: g.color_hex,
+                border: `1px solid ${g.color_hex}55`,
+                padding: "0 4px",
+                lineHeight: 1.5,
+              }}
+            >
               {g.name}
             </span>
           ))}
@@ -966,27 +1101,64 @@ function EventRow({
       <span style={{ flex: 1 }} />
 
       {/* Actions */}
-      <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
-        <IconAction icon={<CheckboxOn size={14} />} color="#4ade80"             title="complete" onClick={onComplete} />
-        <IconAction icon={<PenSquare   size={14} />} color="rgba(255,255,255,0.7)" title="edit"     onClick={onEdit}     />
-        <IconAction icon={<SkullSharp  size={14} />} color="#ef4444"               title="delete"   onClick={onDelete}   />
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          flexShrink: 0,
+        }}
+      >
+        <IconAction
+          icon={<CheckboxOn size={14} />}
+          color="#4ade80"
+          title="complete"
+          onClick={onComplete}
+        />
+        <IconAction
+          icon={<PenSquare size={14} />}
+          color="rgba(255,255,255,0.7)"
+          title="edit"
+          onClick={onEdit}
+        />
+        <IconAction
+          icon={<SkullSharp size={14} />}
+          color="#ef4444"
+          title="delete"
+          onClick={onDelete}
+        />
       </span>
     </div>
   );
 }
 
-function IconAction({ icon, color, title, onClick }: { icon: React.ReactNode; color: string; title: string; onClick: () => void }) {
+function IconAction({
+  icon,
+  color,
+  title,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  color: string;
+  title: string;
+  onClick: () => void;
+}) {
   const [hov, setHov] = useState(false);
   return (
     <button
       title={title}
-      onClick={e => { e.stopPropagation(); onClick(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        all: "unset", cursor: "pointer",
+        all: "unset",
+        cursor: "pointer",
         color: hov ? color : "rgba(255,255,255,0.28)",
-        display: "flex", alignItems: "center",
+        display: "flex",
+        alignItems: "center",
         transition: "color 0.1s",
       }}
     >
@@ -1262,20 +1434,29 @@ function MiniCard({
             {primaryAction.label}
           </button>
         )}
-        {onComplete && (() => {
-          const subTotal = node.sub_total ?? 0;
-          const subDone  = node.sub_done  ?? 0;
-          const blocked  = subTotal > 0 && subDone < subTotal;
-          return (
-            <button
-              onClick={blocked ? undefined : onComplete}
-              title={blocked ? `finish subtasks first (${subDone}/${subTotal})` : "done"}
-              style={{ ...actionBtn("#4ade80"), opacity: blocked ? 0.35 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}
-            >
-              <CheckboxOn size={11} />
-            </button>
-          );
-        })()}
+        {onComplete &&
+          (() => {
+            const subTotal = node.sub_total ?? 0;
+            const subDone = node.sub_done ?? 0;
+            const blocked = subTotal > 0 && subDone < subTotal;
+            return (
+              <button
+                onClick={blocked ? undefined : onComplete}
+                title={
+                  blocked
+                    ? `finish subtasks first (${subDone}/${subTotal})`
+                    : "done"
+                }
+                style={{
+                  ...actionBtn("#4ade80"),
+                  opacity: blocked ? 0.35 : 1,
+                  cursor: blocked ? "not-allowed" : "pointer",
+                }}
+              >
+                <CheckboxOn size={11} />
+              </button>
+            );
+          })()}
         <button
           onClick={onEdit}
           title="edit"
@@ -1958,44 +2139,78 @@ function actionBtn(color: string): React.CSSProperties {
 
 // ─── Event Calendar Panel ─────────────────────────────────────────────────────
 
-const CAL_MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const CAL_DAY_SHORT   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const CAL_MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+const CAL_DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function calToDS(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function calAddDays(d: Date, n: number): Date {
-  const r = new Date(d); r.setDate(r.getDate() + n); return r;
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
 }
 function calGetWeekMon(offset: number): Date {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const dow = today.getDay();
   return calAddDays(today, (dow === 0 ? -6 : 1 - dow) + offset * 7);
 }
 function calAddMins(time: string, mins: number): string {
-  const [h, m] = time.split(':').map(Number);
+  const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + mins;
-  return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 function calNormTime(t: string): string {
-  if (t.includes(':')) return t;
-  if (t.length === 4) return `${t.slice(0,2)}:${t.slice(2)}`;
+  if (t.includes(":")) return t;
+  if (t.length === 4) return `${t.slice(0, 2)}:${t.slice(2)}`;
   return t;
 }
-function getArcColorCal(n: PlannerNode, arcs: Arc[], projects: Project[]): string {
-  if (n.arc_id) return arcs.find(a => a.id === n.arc_id)?.color_hex ?? '#c084fc';
+function getArcColorCal(
+  n: PlannerNode,
+  arcs: Arc[],
+  projects: Project[],
+): string {
+  if (n.arc_id)
+    return arcs.find((a) => a.id === n.arc_id)?.color_hex ?? "#c084fc";
   if (n.project_id) {
-    const proj = projects.find(p => p.id === n.project_id);
-    if (proj?.arc_id) return arcs.find(a => a.id === proj.arc_id)?.color_hex ?? '#c084fc';
+    const proj = projects.find((p) => p.id === n.project_id);
+    if (proj?.arc_id)
+      return arcs.find((a) => a.id === proj.arc_id)?.color_hex ?? "#c084fc";
   }
-  return '#c084fc';
+  return "#c084fc";
 }
 
-function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]; projects: Project[]; nodes: PlannerNode[] }) {
+function EventCalendarPanel({
+  arcs,
+  projects,
+  nodes: storeNodes,
+}: {
+  arcs: Arc[];
+  projects: Project[];
+  nodes: PlannerNode[];
+}) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [eventNodes, setEventNodes] = useState<PlannerNode[]>([]);
   const [nowCal, setNowCal] = useState(new Date());
-  const [tooltip, setTooltip] = useState<{ title: string; x: number; y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    title: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [hourH, setHourH] = useState(28);
 
@@ -2006,26 +2221,26 @@ function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]
     return () => clearInterval(id);
   }, []);
 
-  const mon  = calGetWeekMon(weekOffset);
+  const mon = calGetWeekMon(weekOffset);
   const days = Array.from({ length: 7 }, (_, i) => calAddDays(mon, i));
   const today = calToDS(new Date());
 
   useEffect(() => {
     const from = calToDS(mon);
-    const to   = calToDS(calAddDays(mon, 6));
+    const to = calToDS(calAddDays(mon, 6));
     loadEventNodesForWeek(from, to).then(setEventNodes);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset, storeNodes]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, PlannerNode[]>();
     for (const d of days) map.set(calToDS(d), []);
     for (const n of eventNodes) {
-      const k = (n.planned_start_at ?? '').slice(0, 10);
+      const k = (n.planned_start_at ?? "").slice(0, 10);
       if (map.has(k)) map.get(k)!.push(n);
     }
     return map;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventNodes, weekOffset]);
 
   // Dynamically lower START_HOUR if any event this week starts before 9AM
@@ -2053,45 +2268,127 @@ function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]
   }, [TOTAL_HRS]);
 
   const LABEL_W = 26;
-  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const mono: React.CSSProperties = {
+    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0.75rem 1rem', minHeight: 0, border: '1px solid rgba(255,255,255,0.18)', margin: '0.5rem' }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        padding: "0.75rem 1rem",
+        minHeight: 0,
+        border: "1px solid rgba(255,255,255,0.18)",
+        margin: "0.5rem",
+      }}
+    >
       {/* Week nav */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, flexShrink: 0, gap: 6 }}>
-        <button onClick={() => setWeekOffset(0)}
-          style={{ ...mono, background: weekOffset === 0 ? 'rgba(0,196,167,0.12)' : 'none',
-            border: `1px solid ${weekOffset === 0 ? 'rgba(0,196,167,0.4)' : 'rgba(255,255,255,0.12)'}`,
-            color: weekOffset === 0 ? 'var(--teal)' : 'rgba(255,255,255,0.4)',
-            fontSize: '0.85rem', padding: '1px 8px', cursor: 'pointer', letterSpacing: 1 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          marginBottom: 8,
+          flexShrink: 0,
+          gap: 6,
+        }}
+      >
+        <button
+          onClick={() => setWeekOffset(0)}
+          style={{
+            ...mono,
+            background: weekOffset === 0 ? "rgba(0,196,167,0.12)" : "none",
+            border: `1px solid ${weekOffset === 0 ? "rgba(0,196,167,0.4)" : "rgba(255,255,255,0.12)"}`,
+            color: weekOffset === 0 ? "var(--teal)" : "rgba(255,255,255,0.4)",
+            fontSize: "0.85rem",
+            padding: "1px 8px",
+            cursor: "pointer",
+            letterSpacing: 1,
+          }}
+        >
           this week
         </button>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-          <button onClick={() => setWeekOffset(weekOffset - 1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 0 }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+          }}
+        >
+          <button
+            onClick={() => setWeekOffset(weekOffset - 1)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "rgba(255,255,255,0.5)",
+              padding: 0,
+            }}
+          >
             <ChevronLeft width={14} height={14} />
           </button>
-          <span style={{ ...mono, fontSize: '0.88rem', color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }}>
-            {CAL_MONTH_SHORT[mon.getMonth()]} {mon.getDate()} – {calAddDays(mon, 6).getDate()}
+          <span
+            style={{
+              ...mono,
+              fontSize: "0.88rem",
+              color: "rgba(255,255,255,0.55)",
+              letterSpacing: 1,
+            }}
+          >
+            {CAL_MONTH_SHORT[mon.getMonth()]} {mon.getDate()} –{" "}
+            {calAddDays(mon, 6).getDate()}
           </span>
-          <button onClick={() => setWeekOffset(weekOffset + 1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 0 }}>
+          <button
+            onClick={() => setWeekOffset(weekOffset + 1)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "rgba(255,255,255,0.5)",
+              padding: 0,
+            }}
+          >
             <ChevronRight width={14} height={14} />
           </button>
         </div>
       </div>
 
       {/* Day headers */}
-      <div style={{ display: 'flex', paddingLeft: LABEL_W, flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 4, marginBottom: 2 }}>
-        {days.map(d => {
+      <div
+        style={{
+          display: "flex",
+          paddingLeft: LABEL_W,
+          flexShrink: 0,
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          paddingBottom: 4,
+          marginBottom: 2,
+        }}
+      >
+        {days.map((d) => {
           const key = calToDS(d);
           const isToday = key === today;
           return (
-            <div key={key} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ ...mono, fontSize: '0.7rem', color: isToday ? 'var(--teal)' : 'rgba(255,255,255,0.3)', letterSpacing: 1 }}>
-                {CAL_DAY_SHORT[d.getDay()].slice(0,2).toUpperCase()}
+            <div key={key} style={{ flex: 1, textAlign: "center" }}>
+              <div
+                style={{
+                  ...mono,
+                  fontSize: "0.7rem",
+                  color: isToday ? "var(--teal)" : "rgba(255,255,255,0.3)",
+                  letterSpacing: 1,
+                }}
+              >
+                {CAL_DAY_SHORT[d.getDay()].slice(0, 2).toUpperCase()}
               </div>
-              <div style={{ ...mono, fontSize: '1rem', color: isToday ? '#fff' : 'rgba(255,255,255,0.5)' }}>
+              <div
+                style={{
+                  ...mono,
+                  fontSize: "1rem",
+                  color: isToday ? "#fff" : "rgba(255,255,255,0.5)",
+                }}
+              >
                 {d.getDate()}
               </div>
             </div>
@@ -2100,28 +2397,59 @@ function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]
       </div>
 
       {/* Time grid */}
-      <div ref={gridRef} style={{ flex: 1, position: 'relative', display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
+      <div
+        ref={gridRef}
+        style={{
+          flex: 1,
+          position: "relative",
+          display: "flex",
+          overflow: "hidden",
+          minHeight: 0,
+        }}
+      >
+        <div style={{ position: "absolute", inset: 0, display: "flex" }}>
           {/* Hour labels */}
-          <div style={{ width: LABEL_W, flexShrink: 0, position: 'relative' }}>
+          <div style={{ width: LABEL_W, flexShrink: 0, position: "relative" }}>
             {Array.from({ length: TOTAL_HRS }, (_, i) => (
-              <div key={i} style={{ position: 'absolute', top: i * hourH - 6, right: 3,
-                ...mono, fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)', lineHeight: 1, userSelect: 'none' }}>
-                {String(i + START_HOUR).padStart(2, '0')}
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  top: i * hourH - 6,
+                  right: 3,
+                  ...mono,
+                  fontSize: "0.7rem",
+                  color: "rgba(255,255,255,0.28)",
+                  lineHeight: 1,
+                  userSelect: "none",
+                }}
+              >
+                {String(i + START_HOUR).padStart(2, "0")}
               </div>
             ))}
           </div>
 
           {/* Grid + day columns */}
-          <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
+          <div style={{ flex: 1, position: "relative", display: "flex" }}>
             {/* Hour lines */}
             {Array.from({ length: TOTAL_HRS }, (_, i) => {
               const h = i + START_HOUR;
               return (
-                <div key={h} style={{ position: 'absolute', top: i * hourH, left: 0, right: 0,
-                  height: h % 3 === 0 ? 2 : 1,
-                  background: h % 3 === 0 ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.14)',
-                  pointerEvents: 'none' }} />
+                <div
+                  key={h}
+                  style={{
+                    position: "absolute",
+                    top: i * hourH,
+                    left: 0,
+                    right: 0,
+                    height: h % 3 === 0 ? 2 : 1,
+                    background:
+                      h % 3 === 0
+                        ? "rgba(255,255,255,0.35)"
+                        : "rgba(255,255,255,0.14)",
+                    pointerEvents: "none",
+                  }}
+                />
               );
             })}
 
@@ -2131,45 +2459,98 @@ function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]
               const dayNodes = byDay.get(key) ?? [];
 
               return (
-                <div key={key} style={{ flex: 1, position: 'relative',
-                  borderLeft: di === 0 ? 'none' : '1px solid rgba(255,255,255,0.18)',
-                  background: isToday ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
-
+                <div
+                  key={key}
+                  style={{
+                    flex: 1,
+                    position: "relative",
+                    borderLeft:
+                      di === 0 ? "none" : "1px solid rgba(255,255,255,0.18)",
+                    background: isToday
+                      ? "rgba(255,255,255,0.02)"
+                      : "transparent",
+                  }}
+                >
                   {/* Current-time line */}
-                  {isToday && (() => {
-                    const topPct = (nowCal.getHours() * 60 + nowCal.getMinutes()) / 60 - START_HOUR;
-                    if (topPct < 0 || topPct > TOTAL_HRS) return null;
-                    return (
-                      <div style={{ position: 'absolute', top: topPct * hourH, left: 0, right: 0,
-                        height: 2, background: '#ff3b3b', zIndex: 5, pointerEvents: 'none' }}>
-                        <div style={{ position: 'absolute', left: -3, top: -3,
-                          width: 6, height: 6, borderRadius: '50%', background: '#ff3b3b' }} />
-                      </div>
-                    );
-                  })()}
+                  {isToday &&
+                    (() => {
+                      const topPct =
+                        (nowCal.getHours() * 60 + nowCal.getMinutes()) / 60 -
+                        START_HOUR;
+                      if (topPct < 0 || topPct > TOTAL_HRS) return null;
+                      return (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: topPct * hourH,
+                            left: 0,
+                            right: 0,
+                            height: 2,
+                            background: "#ff3b3b",
+                            zIndex: 5,
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: -3,
+                              top: -3,
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: "#ff3b3b",
+                            }}
+                          />
+                        </div>
+                      );
+                    })()}
 
-                  {dayNodes.map(n => {
-                    const timeStr = n.planned_start_at && n.planned_start_at.length > 10
-                      ? n.planned_start_at.slice(11, 16) : null;
+                  {dayNodes.map((n) => {
+                    const timeStr =
+                      n.planned_start_at && n.planned_start_at.length > 10
+                        ? n.planned_start_at.slice(11, 16)
+                        : null;
                     if (!timeStr) return null;
-                    const [h, m] = timeStr.split(':').map(Number);
+                    const [h, m] = timeStr.split(":").map(Number);
                     const topPx = (h + m / 60 - START_HOUR) * hourH;
                     if (topPx < 0) return null;
                     const dur = n.estimated_duration_minutes ?? 30;
-                    const heightPx = Math.max(4, dur / 60 * hourH);
+                    const heightPx = Math.max(4, (dur / 60) * hourH);
                     const color = getArcColorCal(n, arcs, projects);
                     const normTime = calNormTime(timeStr);
                     const endTime = dur ? calAddMins(normTime, dur) : null;
                     const label = endTime ? `${normTime}–${endTime}` : normTime;
 
                     return (
-                      <div key={n.id}
-                        onMouseEnter={e => setTooltip({ title: `${n.title} · ${label}`, x: e.clientX, y: e.clientY })}
-                        onMouseMove={e => setTooltip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                      <div
+                        key={n.id}
+                        onMouseEnter={(e) =>
+                          setTooltip({
+                            title: `${n.title} · ${label}`,
+                            x: e.clientX,
+                            y: e.clientY,
+                          })
+                        }
+                        onMouseMove={(e) =>
+                          setTooltip((t) =>
+                            t ? { ...t, x: e.clientX, y: e.clientY } : null,
+                          )
+                        }
                         onMouseLeave={() => setTooltip(null)}
-                        style={{ position: 'absolute', top: topPx, left: 2, right: 2, height: heightPx,
-                          background: color, opacity: n.is_completed ? 0.3 : 0.85,
-                          zIndex: 2, cursor: 'default', transition: 'opacity 0.1s' }} />
+                        style={{
+                          position: "absolute",
+                          top: topPx,
+                          left: 2,
+                          right: 2,
+                          height: heightPx,
+                          background: color,
+                          opacity: n.is_completed ? 0.3 : 0.85,
+                          zIndex: 2,
+                          cursor: "default",
+                          transition: "opacity 0.1s",
+                        }}
+                      />
                     );
                   })}
                 </div>
@@ -2179,15 +2560,29 @@ function EventCalendarPanel({ arcs, projects, nodes: storeNodes }: { arcs: Arc[]
         </div>
       </div>
 
-      {tooltip && createPortal(
-        <div style={{ position: 'fixed', left: tooltip.x + 12, top: tooltip.y - 28,
-          background: '#111', border: '1px solid rgba(255,255,255,0.15)', color: '#fff',
-          ...mono, fontSize: '0.95rem', letterSpacing: '0.5px', padding: '2px 10px',
-          pointerEvents: 'none', zIndex: 9999, whiteSpace: 'nowrap' }}>
-          {tooltip.title}
-        </div>,
-        document.body,
-      )}
+      {tooltip &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: tooltip.x + 12,
+              top: tooltip.y - 28,
+              background: "#111",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#fff",
+              ...mono,
+              fontSize: "0.95rem",
+              letterSpacing: "0.5px",
+              padding: "2px 10px",
+              pointerEvents: "none",
+              zIndex: 9999,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tooltip.title}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -3123,13 +3518,14 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
         </div>
       </div>
 
-      {summaryOpen && createPortal(
-        <PressureSummaryPopup
-          pressure={pressure}
-          onClose={() => setSummaryOpen(false)}
-        />,
-        document.body,
-      )}
+      {summaryOpen &&
+        createPortal(
+          <PressureSummaryPopup
+            pressure={pressure}
+            onClose={() => setSummaryOpen(false)}
+          />,
+          document.body,
+        )}
     </SidebarPanel>
   );
 }

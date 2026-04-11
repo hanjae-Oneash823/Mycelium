@@ -89,11 +89,12 @@ interface TileProps {
   badgeCount?:  number;
   isNew?:       boolean;
   previewLines?: string[];
+  tileWidth?:   number;
   onClick:      () => void;
   onDelete?:    () => void;
 }
 
-function Tile({ icon, label, arcColor, badgeCount, isNew, previewLines, onClick, onDelete }: TileProps) {
+export function Tile({ icon, label, arcColor, badgeCount, isNew, previewLines, tileWidth, onClick, onDelete }: TileProps) {
   const [hov, setHov]           = useState(false);
   const [armed, setArmed]       = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -139,7 +140,7 @@ function Tile({ icon, label, arcColor, badgeCount, isNew, previewLines, onClick,
           cursor:     'pointer',
           padding:    '16px 14px 0',
           display:    'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-          width:      140, boxSizing: 'border-box',
+          width:      tileWidth ?? 140, boxSizing: 'border-box',
           transform:  hov ? 'scale(1.05)' : 'scale(1)',
           transition: 'background 0.15s, border-color 0.15s, box-shadow 0.2s, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}

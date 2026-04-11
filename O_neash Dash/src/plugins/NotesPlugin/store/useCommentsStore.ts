@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { CommentRow } from '../lib/notesDb';
-import { loadComments, createComment, deleteComment, resolveComment } from '../lib/notesDb';
+import { loadComments, createComment, deleteComment, updateComment } from '../lib/notesDb';
 
 interface CommentsStore {
   comments:  CommentRow[];
@@ -8,7 +8,7 @@ interface CommentsStore {
   load:      (docId: string) => Promise<void>;
   add:       (docId: string, markId: string, body: string) => Promise<string>;
   remove:    (id: string) => Promise<void>;
-  resolve:   (id: string) => Promise<void>;
+  update:    (id: string, body: string) => Promise<void>;
   setActive: (id: string | null) => void;
 }
 
@@ -28,9 +28,9 @@ export const useCommentsStore = create<CommentsStore>((set, get) => ({
     await deleteComment(id);
     set(s => ({ comments: s.comments.filter(c => c.id !== id) }));
   },
-  resolve: async (id) => {
-    await resolveComment(id);
-    set(s => ({ comments: s.comments.map(c => c.id === id ? { ...c, resolved: 1 } : c) }));
+  update: async (id, body) => {
+    await updateComment(id, body);
+    set(s => ({ comments: s.comments.map(c => c.id === id ? { ...c, body } : c) }));
   },
   setActive: (id) => set({ activeId: id }),
 }));

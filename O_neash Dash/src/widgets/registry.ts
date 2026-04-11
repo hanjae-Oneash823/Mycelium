@@ -8,8 +8,61 @@ import { BriansBrain }     from './widgets/BriansBrain';
 import { CodiCA }          from './widgets/CodiCA';
 import { Wireworld }       from './widgets/Wireworld';
 import { DayAndNight }     from './widgets/DayAndNight';
+import { SpeakYourMind }   from './widgets/SpeakYourMind';
+import { RecentDocs }         from './widgets/RecentDocs';
+import { SleepLastNight }     from './widgets/SleepLastNight';
+import { SleepWeeklyReview }  from './widgets/SleepWeeklyReview';
+import { EnterESRA }          from './widgets/EnterESRA';
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
+  // ── Notes ────────────────────────────────────────────────────────────────────
+  {
+    id:           'speak-your-mind',
+    label:        'Speak Your Mind',
+    description:  'Quick memo capture + two most recent memos.',
+    category:     'utility',
+    defaultSize:  '4x1',
+    allowedSizes: ['4x1'],
+    component:    SpeakYourMind,
+  },
+  {
+    id:           'recent-docs',
+    label:        'Recently Modified Docs',
+    description:  'The 4 most recently modified documents from the Notes app.',
+    category:     'utility',
+    defaultSize:  '4x2',
+    allowedSizes: ['4x2'],
+    component:    RecentDocs,
+  },
+  // ── Sleep Tracker ────────────────────────────────────────────────────────────
+  {
+    id:           'sleep-last-night',
+    label:        'Last Night',
+    description:  'Duration, bedtime, wake time and delta from target for the most recent sleep session.',
+    category:     'analytics-cross',
+    defaultSize:  '2x1',
+    allowedSizes: ['2x1', '4x1'],
+    component:    SleepLastNight,
+  },
+  {
+    id:           'sleep-weekly-review',
+    label:        'Sleep — Weekly Review',
+    description:  '7-day bar chart of sleep duration, colored by quality vs target.',
+    category:     'analytics-cross',
+    defaultSize:  '4x2',
+    allowedSizes: ['4x2'],
+    component:    SleepWeeklyReview,
+  },
+  // ── L'ESRA ───────────────────────────────────────────────────────────────────
+  {
+    id:           'enter-esra',
+    label:        "Enter L'ESRA",
+    description:  "Button shortcut to open the L'ESRA encyclopedia plugin.",
+    category:     'utility',
+    defaultSize:  '2x1',
+    allowedSizes: ['2x1'],
+    component:    EnterESRA,
+  },
   // ── Analytics — Planner ──────────────────────────────────────────────────────
   {
     id:           'pressure-gauge',

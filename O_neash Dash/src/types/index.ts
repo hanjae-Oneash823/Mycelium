@@ -2,9 +2,10 @@ import type { ComponentType } from "react";
 
 // ─── Plugin system ───────────────────────────────────────────────────────────
 export interface PluginItem {
-  id: string;
-  name: string;
+  id:        string;
+  name:      string;
   component: ComponentType;
+  section?:  string; // optional grouping label shown in the bloom nav
 }
 
 // ─── Notes ───────────────────────────────────────────────────────────────────

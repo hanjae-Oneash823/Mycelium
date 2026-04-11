@@ -35,14 +35,11 @@ export default function ViewSwitcher() {
   }, [setActiveView, activeView]);
 
   return (
-    <div style={{
-      display:    'flex',
-      alignItems: 'center',
-      gap:        '2.4rem',
-      padding:    '0.7rem 2rem',
-      background: '#000',
-      flexShrink: 0,
-    }}>
+    <div style={{ padding: '0 2rem 0', background: '#000', flexShrink: 0 }}>
+      <div style={{ fontFamily: "'VT323', monospace", fontSize: '2rem', letterSpacing: 5, color: 'var(--teal)', textTransform: 'uppercase', lineHeight: 1, marginBottom: 20 }}>
+        planner
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2.4rem', paddingBottom: '0.7rem' }}>
       {VIEWS.map((v, i) => {
         const active = activeView === v.id;
         return (
@@ -86,6 +83,7 @@ export default function ViewSwitcher() {
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

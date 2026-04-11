@@ -13,14 +13,14 @@ interface Props {
   comments:        CommentRow[];
   activeId:        string | null;
   onDelete:        (id: string) => void;
-  onResolve:       (id: string) => void;
+  onUpdate:        (id: string, body: string) => void;
   onSetActive:     (id: string | null) => void;
 }
 
 export default function CommentPanel({
   hasSelection, composing,
   onStartCompose, onSubmitComment, onCancelCompose,
-  comments, activeId, onDelete, onResolve, onSetActive,
+  comments, activeId, onDelete, onUpdate, onSetActive,
 }: Props) {
   const [draft, setDraft] = useState('');
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -40,19 +40,19 @@ export default function CommentPanel({
 
   return (
     <div style={{
-      position:     'absolute',
-      right:        0,
-      top:          0,
-      bottom:       0,
-      width:        240,
-      background:   'transparent',
-      display:      'flex',
-      flexDirection:'column',
-      overflowY:    'auto',
-      overflowX:    'hidden',
-      padding:      '20px 10px 40px',
-      gap:          8,
-      zIndex:       10,
+      position:      'absolute',
+      right:         0,
+      top:           0,
+      bottom:        0,
+      width:         240,
+      background:    'transparent',
+      display:       'flex',
+      flexDirection: 'column',
+      overflowY:     'auto',
+      overflowX:     'hidden',
+      padding:       '20px 10px 40px',
+      gap:           8,
+      zIndex:        10,
       scrollbarWidth: 'none',
     }}>
 
@@ -61,16 +61,16 @@ export default function CommentPanel({
         <button
           onMouseDown={e => { e.preventDefault(); onStartCompose(); }}
           style={{
-            width:        '100%',
-            background:   'rgba(245,180,60,0.07)',
-            border:       '1px solid rgba(245,180,60,0.28)',
-            color:        'rgba(245,180,60,0.88)',
-            fontFamily:   VT,
-            fontSize:     '0.88rem',
+            width:         '100%',
+            background:    'rgba(245,180,60,0.07)',
+            border:        '1px solid rgba(245,180,60,0.28)',
+            color:         'rgba(245,180,60,0.88)',
+            fontFamily:    VT,
+            fontSize:      '0.88rem',
             letterSpacing: 1,
-            padding:      '7px 0',
-            cursor:       'pointer',
-            flexShrink:   0,
+            padding:       '7px 0',
+            cursor:        'pointer',
+            flexShrink:    0,
           }}
         >+ add comment</button>
       )}
@@ -78,11 +78,11 @@ export default function CommentPanel({
       {/* ── Inline compose box ── */}
       {composing && (
         <div style={{
-          background:  '#fff',
-          border:      '1px solid rgba(0,0,0,0.08)',
-          borderLeft:  '3px solid rgba(245,160,30,0.7)',
-          padding:     '10px 10px 8px',
-          flexShrink:  0,
+          background: '#fff',
+          border:     '1px solid rgba(0,0,0,0.08)',
+          borderLeft: '3px solid rgba(245,160,30,0.7)',
+          padding:    '10px 10px 8px',
+          flexShrink: 0,
         }}>
           <textarea
             ref={taRef}
@@ -127,7 +127,7 @@ export default function CommentPanel({
           comment={c}
           isActive={c.id === activeId}
           onDelete={onDelete}
-          onResolve={onResolve}
+          onUpdate={onUpdate}
           onSetActive={onSetActive}
         />
       ))}
@@ -135,14 +135,34 @@ export default function CommentPanel({
   );
 }
 
-function CommentCard({ comment, isActive, onDelete, onResolve, onSetActive }: {
+function CommentCard({ comment, isActive, onDelete, onUpdate, onSetActive }: {
   comment:     CommentRow;
   isActive:    boolean;
   onDelete:    (id: string) => void;
-  onResolve:   (id: string) => void;
+  onUpdate:    (id: string, body: string) => void;
   onSetActive: (id: string | null) => void;
 }) {
-  const [hov, setHov] = useState(false);
+  const [hov,   setHov]   = useState(false);
+  const [body,  setBody]  = useState(comment.body);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // Keep local body in sync if the store updates (e.g. another card reloads)
+  useEffect(() => { setBody(comment.body); }, [comment.body]);
+
+  function handleChange(val: string) {
+    setBody(val);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => onUpdate(comment.id, val), 600);
+  }
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }, [body]);
 
   return (
     <div
@@ -150,33 +170,40 @@ function CommentCard({ comment, isActive, onDelete, onResolve, onSetActive }: {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background:  isActive ? '#fffbe8' : '#f5f2ee',
-        border:      `1px solid ${isActive ? 'rgba(245,180,60,0.4)' : 'rgba(0,0,0,0.07)'}`,
-        borderLeft:  `4px solid ${comment.resolved ? 'rgba(0,0,0,0.1)' : 'rgba(245,160,30,0.8)'}`,
-        padding:     '13px 14px',
-        cursor:      'pointer',
-        transition:  'background 0.12s',
-        flexShrink:  0,
+        background: isActive ? '#fffbe8' : '#f5f2ee',
+        border:     `1px solid ${isActive ? 'rgba(245,180,60,0.4)' : 'rgba(0,0,0,0.07)'}`,
+        borderLeft: '4px solid rgba(245,160,30,0.8)',
+        padding:    '10px 12px 8px',
+        cursor:     'default',
+        transition: 'background 0.12s',
+        flexShrink: 0,
       }}
     >
-      <div style={{
-        fontFamily:     PT,
-        fontSize:       '0.85rem',
-        lineHeight:     1.6,
-        color:          comment.resolved ? 'rgba(0,0,0,0.28)' : '#1a1a1a',
-        textDecoration: comment.resolved ? 'line-through' : 'none',
-        wordBreak:      'break-word',
-      }}>
-        {comment.body}
-      </div>
+      <textarea
+        ref={taRef}
+        value={body}
+        onChange={e => { e.stopPropagation(); handleChange(e.target.value); }}
+        onClick={e => e.stopPropagation()}
+        rows={1}
+        style={{
+          width:      '100%',
+          boxSizing:  'border-box',
+          display:    'block',
+          background: 'transparent',
+          border:     'none',
+          outline:    'none',
+          resize:     'none',
+          overflow:   'hidden',
+          fontFamily: PT,
+          fontSize:   '0.85rem',
+          lineHeight: 1.6,
+          color:      '#1a1a1a',
+          padding:    0,
+          cursor:     'text',
+        }}
+      />
       {hov && (
-        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-          {!comment.resolved && (
-            <button
-              onMouseDown={e => { e.stopPropagation(); onResolve(comment.id); }}
-              style={{ all: 'unset', fontFamily: VT, fontSize: '0.78rem', letterSpacing: 1, color: '#009e84', cursor: 'pointer' }}
-            >✓ resolve</button>
-          )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
           <button
             onMouseDown={e => { e.stopPropagation(); onDelete(comment.id); }}
             style={{ all: 'unset', fontFamily: VT, fontSize: '0.78rem', letterSpacing: 1, color: 'rgba(210,50,50,0.8)', cursor: 'pointer' }}

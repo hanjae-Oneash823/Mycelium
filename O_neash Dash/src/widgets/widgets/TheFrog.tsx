@@ -28,12 +28,12 @@ export function TheFrog({ }: WidgetProps) {
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
       fontFamily: "'VT323', monospace",
-      padding: '12px 14px',
+      padding: '32px 14px 12px',
       boxSizing: 'border-box',
       gap: 8,
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0, flexWrap: 'wrap' }}>
+      <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
         <PixelFrog px={2} />
         <span style={{ fontSize: '1.05rem', letterSpacing: '2px', color: GREEN, lineHeight: 1 }}>
           EAT-THE-FROG

@@ -10,13 +10,15 @@ declare global {
 
 // Fade out and remove splash screen after minimum 2 seconds
 const splash = document.getElementById("splash-screen");
-const splashMinDuration = 2000;
+const splashMinDuration = 8200;
 const splashStart = window.__splashStart || Date.now();
 const splashElapsed = Date.now() - splashStart;
 const splashFade = () => {
   if (splash) {
     splash.style.opacity = "0";
-    setTimeout(() => splash.remove(), 500);
+    const root = document.getElementById("root");
+    if (root) root.classList.add("app-enter");
+    setTimeout(() => splash.remove(), 600);
   }
 };
 if (splashElapsed >= splashMinDuration) {

@@ -38,14 +38,16 @@ interface Category {
   id: string;
   label: string;
   icon: ReactNode;
+  accent: string;
   apps: AppItem[];
 }
 
-const CATEGORIES: Category[] = [
+export const CATEGORIES: Category[] = [
   {
     id: "basic",
     label: "BASIC",
     icon: <Terminal size={18} />,
+    accent: "#00c4a7",
     apps: [
       {
         id: "notes",
@@ -93,7 +95,15 @@ const CATEGORIES: Category[] = [
     id: "lab",
     label: "the LAB",
     icon: <CoffeeSharp size={18} />,
+    accent: "#f59e0b",
     apps: [
+      {
+        id: "esra",
+        label: "L'ESRA",
+        icon: <BookOpen size={14} />,
+        desc: "encyclopedia of relative & absolute knowledge",
+        pluginId: "esra",
+      },
       {
         id: "projects",
         label: "Projects",
@@ -124,6 +134,7 @@ const CATEGORIES: Category[] = [
     id: "studio",
     label: "the STUDIO",
     icon: <Camera size={18} />,
+    accent: "#e879f9",
     apps: [
       {
         id: "geo-portal",
@@ -150,6 +161,7 @@ const CATEGORIES: Category[] = [
     id: "clinic",
     label: "the CLINIC",
     icon: <Human size={18} />,
+    accent: "#6366f1",
     apps: [
       {
         id: "habits",
@@ -162,6 +174,7 @@ const CATEGORIES: Category[] = [
         label: "SleepTracker",
         icon: <Bed size={14} />,
         desc: "sleep log & schedule fix",
+        pluginId: "sleep-tracker",
       },
       {
         id: "diet",
@@ -271,7 +284,7 @@ export function LaunchMenu() {
               <span
                 style={{
                   fontSize: "1.2rem",
-                  color: active ? "#00c4a7" : "rgba(255,255,255,0.22)",
+                  color: active ? cat.accent : "rgba(255,255,255,0.22)",
                   transition: "color 0.12s ease",
                 }}
               >
@@ -280,7 +293,7 @@ export function LaunchMenu() {
               {active && (
                 <span
                   style={{
-                    color: "#00c4a7",
+                    color: cat.accent,
                     display: "flex",
                     alignItems: "center",
                     transform: "scale(1.25)",
@@ -339,7 +352,7 @@ export function LaunchMenu() {
                   width: 12,
                   flexShrink: 0,
                   fontSize: "1.1rem",
-                  color: sel ? "#00c4a7" : "transparent",
+                  color: sel ? CATEGORIES[activeCat].accent : "transparent",
                 }}
               >
                 {">"}
@@ -374,7 +387,7 @@ export function LaunchMenu() {
                     display: "flex",
                     alignItems: "center",
                     flexShrink: 0,
-                    color: sel ? "rgba(0,0,0,0.7)" : "rgba(0,196,167,0.55)",
+                    color: sel ? "rgba(0,0,0,0.7)" : `${CATEGORIES[activeCat].accent}88`,
                     transition: "color 0.1s",
                   }}
                 >

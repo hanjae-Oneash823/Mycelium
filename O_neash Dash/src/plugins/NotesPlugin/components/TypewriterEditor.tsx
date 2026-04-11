@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Bulletlist } from 'pixelarticons/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -14,6 +15,7 @@ import { Subscript } from '@tiptap/extension-subscript';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Typography } from '@tiptap/extension-typography';
+import { Link } from '@tiptap/extension-link';
 import { Extension } from '@tiptap/react';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -26,6 +28,13 @@ import { CommentMark } from './CommentExtension';
 import CommentPanel from './CommentPanel';
 import { useCommentsStore } from '../store/useCommentsStore';
 import { WikiLink, type WikiSuggestion } from './WikiLinkExtension';
+import { KatexExtension } from './LatexExtension';
+import LinkTransition from './LinkTransition';
+import { exportDocumentPdf } from '../lib/exportPdf';
+import { WebLinkView } from './WebLinkView';
+import { NotesImageExtension } from './NotesImageExtension';
+import { saveImageBlob, extFromMime, cleanupOrphanImages } from '../lib/notesImageLib';
+import 'katex/dist/katex.min.css';
 
 // ── Block cursor extension ────────────────────────────────────────────────────
 
@@ -54,6 +63,27 @@ const BlockCursorExtension = Extension.create({
 const lowlight = createLowlight(common);
 const VT = "'VT323', 'HBIOS-SYS', monospace";
 const PT = "'SUSE', 'KOTRAGothic', monospace";
+
+// ── Migrate legacy inlineMath/blockMath nodes → plain $...$ text ──────────────
+
+function migrateMathNodes(node: any): any {
+  if (!node || typeof node !== 'object') return node;
+  if (node.type === 'inlineMath') {
+    return { type: 'text', text: `$${node.attrs?.formula ?? ''}$` };
+  }
+  if (node.type === 'blockMath') {
+    return { type: 'paragraph', content: [{ type: 'text', text: `$$${node.attrs?.formula ?? ''}$$` }] };
+  }
+  if (Array.isArray(node.content)) {
+    return { ...node, content: node.content.map(migrateMathNodes) };
+  }
+  return node;
+}
+
+function loadContent(json: string | null) {
+  if (!json) return '';
+  try { return migrateMathNodes(JSON.parse(json)); } catch { return ''; }
+}
 
 // ── Table of contents ─────────────────────────────────────────────────────────
 
@@ -319,6 +349,115 @@ function ColorTextPopover({ editor }: { editor: Editor }) {
   );
 }
 
+// ── Link toolbar button ───────────────────────────────────────────────────────
+
+function LinkToolbar({ editor }: { editor: Editor }) {
+  const [open, setOpen]     = useState(false);
+  const [url, setUrl]       = useState('');
+  const inputRef            = useRef<HTMLInputElement>(null);
+  const wrapRef             = useRef<HTMLDivElement>(null);
+  const isActive            = editor.isActive('link');
+
+  const openPopover = () => {
+    const existing = editor.getAttributes('link').href ?? '';
+    setUrl(existing);
+    setOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const apply = () => {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      editor.chain().focus().unsetLink().run();
+    } else {
+      const href = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+      editor.chain().focus().setLink({ href }).run();
+    }
+    setOpen(false);
+  };
+
+  const remove = () => {
+    editor.chain().focus().unsetLink().run();
+    setOpen(false);
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const [hov, setHov] = useState(false);
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        onMouseDown={e => { e.preventDefault(); openPopover(); }}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        title="Web link"
+        style={{
+          fontFamily: VT, fontSize: '1.1rem',
+          background: isActive ? 'rgba(255,255,255,0.14)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
+          border: `1px solid ${isActive ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.07)'}`,
+          color: isActive ? '#4ade80' : hov ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.4)',
+          padding: '3px 10px', cursor: 'pointer', minWidth: 34,
+          textAlign: 'center' as const, lineHeight: 1.6,
+          transition: 'all 0.1s',
+        }}
+      >⌁</button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
+          background: '#111', border: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
+          padding: '10px 12px', zIndex: 200, minWidth: 260,
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <input
+            ref={inputRef}
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') apply(); if (e.key === 'Escape') setOpen(false); }}
+            placeholder="https://..."
+            style={{
+              fontFamily: VT, fontSize: '0.85rem', letterSpacing: 0.5,
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
+              color: '#fff', padding: '5px 10px', outline: 'none', width: '100%',
+              boxSizing: 'border-box' as const,
+            }}
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onMouseDown={e => { e.preventDefault(); apply(); }}
+              style={{
+                flex: 1, fontFamily: VT, fontSize: '0.8rem', letterSpacing: 1,
+                background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)',
+                color: '#4ade80', padding: '4px 0', cursor: 'pointer',
+              }}
+            >set link</button>
+            {isActive && (
+              <button
+                onMouseDown={e => { e.preventDefault(); remove(); }}
+                style={{
+                  fontFamily: VT, fontSize: '0.8rem', letterSpacing: 1,
+                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                  color: '#f87171', padding: '4px 10px', cursor: 'pointer',
+                }}
+              >remove</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── TypewriterEditor ──────────────────────────────────────────────────────────
 
 interface Props {
@@ -333,19 +472,22 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
   const [title,    setTitle]    = useState(doc.title ?? '');
   const [zoom,     setZoom]     = useState(1.3);
   const [headings, setHeadings] = useState<TocItem[]>([]);
+  const [activeHeadingIdx, setActiveHeadingIdx] = useState<number | null>(null);
   const titleRef         = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef    = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { arcs, projects } = usePlannerStore();
   const arc     = doc.arc_id     ? arcs.find(a => a.id === doc.arc_id)         : null;
   const project = doc.project_id ? projects.find(p => p.id === doc.project_id) : null;
 
   // ── Comments ──────────────────────────────────────────────────────────────
-  const { comments, activeId, load: loadComments, add: addComment, remove: removeComment, resolve: resolveComment, setActive } = useCommentsStore();
+  const { comments, activeId, load: loadComments, add: addComment, remove: removeComment, update: updateComment, setActive } = useCommentsStore();
   const [hasSelection,   setHasSelection]   = useState(false);
   const [selectionRange, setSelectionRange] = useState<{ from: number; to: number } | null>(null);
   const [backlinks,      setBacklinks]      = useState<BacklinkRow[]>([]);
   const [armedDelete,    setArmedDelete]    = useState(false);
   const [allDocs,        setAllDocs]        = useState<NoteRow[]>([]);
+  const [linkTx,         setLinkTx]        = useState<{ toDocId: string } | null>(null);
   const [wikiSuggestion, setWikiSuggestion] = useState<WikiSuggestion | null>(null);
   const [wikiIdx,        setWikiIdx]        = useState(0);
 
@@ -357,7 +499,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ codeBlock: false }),
+      StarterKit.configure({ codeBlock: false, underline: false, link: false }),
       CodeBlockLowlight.configure({ lowlight }),
       Highlight.configure({ multicolor: true }),
       TextStyle, Color,
@@ -365,13 +507,62 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
       Underline, Superscript, Subscript,
       TaskList, TaskItem.configure({ nested: true }),
       Typography, BlockCursorExtension,
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: 'web-link' } }),
       CommentMark,
+      KatexExtension,
+      WebLinkView,
+      NotesImageExtension,
       WikiLink.configure({
         onSuggestion: (s) => wikiCbRef.current.onSuggestion(s),
         onKeyDown:    (a) => wikiCbRef.current.onKeyDown(a),
       }),
     ],
-    content: doc.content_json ? JSON.parse(doc.content_json) : '',
+    content: loadContent(doc.content_json),
+    editorProps: {
+      handlePaste(view, event) {
+        const cd = event.clipboardData;
+        if (!cd) return false;
+
+        // Find image in clipboard items or files
+        const items = Array.from(cd.items ?? []);
+        const imgItem = items.find(i => i.kind === 'file' && i.type.startsWith('image/'));
+        let blob: File | Blob | null = imgItem?.getAsFile() ?? null;
+        let mime = imgItem?.type ?? '';
+
+        if (!blob) {
+          const f = Array.from(cd.files ?? []).find(f => f.type.startsWith('image/'));
+          if (f) { blob = f; mime = f.type; }
+        }
+
+        if (!blob || !mime) return false;
+
+        // Return true synchronously so ProseMirror doesn't process the event,
+        // then do the async save + insert.
+        saveImageBlob(blob, extFromMime(mime)).then(path => {
+          view.dispatch(
+            view.state.tr.replaceSelectionWith(
+              view.state.schema.nodes.image.create({ src: path })
+            )
+          );
+        });
+        return true;
+      },
+      handleDrop(view, event) {
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        const imageFile = files.find(f => f.type.startsWith('image/'));
+        if (!imageFile) return false;
+        event.preventDefault();
+        const ext = extFromMime(imageFile.type);
+        saveImageBlob(imageFile, ext).then(path => {
+          const coords = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          const pos = coords?.pos ?? view.state.doc.content.size;
+          view.dispatch(
+            view.state.tr.insert(pos, view.state.schema.nodes.image.create({ src: path }))
+          );
+        });
+        return true;
+      },
+    },
     onUpdate: ({ editor }) => {
       const json = JSON.stringify(editor.getJSON());
       onSave(title, json);
@@ -382,7 +573,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
 
   useEffect(() => {
     if (!editor) return;
-    editor.commands.setContent(doc.content_json ? JSON.parse(doc.content_json) : '', false);
+    editor.commands.setContent(loadContent(doc.content_json), false);
     setTitle(doc.title ?? '');
     setHeadings(extractHeadings(editor.getJSON()));
     loadComments(doc.id);
@@ -392,6 +583,11 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
   useEffect(() => {
     if (editor) setHeadings(extractHeadings(editor.getJSON()));
   }, [editor]);
+
+  // Orphan image cleanup — runs once when the editor unmounts (user navigates away)
+  useEffect(() => {
+    return () => { cleanupOrphanImages().catch(() => {}); };
+  }, []);
 
   // Load all docs for wiki-link autocomplete
   useEffect(() => { loadNotes('document').then(setAllDocs); }, [doc.id]);
@@ -431,6 +627,30 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
     return () => { editor.off('selectionUpdate', update); };
   }, [editor]);
 
+  // Track active heading (whichever section the cursor is currently inside)
+  useEffect(() => {
+    if (!editor) return;
+    const updateActiveHeading = () => {
+      const { state } = editor;
+      const from = state.selection.from;
+      let lastIdx: number | null = null;
+      let hIdx = 0;
+      state.doc.forEach((node, offset) => {
+        if (node.type.name === 'heading') {
+          if (offset <= from) lastIdx = hIdx;
+          hIdx++;
+        }
+      });
+      setActiveHeadingIdx(lastIdx);
+    };
+    editor.on('selectionUpdate', updateActiveHeading);
+    editor.on('transaction', updateActiveHeading);
+    return () => {
+      editor.off('selectionUpdate', updateActiveHeading);
+      editor.off('transaction', updateActiveHeading);
+    };
+  }, [editor]);
+
   // Click on comment mark → set active
   useEffect(() => {
     if (!editor) return;
@@ -462,7 +682,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
       const allDocs = await loadNotes('document');
       if (!active) return;
       const target = allDocs.find(d => (d.title ?? '').toLowerCase() === wikiTitle.toLowerCase());
-      if (target) onNavigate(target.id);
+      if (target) setLinkTx({ toDocId: target.id });
     };
     dom.addEventListener('click', handleClick);
     return () => { active = false; dom.removeEventListener('click', handleClick); };
@@ -565,7 +785,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
         {/* Delete */}
         {onDelete && (
           <button
-            onClick={() => { if (armedDelete) { onDelete(); } else { setArmedDelete(true); } }}
+            onClick={() => { if (armedDelete) { onDelete(); cleanupOrphanImages().catch(() => {}); } else { setArmedDelete(true); } }}
             onBlur={() => setArmedDelete(false)}
             style={{
               fontFamily: VT, fontSize: '0.9rem', letterSpacing: 1,
@@ -634,7 +854,45 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
           <Sep />
           <TB label="x²" title="Superscript" active={e.isActive('superscript')} onClick={() => e.chain().focus().toggleSuperscript().run()} />
           <TB label="x₂" title="Subscript"   active={e.isActive('subscript')}   onClick={() => e.chain().focus().toggleSubscript().run()}   />
+          <Sep />
+          <LinkToolbar editor={e} />
+          <TB
+            label="🖼"
+            title="Insert image"
+            onClick={() => imageInputRef.current?.click()}
+          />
+          <Sep />
+          <TB
+            label="PDF"
+            title="Export as PDF"
+            onClick={() => {
+              if (!editor) return;
+              exportDocumentPdf({
+                title,
+                arc:       arc ?? null,
+                project:   project ?? null,
+                createdAt: doc.created_at,
+                updatedAt: doc.updated_at,
+                editorDom: editor.view.dom,
+              });
+            }}
+          />
         </div>
+        {/* Hidden file input for image picking */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={async ev => {
+            const file = ev.target.files?.[0];
+            if (!file || !e) return;
+            ev.target.value = '';
+            const ext  = extFromMime(file.type);
+            const path = await saveImageBlob(file, ext);
+            e.chain().focus().setImage({ src: path }).run();
+          }}
+        />
 
         {/* Top fade — masks paper content as it scrolls under the toolbar */}
         <div style={{
@@ -689,44 +947,52 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
             padding: '0 0 0 0',
             pointerEvents: 'none',
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, pointerEvents: 'auto' }}>
-              {headings.map(h => (
-                <button
-                  key={h.index}
-                  onClick={() => scrollToHeading(h.index)}
-                  title={h.text}
-                  style={{
-                    all: 'unset',
-                    display: 'block',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    paddingLeft: 24 + (h.level - 1) * 16,
-                    paddingRight: 16,
-                    paddingTop: 5, paddingBottom: 5,
-                    fontFamily: VT,
-                    fontSize: h.level === 1 ? '1.25rem' : h.level === 2 ? '1.05rem' : '0.95rem',
-                    letterSpacing: 0.5,
-                    color: h.level === 1
-                      ? '#00c4a7'
-                      : h.level === 2
-                      ? 'rgba(255,255,255,0.88)'
-                      : 'rgba(255,255,255,0.4)',
-                    cursor: 'pointer',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word',
-                    lineHeight: 1.15,
-                    transition: 'color 0.1s',
-                  }}
-                  onMouseEnter={ev => (ev.currentTarget.style.color = 'rgba(0,196,167,0.9)')}
-                  onMouseLeave={ev => (ev.currentTarget.style.color =
-                    h.level === 1 ? '#00c4a7'
-                    : h.level === 2 ? 'rgba(255,255,255,0.88)'
-                    : 'rgba(255,255,255,0.4)'
-                  )}
-                >
-                  {h.text}
-                </button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 0 6px 24px' }}>
+              <span style={{ color: '#f5c842', display: 'flex', alignItems: 'center' }}><Bulletlist size={22} /></span>
+              <span style={{ fontFamily: VT, fontSize: '1.6rem', letterSpacing: '4px', color: '#f5c842', textTransform: 'uppercase', lineHeight: 1 }}>[OUTLINE]</span>
+            </div>
+            <div className="toc-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 0, pointerEvents: 'auto', overflowY: 'auto', maxHeight: '60vh', scrollbarWidth: 'none' }}>
+              {headings.map(h => {
+                const isActive = h.index === activeHeadingIdx;
+                const baseColor = isActive
+                  ? '#00c4a7'
+                  : h.level === 1
+                  ? '#00c4a7'
+                  : h.level === 2
+                  ? 'rgba(255,255,255,0.88)'
+                  : 'rgba(255,255,255,0.4)';
+                return (
+                  <button
+                    key={h.index}
+                    onClick={() => scrollToHeading(h.index)}
+                    title={h.text}
+                    style={{
+                      all: 'unset',
+                      display: 'block',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      paddingLeft: 24 + (h.level - 1) * 16,
+                      paddingRight: 16,
+                      paddingTop: 2, paddingBottom: 2,
+                      fontFamily: VT,
+                      fontSize: h.level === 1 ? '1.25rem' : h.level === 2 ? '1.05rem' : '0.95rem',
+                      letterSpacing: 0.5,
+                      color: baseColor,
+                      background: isActive ? 'rgba(0,196,167,0.08)' : 'transparent',
+                      borderLeft: isActive ? '2px solid rgba(0,196,167,0.7)' : '2px solid transparent',
+                      cursor: 'pointer',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      lineHeight: 1.15,
+                      transition: 'color 0.1s, background 0.1s',
+                    }}
+                    onMouseEnter={ev => (ev.currentTarget.style.color = 'rgba(0,196,167,0.9)')}
+                    onMouseLeave={ev => (ev.currentTarget.style.color = baseColor)}
+                  >
+                    {h.text}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -737,48 +1003,59 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
         {/* Paper */}
         <div style={{
           maxWidth: 700, margin: '0 auto',
-          background: '#fafaf8',
+          background: '#ffffff',
           boxShadow: '0 8px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.05)',
           padding: '36px 48px 48px',
           minHeight: 800,
           zoom,
         }}>
           {/* Metadata */}
-          <div style={{ marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {arc && (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                background: arc.color_hex,
-                color: '#fff',
-                fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1.5,
-                padding: '2px 8px 2px 6px',
-                textTransform: 'uppercase',
-              }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.6)', flexShrink: 0 }} />
-                {arc.name}
+          <div style={{ marginBottom: 20, paddingBottom: 14, borderBottom: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+            {/* Left: arc / project / dates — wraps if needed */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 }}>
+              {arc && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: arc.color_hex,
+                  color: '#fff',
+                  fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1.5,
+                  padding: '2px 8px 2px 6px',
+                  textTransform: 'uppercase',
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.6)', flexShrink: 0 }} />
+                  {arc.name}
+                </span>
+              )}
+              {project && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center',
+                  background: '#1a1a1a',
+                  color: '#fff',
+                  fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1.5,
+                  padding: '2px 8px',
+                  textTransform: 'uppercase',
+                }}>
+                  {project.name}
+                </span>
+              )}
+              {(arc || project) && <span style={{ color: 'rgba(0,0,0,0.15)', fontFamily: VT, fontSize: '0.72rem' }}>|</span>}
+              <span style={{ fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1, lineHeight: 1 }}>
+                <span style={{ color: '#888', textTransform: 'uppercase', marginRight: 5 }}>created</span>
+                <span style={{ color: '#111' }}>{fmtDate(doc.created_at)}</span>
               </span>
-            )}
-            {project && (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center',
-                background: '#1a1a1a',
-                color: '#fff',
-                fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1.5,
-                padding: '2px 8px',
-                textTransform: 'uppercase',
-              }}>
-                {project.name}
+              <span style={{ fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1, lineHeight: 1 }}>
+                <span style={{ color: '#888', textTransform: 'uppercase', marginRight: 5 }}>modified</span>
+                <span style={{ color: '#111' }}>{fmtDate(doc.updated_at)}</span>
               </span>
-            )}
-            {(arc || project) && <span style={{ color: 'rgba(0,0,0,0.15)', fontFamily: VT, fontSize: '0.72rem' }}>|</span>}
-            <span style={{ fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1, lineHeight: 1 }}>
-              <span style={{ color: '#888', textTransform: 'uppercase', marginRight: 5 }}>created</span>
-              <span style={{ color: '#111' }}>{fmtDate(doc.created_at)}</span>
-            </span>
-            <span style={{ fontFamily: VT, fontSize: '0.72rem', letterSpacing: 1, lineHeight: 1 }}>
-              <span style={{ color: '#888', textTransform: 'uppercase', marginRight: 5 }}>modified</span>
-              <span style={{ color: '#111' }}>{fmtDate(doc.updated_at)}</span>
-            </span>
+            </div>
+
+            {/* Mycelium badge — always top-right */}
+            <img
+              src="/icons/character/minibadge.png"
+              alt="mycelium"
+              style={{ height: 22, width: 'auto', flexShrink: 0, opacity: 0.65, userSelect: 'none' }}
+              draggable={false}
+            />
           </div>
 
           <textarea
@@ -813,7 +1090,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
               {backlinks.map(bl => (
                 <button
                   key={bl.id}
-                  onMouseDown={() => onNavigate?.(bl.id)}
+                  onMouseDown={() => { if (onNavigate) setLinkTx({ toDocId: bl.id }); }}
                   style={{
                     all: 'unset', display: 'block', width: '100%',
                     fontFamily: PT, fontSize: '0.82rem',
@@ -855,7 +1132,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
             }
             removeComment(id);
           }}
-          onResolve={resolveComment}
+          onUpdate={updateComment}
           onSetActive={setActive}
         />
 
@@ -948,6 +1225,19 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
           </AnimatePresence>,
           document.body
         )}
+      {/* Link transition overlay */}
+      {linkTx && onNavigate && (
+        <LinkTransition
+          fromDocId={doc.id}
+          toDocId={linkTx.toDocId}
+          onComplete={() => {
+            const id = linkTx.toDocId;
+            setLinkTx(null);
+            onNavigate(id);
+          }}
+        />
+      )}
+
       </div>{/* end content area */}
 
       <style>{`
@@ -989,6 +1279,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
         .typewriter .tiptap sup { font-size: 0.7em; vertical-align: super; }
         .typewriter .tiptap sub { font-size: 0.7em; vertical-align: sub; }
         .tiptap, .ProseMirror { outline: none; }
+        .toc-scroll::-webkit-scrollbar { display: none; }
         .typewriter .ProseMirror { scrollbar-width: none; caret-color: transparent; }
         .typewriter ::selection { background: #1a4acc; color: #fff; }
         .typewriter ::-moz-selection { background: #1a4acc; color: #fff; }
@@ -1030,6 +1321,38 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
           color: #005ba1;
           border-bottom-color: rgba(0,91,161,0.6);
         }
+        .typewriter .tiptap a.web-link { color: inherit; text-decoration: none; font-family: ${PT} !important; }
+        .typewriter .web-link-raw-hidden { font-size: 0; color: transparent; }
+        .typewriter .web-link-btn {
+          display: inline-flex; align-items: center; gap: 3px;
+          font-family: ${PT} !important; font-size: 0.78em;
+          color: #15803d;
+          background: rgba(22,163,74,0.08);
+          border: 1px solid rgba(22,163,74,0.28);
+          border-radius: 3px;
+          padding: 0px 6px 1px 6px;
+          margin: 0 1px;
+          cursor: pointer;
+          vertical-align: middle;
+          position: relative; top: -0.06em;
+          transition: background 0.1s, border-color 0.1s, color 0.1s;
+          user-select: none;
+          white-space: nowrap;
+        }
+        .typewriter .web-link-btn:hover {
+          background: rgba(22,163,74,0.14);
+          border-color: rgba(22,163,74,0.5);
+          color: #166534;
+        }
+        .typewriter .web-link-btn-arrow {
+          font-size: 0.8em; opacity: 0.6;
+        }
+        .typewriter .tiptap img { max-width: 100%; border-radius: 4px; display: block; margin: 0 auto; }
+        .typewriter .katex { font-size: 1em; }
+        .typewriter span[data-latex="inline"] { vertical-align: baseline; position: relative; top: 0.1em; cursor: text; }
+        .typewriter span[data-latex="display"] { overflow-x: auto; cursor: text; }
+        .typewriter span[data-latex="display"] .katex-display { margin: 0; }
+        .typewriter .latex-raw-hidden { font-size: 0; color: transparent; }
       `}</style>
     </div>
   );

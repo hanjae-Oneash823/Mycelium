@@ -303,9 +303,11 @@ function AnimatedPlaceholder({ visible }: { visible: boolean }) {
 // ── MemoPool ──────────────────────────────────────────────────────────────────
 interface MemoPoolProps {
   onPromoteToDoc?: (doc: NoteRow) => void;
+  pendingMemoId?:  string | null;
+  onMemoFocused?:  () => void;
 }
 
-export default function MemoPool({ onPromoteToDoc }: MemoPoolProps) {
+export default function MemoPool({ onPromoteToDoc, pendingMemoId, onMemoFocused }: MemoPoolProps) {
   const {
     memos, archivedMemos,
     loadMemos, loadArchivedMemos,
@@ -345,6 +347,16 @@ export default function MemoPool({ onPromoteToDoc }: MemoPoolProps) {
     if (visibleMemos.length === 0) { setSelIdx(0); return; }
     setSelIdx(i => Math.min(i, visibleMemos.length - 1));
   }, [visibleMemos.length]);
+
+  useEffect(() => {
+    if (!pendingMemoId || memos.length === 0) return;
+    const idx = memos.findIndex(m => m.id === pendingMemoId);
+    if (idx !== -1) {
+      setView('active');
+      setSelIdx(idx);
+      onMemoFocused?.();
+    }
+  }, [pendingMemoId, memos]);
 
   const pivotY = containerH * 0.42 + R;
 

@@ -1,25 +1,111 @@
-.always-on-top-home-btn {
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.7);
-  padding: 0.4rem 1.2rem;
-  font-style: normal;
+/* ── AOT Menu wrapper ──────────────────────────────────────────────────────── */
+.aot-menu-wrapper {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  z-index: 1000;
+}
+
+/* ── Panel — slides in from left edge, centered vertically ────────────────── */
+.aot-menu-panel {
+  background: rgba(8, 8, 8, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  padding: 14px 16px 16px;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform: translateY(-50%) translateX(calc(-100% + 11px));
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+}
+
+.aot-menu-wrapper.is-open .aot-menu-panel {
+  transform: translateY(-50%) translateX(0);
+  pointer-events: auto;
+}
+
+/* ── Right panel ────────────────────────────────────────────────────────────── */
+.aot-right-wrapper {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 1000;
+}
+
+.aot-right-panel {
+  background: rgba(8, 8, 8, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  padding: 12px 14px;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform: translateY(-50%) translateX(calc(100% - 11px));
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+}
+
+.aot-right-wrapper.is-open .aot-right-panel {
+  transform: translateY(-50%) translateX(0);
+  pointer-events: auto;
+}
+
+/* ── Section labels ────────────────────────────────────────────────────────── */
+.aot-menu-section-label {
   font-family: 'VT323', 'HBIOS-SYS', monospace;
-  font-size: 1.0rem;
-  font-weight: 400;
-  letter-spacing: 2px;
-  text-transform: lowercase;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 1px;
+  margin: 8px 0 4px;
+  padding-left: 2px;
+}
+
+/* ── Items ─────────────────────────────────────────────────────────────────── */
+.aot-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
   cursor: pointer;
-  border-radius: 0px;
-  white-space: nowrap;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  transition: all 0.16s ease;
+  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-size: 1.05rem;
+  letter-spacing: 2px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  text-align: left;
+  transition: background 0.1s;
   outline: none;
 }
 
-.always-on-top-home-btn:hover, .always-on-top-home-btn:focus {
-  background: rgba(61, 238, 17, 0.85);
-  border-color: rgba(255, 255, 255, 0.5);
-  color: rgb(0, 0, 0);
-  box-shadow: 0 4px 16px rgba(255,243,8,0.18);
+.aot-menu-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.aot-menu-home {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+
+.aot-menu-item-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aot-menu-item-num {
+  width: 12px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }

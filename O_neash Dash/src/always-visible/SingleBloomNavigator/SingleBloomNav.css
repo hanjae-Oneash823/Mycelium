@@ -112,3 +112,22 @@
   color: rgb(0, 0, 0);
   transform: translateY(-2px) scale(1.02);
 }
+
+.bloom-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.bloom-section-label {
+  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(99, 102, 241, 0.55);
+  padding: 2px 4px 0;
+  pointer-events: none;
+  animation: bloom-stack-in 0.3s ease forwards;
+  opacity: 0;
+}

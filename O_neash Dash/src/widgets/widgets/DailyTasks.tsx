@@ -37,14 +37,13 @@ export function DailyTasks({ }: WidgetProps) {
     <div style={{
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       fontFamily: "'VT323', monospace",
-      padding: '10px 14px',
+      padding: '32px 14px 10px',
       boxSizing: 'border-box',
-      gap: 6,
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
         <MenuSquare width={18} height={18} style={{ color: GOLD }} />
         <span style={{ fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1 }}>
           DAILY-TASKS

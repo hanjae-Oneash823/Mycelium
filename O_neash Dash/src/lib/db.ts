@@ -289,6 +289,28 @@ export async function setupDb(): Promise<Database> {
     FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_links_target ON note_links(target_id);
+
+  -- ─────────────────── SLEEP TRACKER ───────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS sleep_entries (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    date        TEXT NOT NULL,
+    sleep_start TEXT NOT NULL,
+    wake_time   TEXT NOT NULL,
+    is_nap      INTEGER DEFAULT 0,
+    notes       TEXT,
+    created_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sleep_entries_date  ON sleep_entries(date);
+  CREATE INDEX IF NOT EXISTS idx_sleep_entries_start ON sleep_entries(sleep_start);
+
+  CREATE TABLE IF NOT EXISTS sleep_targets (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_sleep_start TEXT NOT NULL,
+    target_duration    REAL NOT NULL,
+    set_at             TEXT DEFAULT (datetime('now'))
+  );
     `;
 
     // Apply the full schema every time
@@ -326,7 +348,9 @@ export async function setupDb(): Promise<Database> {
           GROUP BY routine_id, substr(planned_start_at, 1, 10)
         ) AND routine_id IS NOT NULL
       `);
-    } catch { /* */ } finally {
+    } catch {
+      /* */
+    } finally {
       await db.execute(`PRAGMA foreign_keys = ON`);
     }
 

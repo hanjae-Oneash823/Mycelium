@@ -82,11 +82,9 @@ export function LangtonsAnt({ }: WidgetProps) {
   }, []);
 
   return (
-    <div style={{
-      width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      padding: '12px 14px', boxSizing: 'border-box', gap: 8,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* Header */}
+      <div style={{ position: 'absolute', top: 8, left: 10, right: 10, display: 'flex', alignItems: 'center', gap: 7, zIndex: 1, pointerEvents: 'none' }}>
         <Debug width={18} height={18} style={{ color: GOLD }} />
         <span style={{ flex: 1, fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1, fontFamily: "'VT323', monospace" }}>
           LANGTON'S ANT
@@ -95,9 +93,7 @@ export function LangtonsAnt({ }: WidgetProps) {
           {steps}
         </span>
       </div>
-      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
-      </div>
+      <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
     </div>
   );
 }
