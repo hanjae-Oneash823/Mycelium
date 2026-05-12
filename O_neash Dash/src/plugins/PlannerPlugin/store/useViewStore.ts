@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { PlannerViewType, FocusContext, CreateNodeData, PlannerNode } from '../types';
 
 interface ViewStore {
@@ -19,23 +20,35 @@ interface ViewStore {
   tendrilsProjectId: string | null;
   openTendrils: (projectId: string) => void;
   openTendrilsHub: () => void;
+  suggestionsOn: boolean;
+  setSuggestionsOn: (v: boolean) => void;
 }
 
-export const useViewStore = create<ViewStore>((set) => ({
-  activeView: 'today',
-  setActiveView: (v) => set({ activeView: v }),
-  focusContext: null,
-  setFocusContext: (ctx) => set({ focusContext: ctx }),
-  taskFormOpen: false,
-  taskFormDefaults: {},
-  editNode: null,
-  openTaskForm: (defaults = {}) => set({ taskFormOpen: true, taskFormDefaults: defaults, editNode: null }),
-  openTaskFormEdit: (node) => set({ taskFormOpen: true, taskFormDefaults: {}, editNode: node }),
-  closeTaskForm: () => set({ taskFormOpen: false, taskFormDefaults: {}, editNode: null }),
-  commandPaletteOpen: false,
-  openCommandPalette: () => set({ commandPaletteOpen: true }),
-  closeCommandPalette: () => set({ commandPaletteOpen: false }),
-  tendrilsProjectId: null,
-  openTendrils: (_projectId) => {},
-  openTendrilsHub: () => {},
-}));
+export const useViewStore = create<ViewStore>()(
+  persist(
+    (set) => ({
+      activeView: 'today',
+      setActiveView: (v) => set({ activeView: v }),
+      focusContext: null,
+      setFocusContext: (ctx) => set({ focusContext: ctx }),
+      taskFormOpen: false,
+      taskFormDefaults: {},
+      editNode: null,
+      openTaskForm: (defaults = {}) => set({ taskFormOpen: true, taskFormDefaults: defaults, editNode: null }),
+      openTaskFormEdit: (node) => set({ taskFormOpen: true, taskFormDefaults: {}, editNode: node }),
+      closeTaskForm: () => set({ taskFormOpen: false, taskFormDefaults: {}, editNode: null }),
+      commandPaletteOpen: false,
+      openCommandPalette: () => set({ commandPaletteOpen: true }),
+      closeCommandPalette: () => set({ commandPaletteOpen: false }),
+      tendrilsProjectId: null,
+      openTendrils: (_projectId) => {},
+      openTendrilsHub: () => {},
+      suggestionsOn: true,
+      setSuggestionsOn: (v) => set({ suggestionsOn: v }),
+    }),
+    {
+      name: 'planner-view-store',
+      partialize: (state) => ({ suggestionsOn: state.suggestionsOn }),
+    }
+  )
+);
