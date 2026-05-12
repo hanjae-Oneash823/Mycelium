@@ -201,34 +201,6 @@ export function formatEffortLabel(minutes: number | null | undefined): string {
   return h === Math.floor(h) ? `${h}h` : `${h.toFixed(1)}h`;
 }
 
-// ─── Eat the Frog ─────────────────────────────────────────────────────────────
-
-/**
- * Frog score = urgency * 0.6 + effort_hours * 0.4
- * Higher score = uglier, harder frog — pick it first.
- */
-export function computeFrogScore(node: PlannerNode): number {
-  const urgency = node.computed_urgency_level;
-  const effortHrs = (node.estimated_duration_minutes ?? 60) / 60;
-  return urgency * 0.6 + effortHrs * 0.4;
-}
-
-/**
- * Returns the node with the highest frog score from the overdue+today pool.
- * Returns null if there are no eligible tasks.
- */
-export function pickFrogNode(nodes: PlannerNode[], today: string): PlannerNode | null {
-  const pool = nodes.filter(n =>
-    !n.is_completed &&
-    n.node_type !== 'event' &&
-    (n.is_overdue || n.is_missed_schedule ||
-      n.planned_start_at?.startsWith(today) ||
-      n.due_at?.startsWith(today)),
-  );
-  if (pool.length === 0) return null;
-  return pool.reduce((best, n) => computeFrogScore(n) > computeFrogScore(best) ? n : best);
-}
-
 // ─── Task Numbering ───────────────────────────────────────────────────────────
 // Global sequential numbers across all non-completed nodes, sorted by urgency DESC then created_at ASC.
 // Returns Map<nodeId, "N"> for parent nodes.

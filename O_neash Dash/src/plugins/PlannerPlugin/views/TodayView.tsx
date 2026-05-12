@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import {
   CheckboxOn,
   PenSquare,
@@ -14,20 +15,15 @@ import {
   Frown,
   HumanArmsUp,
   ChevronDown,
-  Tea,
   Forward,
   Undo,
   SpeedSlow,
-  PartyPopper,
-  Loader,
   AlarmClock,
 } from "pixelarticons/react";
 import { Checkbox } from "pixelarticons/react/Checkbox";
 import { ChevronRight } from "pixelarticons/react/ChevronRight";
 import { ChevronLeft } from "pixelarticons/react/ChevronLeft";
-import { Switch } from "pixelarticons/react/Switch";
 import { Plus } from "pixelarticons/react/Plus";
-import { PixelFrog } from "../components/PixelFrog";
 import { usePlannerStore } from "../store/usePlannerStore";
 import { useViewStore } from "../store/useViewStore";
 import {
@@ -35,19 +31,16 @@ import {
   isSameDay,
   toDateString,
   computePressureScore,
-  pickFrogNode,
   pickDiceNode,
   type PressureResult,
 } from "../lib/logicEngine";
 import {
   loadTodayDoneSummary,
-  loadArcNodeCounts,
   loadTodayCompletedNodes,
-  loadFrogsDoneToday,
   loadEventNodesForWeek,
-  setNodeFrogPinned,
+  loadMonthCompletions,
   type TodayDoneSummary,
-  type ArcNodeCount,
+  type CalendarDayData,
 } from "../lib/plannerDb";
 import DotNode from "../components/DotNode";
 import type { PlannerNode, Arc, Project } from "../types";
@@ -68,6 +61,7 @@ export default function TodayView() {
     loadAll,
     loadSubTasks,
     toggleSubTask,
+    createNode,
   } = usePlannerStore();
   const { openTaskForm, openTaskFormEdit } = useViewStore();
   const [now, setNow] = useState(() => new Date());
@@ -79,11 +73,7 @@ export default function TodayView() {
   const [todayDone, setTodayDone] = useState<import("../types").PlannerNode[]>(
     [],
   );
-  const [frogsDone, setFrogsDone] = useState(0);
   const [diceOpen, setDiceOpen] = useState(false);
-  const [panelMode, setPanelMode] = useState<"analytics" | "calendar">(
-    "analytics",
-  );
   const [addTaskHovered, setAddTaskHovered] = useState(false);
   const [suggestionsOn, setSuggestionsOn] = useState(true);
   const [clockStr, setClockStr] = useState(() => {
@@ -122,9 +112,6 @@ export default function TodayView() {
       .catch(() => {});
     loadTodayCompletedNodes()
       .then(setTodayDone)
-      .catch(() => {});
-    loadFrogsDoneToday()
-      .then(setFrogsDone)
       .catch(() => {});
   }, [nodes]);
 
@@ -249,22 +236,6 @@ export default function TodayView() {
     [nodes, now],
   );
 
-  const frogNode = useMemo(
-    () => pickFrogNode(todayNodes, today),
-    [todayNodes, today],
-  );
-
-  // When completing the current frog node, pin it before completing so we can count it
-  const handleCompleteNode = useCallback(
-    async (node: PlannerNode) => {
-      if (frogNode?.id === node.id && !node.is_frog_pinned) {
-        await setNodeFrogPinned(node.id, true);
-      }
-      completeNode(node.id);
-    },
-    [frogNode, completeNode],
-  );
-
   const suggestions = useMemo(() => {
     const candidates = nodes.filter(
       (n) =>
@@ -286,11 +257,10 @@ export default function TodayView() {
   const cardProps = (node: PlannerNode) => ({
     node,
     now,
-    isFrog: frogNode?.id === node.id,
     subTasks: subTasksByNode[node.id],
     onToggleSubTask: (subId: string, current: boolean) =>
       toggleSubTask(subId, node.id, current),
-    onComplete: () => handleCompleteNode(node),
+    onComplete: () => completeNode(node.id),
     onUncomplete: () => uncompleteNode(node.id),
     onDelete: () => deleteNode(node.id),
     onEdit: () => openTaskFormEdit(node),
@@ -309,7 +279,7 @@ export default function TodayView() {
       <div
         style={{
           flexShrink: 0,
-          padding: "1.25rem 2rem 1rem",
+          padding: "0.8rem 1.4rem 0.7rem",
           display: "flex",
           alignItems: "center",
           gap: "1.5rem",
@@ -363,7 +333,7 @@ export default function TodayView() {
             style={{
               fontSize: "1.1rem",
               letterSpacing: "2px",
-              color: "#64c8ff",
+              color: "#4a6a7a",
               fontFamily: "'VT323', 'HBIOS-SYS', monospace",
               paddingLeft: "1.6rem",
             }}
@@ -374,14 +344,24 @@ export default function TodayView() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Dice Taskmaster button */}
-        <DiceButton onClick={() => setDiceOpen(true)} />
+        {/* Compact progress tracker */}
+        <HeaderProgressTracker todayNodes={todayNodes} doneSummary={doneSummary} />
 
-        {/* Suggestions toggle */}
-        <SuggestionsToggle
-          on={suggestionsOn}
-          onToggle={() => setSuggestionsOn((v) => !v)}
-        />
+        {/* Dice + Suggestions stacked */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.2rem",
+            alignItems: "flex-end",
+          }}
+        >
+          <DiceButton onClick={() => setDiceOpen(true)} />
+          <SuggestionsToggle
+            on={suggestionsOn}
+            onToggle={() => setSuggestionsOn((v) => !v)}
+          />
+        </div>
 
         {/* + task button */}
         <button
@@ -407,19 +387,48 @@ export default function TodayView() {
         >
           <Plus width={15} height={15} /> task
         </button>
+
+        {/* Quick add input */}
+        <div style={{ width: 330 }}>
+          <QuickAddInput
+            onCommit={async (title) => {
+              await createNode({
+                title,
+                node_type: "task",
+                planned_start_at: today,
+                estimated_duration_minutes: 30,
+              });
+            }}
+          />
+        </div>
       </div>
 
-      {/* ── Two-column body ─────────────────────────────────────────────────── */}
+      {/* ── Three-column body ───────────────────────────────────────────────── */}
       <div
         style={{
           flex: 1,
           display: "flex",
           overflow: "hidden",
-          gap: "1.5rem",
-          padding: "1.25rem 1.5rem 1.25rem 0",
         }}
       >
-        {/* Left: task column */}
+        {/* Weekly timetable — left */}
+        <div
+          style={{
+            flex: "0 0 22%",
+            display: "flex",
+            flexDirection: "column",
+            overflowY: "auto",
+            borderRight: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <EventCalendarPanel
+            arcs={arcs}
+            projects={projects}
+            nodes={nodes}
+          />
+        </div>
+
+        {/* Task column — middle */}
         <div
           style={{
             flex: 1,
@@ -433,7 +442,7 @@ export default function TodayView() {
             style={{
               flex: 1,
               overflowY: "auto",
-              padding: "1.75rem 1.5rem 1.75rem 1.5rem",
+              padding: "1.25rem 1rem",
               display: "flex",
               flexDirection: "column",
               gap: "2.25rem",
@@ -492,20 +501,31 @@ export default function TodayView() {
                   />
                 </div>
                 {!overdueCollapsed && (
-                  <CardGrid>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.2rem",
+                      marginTop: "0.4rem",
+                    }}
+                  >
                     {overdue.map((node) => (
-                      <OverdueCard
+                      <TaskRow
                         key={node.id}
                         {...cardProps(node)}
-                        now={now}
-                        rescheduleToday={
+                        variant="overdue"
+                        rescheduleAction={
                           !node.due_at
-                            ? () => rescheduleNode(node.id, today)
+                            ? {
+                                onClick: () => rescheduleNode(node.id, today),
+                                title: "→ today",
+                                color: "#f5c842",
+                              }
                             : undefined
                         }
                       />
                     ))}
-                  </CardGrid>
+                  </div>
                 )}
               </section>
             )}
@@ -531,7 +551,7 @@ export default function TodayView() {
                       node={node}
                       arcs={arcs}
                       projects={projects}
-                      onComplete={() => handleCompleteNode(node)}
+                      onComplete={() => completeNode(node.id)}
                       onEdit={() => openTaskFormEdit(node)}
                       onDelete={() => deleteNode(node.id)}
                     />
@@ -547,39 +567,61 @@ export default function TodayView() {
                 label={`today · ${todayNodes.length}`}
                 color="#00c4a7"
               />
-              {todayNodes.length === 0 &&
-              !(suggestionsOn && suggestions.length > 0) ? (
-                <div
-                  style={{
-                    padding: "0.75rem 0",
-                    fontSize: "1rem",
-                    letterSpacing: "2px",
-                    color: "rgba(255,255,255,0.15)",
-                  }}
-                >
-                  nothing scheduled
-                </div>
-              ) : (
-                <CardGrid>
-                  {todayNodes.map((node) => (
-                    <TaskCard
-                      key={node.id}
-                      {...cardProps(node)}
-                      rescheduleTomorrow={() =>
-                        rescheduleNode(node.id, tomorrow)
-                      }
-                    />
-                  ))}
-                  {suggestionsOn &&
-                    suggestions.map((node) => (
-                      <SuggestionCard
-                        key={`sug-${node.id}`}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.2rem",
+                }}
+              >
+                {todayNodes.length === 0 &&
+                !(suggestionsOn && suggestions.length > 0) ? (
+                  <div
+                    style={{
+                      padding: "0.75rem 0",
+                      fontSize: "1rem",
+                      letterSpacing: "2px",
+                      color: "rgba(255,255,255,0.15)",
+                    }}
+                  >
+                    nothing scheduled
+                  </div>
+                ) : (
+                  <>
+                    {todayNodes.map((node) => (
+                      <TaskRow
+                        key={node.id}
                         {...cardProps(node)}
-                        rescheduleToday={() => rescheduleNode(node.id, today)}
+                        variant="today"
+                        rescheduleAction={{
+                          onClick: () => rescheduleNode(node.id, tomorrow),
+                          title: "→ tmrw",
+                          color: "rgba(255,255,255,0.5)",
+                        }}
                       />
                     ))}
-                </CardGrid>
-              )}
+                    {suggestionsOn &&
+                      suggestions.map((node) => (
+                        <TaskRow
+                          key={`sug-${node.id}`}
+                          node={node}
+                          now={now}
+                          subTasks={subTasksByNode[node.id]}
+                          onToggleSubTask={(subId, current) =>
+                            toggleSubTask(subId, node.id, current)
+                          }
+                          onEdit={() => openTaskFormEdit(node)}
+                          variant="suggestion"
+                          rescheduleAction={{
+                            onClick: () => rescheduleNode(node.id, today),
+                            title: "+ today",
+                            color: "#00c4a7",
+                          }}
+                        />
+                      ))}
+                  </>
+                )}
+              </div>
             </section>
 
             {/* Empty state */}
@@ -668,114 +710,20 @@ export default function TodayView() {
             </div>
           )}
         </div>
-        {/* closes left outer wrapper */}
+        {/* closes task column */}
 
-        {/* Right: analytics / calendar panel */}
+        {/* Analytics — right */}
         <div
           style={{
-            width: "22%",
-            flexShrink: 0,
+            flex: "0 0 22%",
             display: "flex",
             flexDirection: "column",
+            overflowY: "auto",
             borderLeft: "1px solid rgba(255,255,255,0.06)",
           }}
         >
-          {/* Mode toggle header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0.5rem 1rem 0.4rem",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "'VT323', monospace",
-                fontSize: "0.95rem",
-                letterSpacing: "2px",
-                color: "rgba(255,255,255,0.45)",
-                textTransform: "uppercase",
-              }}
-            >
-              {panelMode === "analytics" ? "analytics" : "events"}
-            </span>
-            <button
-              onClick={() =>
-                setPanelMode((m) =>
-                  m === "analytics" ? "calendar" : "analytics",
-                )
-              }
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "rgba(255,255,255,0.4)",
-                padding: 0,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <Switch width={16} height={16} />
-            </button>
-          </div>
-
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflowY: "auto",
-                opacity: panelMode === "analytics" ? 1 : 0,
-                transform:
-                  panelMode === "analytics"
-                    ? "translateX(0)"
-                    : "translateX(-12px)",
-                transition: "opacity 0.18s ease, transform 0.18s ease",
-                pointerEvents: panelMode === "analytics" ? "auto" : "none",
-              }}
-            >
-              <TodayEffortPanel
-                todayNodes={todayNodes}
-                doneSummary={doneSummary}
-              />
-              <PressureGaugePanel pressure={pressure} />
-              <EatTheFrogPanel frogsDone={frogsDone} />
-              <OngoingArcsPanel />
-            </div>
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                flexDirection: "column",
-                opacity: panelMode === "calendar" ? 1 : 0,
-                transform:
-                  panelMode === "calendar"
-                    ? "translateX(0)"
-                    : "translateX(12px)",
-                transition: "opacity 0.18s ease, transform 0.18s ease",
-                pointerEvents: panelMode === "calendar" ? "auto" : "none",
-              }}
-            >
-              <EventCalendarPanel
-                arcs={arcs}
-                projects={projects}
-                nodes={nodes}
-              />
-            </div>
-          </div>
+          <MiniCalendarPanel />
+          <PressureGaugePanel pressure={pressure} />
         </div>
       </div>
 
@@ -873,7 +821,8 @@ function DiceButton({ onClick }: { onClick: () => void }) {
       style={{
         background: "transparent",
         border: "none",
-        padding: "0.3rem 0",
+        padding: 0,
+        lineHeight: 1,
         fontSize: "1.05rem",
         letterSpacing: "3px",
         cursor: "pointer",
@@ -926,7 +875,8 @@ function SuggestionsToggle({
       style={{
         background: "transparent",
         border: "none",
-        padding: "0.3rem 0",
+        padding: 0,
+        lineHeight: 1,
         fontSize: "1.05rem",
         letterSpacing: "2px",
         cursor: "pointer",
@@ -975,6 +925,20 @@ function EventRow({
   onDelete: () => void;
 }) {
   const [hov, setHov] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const collapseCtrl = useAnimationControls();
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  async function handleComplete() {
+    setCompleting(true);
+    await new Promise((r) => setTimeout(r, 480));
+    await collapseCtrl.start({
+      height: 0,
+      opacity: 0,
+      transition: { duration: 0.18, ease: [0.4, 0, 1, 1] },
+    });
+    onComplete();
+  }
 
   const arc = node.arc_id ? arcs.find((a) => a.id === node.arc_id) : null;
   const proj = node.project_id
@@ -996,139 +960,169 @@ function EventRow({
   const PURPLE = "rgba(192,132,252,1)";
 
   return (
-    <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.65rem",
-        padding: "0.3rem 0.5rem",
-        background: hov ? "rgba(192,132,252,0.06)" : "transparent",
-        border: `1px solid ${hov ? "rgba(192,132,252,0.18)" : "rgba(192,132,252,0.08)"}`,
-        transition: "background 0.1s, border-color 0.1s",
-        fontFamily: VT,
-        fontSize: "1.05rem",
-        letterSpacing: "1px",
-        minHeight: "2rem",
-      }}
-    >
-      {/* Time — black on white chip */}
-      {timeRange && (
-        <span
+    <motion.div animate={collapseCtrl} style={{ overflow: "hidden" }}>
+      <div ref={innerRef}>
+        <div
+          onMouseEnter={() => setHov(true)}
+          onMouseLeave={() => setHov(false)}
           style={{
-            background: "rgba(255,255,255,0.75)",
-            color: "#000",
-            padding: "0 6px",
-            lineHeight: 1.5,
-            flexShrink: 0,
-            fontSize: "0.95rem",
-            letterSpacing: "0.5px",
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.65rem",
+            padding: "0.3rem 0.5rem",
+            background: completing
+              ? "rgba(74,222,128,0.08)"
+              : hov
+                ? "rgba(192,132,252,0.06)"
+                : "transparent",
+            border: `1px solid ${hov ? "rgba(192,132,252,0.18)" : "rgba(192,132,252,0.08)"}`,
+            transition: "background 0.2s, border-color 0.1s",
+            fontFamily: VT,
+            fontSize: "1.05rem",
+            letterSpacing: "1px",
+            minHeight: "2rem",
           }}
         >
-          {timeRange}
-        </span>
-      )}
-
-      {/* Name */}
-      <span
-        style={{
-          color: "#fff",
-          flex: "0 1 auto",
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {node.title}
-      </span>
-
-      {/* Arc */}
-      {arc && (
-        <span
-          style={{
-            color: arc.color_hex,
-            flexShrink: 0,
-            fontSize: "0.82rem",
-            letterSpacing: "1.5px",
-            opacity: 0.85,
-            border: `1px solid ${arc.color_hex}44`,
-            padding: "0 5px",
-            lineHeight: 1.5,
-          }}
-        >
-          {arc.name}
-        </span>
-      )}
-
-      {/* Project */}
-      {proj && (
-        <span
-          style={{
-            color: "rgba(255,255,255,0.45)",
-            flexShrink: 0,
-            fontSize: "0.82rem",
-            letterSpacing: "1.5px",
-          }}
-        >
-          {proj.name}
-        </span>
-      )}
-
-      {/* Groups */}
-      {node.groups && node.groups.length > 0 && (
-        <span style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
-          {node.groups.map((g) => (
-            <span
-              key={g.id}
+          {/* Scanline */}
+          {completing && (
+            <motion.div
+              initial={{ width: "0%", opacity: 1 }}
+              animate={{ width: "100%", opacity: [1, 1, 0] }}
+              transition={{ duration: 0.38, ease: "easeInOut" }}
               style={{
-                fontSize: "0.72rem",
-                letterSpacing: "1px",
-                color: g.color_hex,
-                border: `1px solid ${g.color_hex}55`,
-                padding: "0 4px",
+                position: "absolute",
+                top: "50%",
+                left: 0,
+                height: 2,
+                background:
+                  "linear-gradient(to right, transparent, #4ade80, transparent)",
+                pointerEvents: "none",
+                zIndex: 10,
+              }}
+            />
+          )}
+
+          {/* Time — black on white chip */}
+          {timeRange && (
+            <span
+              style={{
+                background: "rgba(255,255,255,0.75)",
+                color: "#000",
+                padding: "0 6px",
+                lineHeight: 1.5,
+                flexShrink: 0,
+                fontSize: "0.95rem",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {timeRange}
+            </span>
+          )}
+
+          {/* Name */}
+          <span
+            style={{
+              color: completing ? "rgba(255,255,255,0.22)" : "#fff",
+              textDecoration: completing ? "line-through" : "none",
+              transition: "color 0.3s",
+              flex: "0 1 auto",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {node.title}
+          </span>
+
+          {/* Arc */}
+          {arc && (
+            <span
+              style={{
+                color: arc.color_hex,
+                flexShrink: 0,
+                fontSize: "0.82rem",
+                letterSpacing: "1.5px",
+                opacity: 0.85,
+                border: `1px solid ${arc.color_hex}44`,
+                padding: "0 5px",
                 lineHeight: 1.5,
               }}
             >
-              {g.name}
+              {arc.name}
             </span>
-          ))}
-        </span>
-      )}
+          )}
 
-      {/* Spacer */}
-      <span style={{ flex: 1 }} />
+          {/* Project */}
+          {proj && (
+            <span
+              style={{
+                color: "rgba(255,255,255,0.45)",
+                flexShrink: 0,
+                fontSize: "0.82rem",
+                letterSpacing: "1.5px",
+              }}
+            >
+              {proj.name}
+            </span>
+          )}
 
-      {/* Actions */}
-      <span
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          flexShrink: 0,
-        }}
-      >
-        <IconAction
-          icon={<CheckboxOn size={14} />}
-          color="#4ade80"
-          title="complete"
-          onClick={onComplete}
-        />
-        <IconAction
-          icon={<PenSquare size={14} />}
-          color="rgba(255,255,255,0.7)"
-          title="edit"
-          onClick={onEdit}
-        />
-        <IconAction
-          icon={<SkullSharp size={14} />}
-          color="#ef4444"
-          title="delete"
-          onClick={onDelete}
-        />
-      </span>
-    </div>
+          {/* Groups */}
+          {node.groups && node.groups.length > 0 && (
+            <span style={{ display: "flex", gap: "0.3rem", flexShrink: 0 }}>
+              {node.groups.map((g) => (
+                <span
+                  key={g.id}
+                  style={{
+                    fontSize: "0.72rem",
+                    letterSpacing: "1px",
+                    color: g.color_hex,
+                    border: `1px solid ${g.color_hex}55`,
+                    padding: "0 4px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {g.name}
+                </span>
+              ))}
+            </span>
+          )}
+
+          {/* Spacer */}
+          <span style={{ flex: 1 }} />
+
+          {/* Actions */}
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              flexShrink: 0,
+            }}
+          >
+            <IconAction
+              icon={<CheckboxOn size={14} />}
+              color="#4ade80"
+              title="complete"
+              onClick={handleComplete}
+            />
+            <IconAction
+              icon={<PenSquare size={14} />}
+              color="rgba(255,255,255,0.7)"
+              title="edit"
+              onClick={onEdit}
+            />
+            <IconAction
+              icon={<SkullSharp size={14} />}
+              color="#ef4444"
+              title="delete"
+              onClick={onDelete}
+            />
+          </span>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -1144,26 +1138,58 @@ function IconAction({
   onClick: () => void;
 }) {
   const [hov, setHov] = useState(false);
+  const [anchor, setAnchor] = useState({ x: 0, y: 0 });
+
   return (
-    <button
-      title={title}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        all: "unset",
-        cursor: "pointer",
-        color: hov ? color : "rgba(255,255,255,0.28)",
-        display: "flex",
-        alignItems: "center",
-        transition: "color 0.1s",
-      }}
-    >
-      {icon}
-    </button>
+    <>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        onMouseEnter={(e) => {
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          setAnchor({ x: r.left + r.width / 2, y: r.top });
+          setHov(true);
+        }}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          color: hov ? color : "rgba(255,255,255,0.28)",
+          display: "flex",
+          alignItems: "center",
+          transition: "color 0.1s",
+        }}
+      >
+        {icon}
+      </button>
+      {hov &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: anchor.x,
+              top: anchor.y - 8,
+              transform: "translate(-50%, -100%)",
+              background: "#0c0c0c",
+              border: "1px solid rgba(255,255,255,0.1)",
+              padding: "2px 8px",
+              zIndex: 9500,
+              pointerEvents: "none",
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: "0.95rem",
+              letterSpacing: "1.5px",
+              color: color,
+              whiteSpace: "nowrap",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.8)",
+            }}
+          >
+            {title}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -1205,11 +1231,720 @@ function SectionLabel({
   );
 }
 
+// ─── Quick add ────────────────────────────────────────────────────────────────
+
+function QuickAddButton({
+  active,
+  onClick,
+}: {
+  active: boolean;
+  onClick: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+        fontSize: "1rem",
+        letterSpacing: "2px",
+        color: active
+          ? "#00c4a7"
+          : hov
+            ? "rgba(255,255,255,0.7)"
+            : "rgba(255,255,255,0.3)",
+        transition: "color 0.12s",
+        flexShrink: 0,
+        paddingLeft: "0.75rem",
+      }}
+    >
+      {active ? "[ × ]" : "[ + ]"}
+    </button>
+  );
+}
+
+const QA_PLACEHOLDER = "enter quick task".split("");
+const QA_STAGGER = 0.045;
+const QA_CHAR_DUR = 0.22;
+const QA_STAGGER_TOTAL =
+  QA_PLACEHOLDER.length * QA_STAGGER + QA_CHAR_DUR + 0.05;
+
+function QAPlaceholder({ visible }: { visible: boolean }) {
+  const [waving, setWaving] = useState(false);
+  useEffect(() => {
+    if (!visible) {
+      setWaving(false);
+      return;
+    }
+    const t = setTimeout(() => setWaving(true), QA_STAGGER_TOTAL * 1000);
+    return () => clearTimeout(t);
+  }, [visible]);
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          exit={{ opacity: 0, transition: { duration: 0.15 } }}
+          style={{
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            pointerEvents: "none",
+            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontSize: "1rem",
+            letterSpacing: 1,
+          }}
+        >
+          {QA_PLACEHOLDER.map((ch, i) => (
+            <motion.span
+              key={i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={
+                waving
+                  ? {
+                      y: [0, -3, 0],
+                      opacity: ch === " " ? 0 : [0.5, 0.8, 0.5],
+                    }
+                  : {
+                      opacity: ch === " " ? 0 : 0.55,
+                      y: 0,
+                    }
+              }
+              transition={
+                waving
+                  ? {
+                      y: {
+                        duration: 1.4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: i * 0.09,
+                        repeatDelay: 2,
+                      },
+                      opacity: {
+                        duration: 1.4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: i * 0.09,
+                        repeatDelay: 2,
+                      },
+                    }
+                  : {
+                      delay: i * QA_STAGGER,
+                      duration: QA_CHAR_DUR,
+                      ease: "easeOut",
+                    }
+              }
+              style={{
+                display: "inline-block",
+                color: "rgba(255,255,255,0.55)",
+              }}
+            >
+              {ch === " " ? " " : ch}
+            </motion.span>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function QuickAddInput({
+  onCommit,
+}: {
+  onCommit: (title: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [pulseKey, setPulseKey] = useState(0);
+  const [launchItem, setLaunchItem] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const squishCtrl = useAnimationControls();
+
+  async function handleCommit() {
+    const text = value.trim();
+    if (!text) return;
+    const rect = boxRef.current?.getBoundingClientRect();
+    const lx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const ly = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    squishCtrl.start({
+      scaleY: [1, 0.78, 1.07, 1],
+      scaleX: [1, 1.05, 0.97, 1],
+      transition: {
+        duration: 0.42,
+        times: [0, 0.28, 0.65, 1],
+        ease: "easeOut",
+      },
+    });
+    setLaunchItem({ text, x: lx, y: ly });
+    setValue("");
+    await onCommit(text);
+  }
+
+  return (
+    <div style={{ width: "100%", fontFamily: "'VT323', 'HBIOS-SYS', monospace" }}>
+      {launchItem &&
+        createPortal(
+          <motion.div
+            initial={{ opacity: 1, scale: 1, y: 0 }}
+            animate={{ opacity: 0, scale: 0.55, y: -200 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationComplete={() => setLaunchItem(null)}
+            style={{
+              position: "fixed",
+              left: launchItem.x,
+              top: launchItem.y,
+              translateX: "-50%",
+              translateY: "-50%",
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: "1.1rem",
+              letterSpacing: 1,
+              color: "#00c4a7",
+              textShadow: "0 0 18px rgba(0,196,167,0.7)",
+              pointerEvents: "none",
+              zIndex: 9999,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {launchItem.text}
+          </motion.div>,
+          document.body,
+        )}
+
+      <motion.div ref={boxRef} animate={squishCtrl} style={{ width: "100%" }}>
+        <motion.div
+          animate={{
+            borderColor: focused
+              ? "rgba(0,196,167,0.55)"
+              : "rgba(255,255,255,0.18)",
+            backgroundColor: focused
+              ? "rgba(0,12,10,0.96)"
+              : "rgba(0,0,0,0.88)",
+          }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            display: "flex",
+            alignItems: "stretch",
+            border: "1px solid rgba(255,255,255,0.18)",
+            overflow: "hidden",
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          <AnimatePresence>
+            <motion.div
+              key={pulseKey}
+              initial={{ opacity: 1 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
+              style={{
+                position: "absolute",
+                inset: -1,
+                border: "2px solid rgba(0,196,167,1)",
+                boxShadow:
+                  "0 0 14px rgba(0,196,167,0.5), inset 0 0 10px rgba(0,196,167,0.12)",
+                pointerEvents: "none",
+                zIndex: 10,
+              }}
+            />
+          </AnimatePresence>
+
+          <div
+            style={{
+              flex: 1,
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <QAPlaceholder visible={!focused && !value} />
+            <input
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value);
+                setPulseKey((k) => k + 1);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCommit();
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setValue("");
+                }
+              }}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder=""
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.82)",
+                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                fontSize: "1rem",
+                padding: "6px 10px",
+                letterSpacing: 1,
+                outline: "none",
+                width: "100%",
+              }}
+            />
+          </div>
+
+          <button
+            onClick={handleCommit}
+            style={{
+              background: "none",
+              border: "none",
+              borderLeft: "1px solid rgba(255,255,255,0.12)",
+              color: "rgba(255,255,255,0.35)",
+              padding: "0 12px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              transition: "color 0.12s",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.color = "#fff")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLButtonElement).style.color =
+                "rgba(255,255,255,0.35)")
+            }
+          >
+            <motion.div
+              animate={{ y: [0, -3, 0] }}
+              transition={{
+                duration: 1.6,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              style={{ display: "flex", alignItems: "center" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M8 13V3M3 8l5-5 5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="square"
+                />
+              </svg>
+            </motion.div>
+          </button>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Task row (today / overdue / suggestion) ──────────────────────────────────
+
+function TaskRow({
+  node,
+  now,
+  subTasks,
+  onToggleSubTask,
+  onComplete,
+  onDelete,
+  onEdit,
+  variant,
+  rescheduleAction,
+}: {
+  node: PlannerNode;
+  now: Date;
+  subTasks?: import("../types").SubTask[];
+  onToggleSubTask?: (subId: string, current: boolean) => void;
+  onComplete?: () => void;
+  onDelete?: () => void;
+  onEdit: () => void;
+  variant: "today" | "overdue" | "suggestion";
+  rescheduleAction?: { onClick: () => void; title: string; color: string };
+}) {
+  const { arcs } = usePlannerStore();
+  const [subtasksOpen, setSubtasksOpen] = useState(false);
+  const [hov, setHov] = useState(false);
+  const [exitAnim, setExitAnim] = useState<null | 'complete' | 'reschedule' | 'delete'>(null);
+  const collapseCtrl = useAnimationControls();
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  async function collapse(delay: number, duration = 0.18) {
+    await new Promise((r) => setTimeout(r, delay));
+    await collapseCtrl.start({ height: 0, opacity: 0, transition: { duration, ease: [0.4, 0, 1, 1] } });
+  }
+
+  async function handleComplete() {
+    if (!onComplete) return;
+    setExitAnim('complete');
+    await collapse(480);
+    onComplete();
+  }
+
+  async function handleReschedule() {
+    if (!rescheduleAction) return;
+    setExitAnim('reschedule');
+    await collapse(360);
+    rescheduleAction.onClick();
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return;
+    setExitAnim('delete');
+    await collapse(300, 0.14);
+    onDelete();
+  }
+
+  const arc = node.arc_id ? arcs.find((a) => a.id === node.arc_id) : null;
+
+  const leftBorderColor = variant === "overdue" ? "#ff3b3b" : null;
+
+  const rowStyle: React.CSSProperties = {
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 0,
+    padding: "0.3rem 0.5rem",
+    background: exitAnim === 'complete'
+      ? "rgba(74,222,128,0.08)"
+      : exitAnim === 'delete'
+        ? "rgba(239,68,68,0.10)"
+        : exitAnim === 'reschedule'
+          ? "rgba(245,200,66,0.07)"
+          : variant === "overdue"
+            ? hov ? "rgba(255,59,59,0.09)" : "rgba(255,59,59,0.04)"
+            : variant === "suggestion"
+              ? hov ? "rgba(255,255,255,0.04)" : "transparent"
+              : hov ? "rgba(255,255,255,0.05)" : "transparent",
+    border:
+      variant === "suggestion"
+        ? `1px dashed ${hov ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.1)"}`
+        : variant === "overdue"
+          ? `1px solid ${hov ? "rgba(255,59,59,0.25)" : "rgba(255,59,59,0.12)"}`
+          : `1px solid ${hov ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.07)"}`,
+    borderLeft: leftBorderColor
+      ? `3px solid ${leftBorderColor}`
+      : variant === "suggestion"
+        ? `1px dashed ${hov ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.1)"}`
+        : variant === "overdue"
+          ? `3px solid ${hov ? "rgba(255,59,59,0.25)" : "rgba(255,59,59,0.12)"}`
+          : `1px solid ${hov ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.07)"}`,
+    opacity: variant === "suggestion" ? (hov ? 1 : 0.78) : 1,
+    transition: "background 0.1s, border-color 0.1s, opacity 0.1s",
+    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontSize: "1.05rem",
+    letterSpacing: "1px",
+    minHeight: "2rem",
+  };
+
+  const badge = (() => {
+    if (variant === "overdue") {
+      if (node.is_missed_schedule) return { label: "missed", color: "#f5c842" };
+      const days = node.due_at
+        ? Math.round(
+            (now.getTime() - new Date(node.due_at + "T12:00:00").getTime()) /
+              86400000,
+          )
+        : null;
+      return { label: days ? `${days}d ago` : "overdue", color: "#ff3b3b" };
+    }
+    if (variant === "suggestion") {
+      if (!node.due_at) return null;
+      const daysUntil = Math.round(
+        (new Date(node.due_at + "T12:00:00").getTime() - now.getTime()) /
+          86400000,
+      );
+      if (daysUntil <= 1) return { label: "due soon", color: "#ff6b35" };
+      return {
+        label: `due in ${daysUntil}d`,
+        color: daysUntil <= 3 ? "#f5a623" : "rgba(255,255,255,0.3)",
+      };
+    }
+    if (node.due_at) {
+      const daysUntil = Math.round(
+        (new Date(node.due_at + "T12:00:00").getTime() - now.getTime()) /
+          86400000,
+      );
+      if (daysUntil === 0) return { label: "due today", color: "#f5c842" };
+      if (daysUntil > 0)
+        return { label: `due ${daysUntil}d`, color: "#f5c842" };
+    }
+    return null;
+  })();
+
+  const effortStr = (() => {
+    const m = node.estimated_duration_minutes;
+    if (!m) return null;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const rem = m % 60;
+      return rem ? `~${h}h${rem}m` : `~${h}h`;
+    }
+    return `~${m}m`;
+  })();
+
+  const subTotal = node.sub_total ?? 0;
+  const subDone = node.sub_done ?? 0;
+
+  return (
+    <motion.div animate={collapseCtrl} style={{ overflow: "hidden" }}>
+      <div ref={innerRef}>
+        <div
+          style={rowStyle}
+          onMouseEnter={() => setHov(true)}
+          onMouseLeave={() => setHov(false)}
+        >
+          {/* Scanline */}
+          {exitAnim && (() => {
+            const color = exitAnim === 'complete' ? '#4ade80'
+              : exitAnim === 'delete' ? '#ef4444'
+              : rescheduleAction?.color ?? '#f5c842';
+            const dur = exitAnim === 'delete' ? 0.26 : 0.34;
+            return (
+              <motion.div
+                initial={{ width: "0%", opacity: 1 }}
+                animate={{ width: "100%", opacity: [1, 1, 0] }}
+                transition={{ duration: dur, ease: "easeInOut" }}
+                style={{
+                  position: "absolute", top: "50%", left: 0,
+                  height: 2,
+                  background: `linear-gradient(to right, transparent, ${color}, transparent)`,
+                  pointerEvents: "none", zIndex: 10,
+                }}
+              />
+            );
+          })()}
+
+          {/* Line 1: star + title + effort + badge + actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+            {/* Importance star */}
+            {node.importance_level === 1 && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="#f5c842" style={{ flexShrink: 0, filter: "drop-shadow(0 0 4px #f5c84288)" }}>
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            )}
+
+            {/* Title */}
+            <span
+              style={{
+                color: exitAnim === 'complete'
+                  ? "rgba(255,255,255,0.22)"
+                  : variant === "suggestion"
+                    ? `${arc?.color_hex ?? "rgba(255,255,255,0.6)"}99`
+                    : arc?.color_hex ?? "#fff",
+                textDecoration: exitAnim === 'complete' ? "line-through" : "none",
+                transition: "color 0.3s",
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {node.title}
+            </span>
+
+            {/* Effort */}
+            {effortStr && (
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.28)",
+                  flexShrink: 0,
+                  fontSize: "0.88rem",
+                  letterSpacing: "1px",
+                }}
+              >
+                {effortStr}
+              </span>
+            )}
+
+            {/* Badge */}
+            {badge && badge.label && (
+              <span
+                style={{
+                  background: `${badge.color}22`,
+                  color: badge.color,
+                  padding: "0 6px",
+                  lineHeight: 1.5,
+                  flexShrink: 0,
+                  fontSize: "0.88rem",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {badge.label}
+              </span>
+            )}
+
+            {/* Actions */}
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                flexShrink: 0,
+              }}
+            >
+              {rescheduleAction && (
+                <IconAction
+                  icon={<Forward size={14} />}
+                  color={rescheduleAction.color}
+                  title={rescheduleAction.title}
+                  onClick={handleReschedule}
+                />
+              )}
+              {onComplete && (
+                <IconAction
+                  icon={<CheckboxOn size={14} />}
+                  color="#4ade80"
+                  title="complete"
+                  onClick={handleComplete}
+                />
+              )}
+              <IconAction
+                icon={<PenSquare size={14} />}
+                color="rgba(255,255,255,0.7)"
+                title="edit"
+                onClick={onEdit}
+              />
+              {onDelete && (
+                <IconAction
+                  icon={<SkullSharp size={14} />}
+                  color="#ef4444"
+                  title="delete"
+                  onClick={handleDelete}
+                />
+              )}
+            </span>
+          </div>
+
+          {/* Line 2: subtask count + arc + groups (only rendered when content exists) */}
+          {(subTotal > 0 || arc || (node.groups ?? []).some(g => !g.is_ungrouped)) && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "0.18rem", paddingLeft: "0.1rem", flexWrap: "wrap" }}>
+              {/* Arc tag */}
+              {arc && (
+                <span
+                  style={{
+                    color: arc.color_hex,
+                    flexShrink: 0,
+                    fontSize: "0.78rem",
+                    letterSpacing: "1.5px",
+                    opacity: 0.85,
+                    border: `1px solid ${arc.color_hex}44`,
+                    padding: "0 5px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {arc.name}
+                </span>
+              )}
+
+              {/* Group badges */}
+              {(node.groups ?? []).filter(g => !g.is_ungrouped).map(g => (
+                <span
+                  key={g.id}
+                  style={{
+                    color: g.color_hex,
+                    flexShrink: 0,
+                    fontSize: "0.75rem",
+                    letterSpacing: "1px",
+                    border: `1px solid ${g.color_hex}55`,
+                    padding: "0 4px",
+                    lineHeight: 1.5,
+                    opacity: 0.8,
+                  }}
+                >
+                  {g.name}
+                </span>
+              ))}
+
+              {/* Subtask count */}
+              {subTotal > 0 && (
+                <button
+                  onClick={() => setSubtasksOpen((v) => !v)}
+                  style={{
+                    all: "unset",
+                    cursor: "pointer",
+                    color: subtasksOpen ? "#fff" : "rgba(255,255,255,0.35)",
+                    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                    fontSize: "0.85rem",
+                    letterSpacing: "1px",
+                    flexShrink: 0,
+                    transition: "color 0.1s",
+                  }}
+                >
+                  [{subDone}/{subTotal}]
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Subtask expansion */}
+        {subtasksOpen && subTasks && subTasks.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.1rem",
+              paddingLeft: "1.2rem",
+              marginTop: "0.1rem",
+            }}
+          >
+            {subTasks.map((s) => (
+              <div
+                key={s.id}
+                onClick={() => onToggleSubTask?.(s.id, s.is_completed)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.2rem 0.5rem",
+                  cursor: onToggleSubTask ? "pointer" : "default",
+                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  fontSize: "0.95rem",
+                  letterSpacing: "1px",
+                  color: s.is_completed
+                    ? "rgba(255,255,255,0.28)"
+                    : "rgba(255,255,255,0.65)",
+                  border: "1px solid rgba(255,255,255,0.04)",
+                  textDecoration: s.is_completed ? "line-through" : "none",
+                }}
+              >
+                {s.is_completed ? (
+                  <CheckboxOn
+                    width={13}
+                    height={13}
+                    style={{ color: "#4ade80", flexShrink: 0 }}
+                  />
+                ) : (
+                  <Checkbox
+                    width={13}
+                    height={13}
+                    style={{ color: "rgba(255,255,255,0.35)", flexShrink: 0 }}
+                  />
+                )}
+                {s.title}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Mini card (shared by OverdueCard + SuggestionCard) ───────────────────────
 
 function MiniCard({
   node,
-  isFrog,
   onComplete,
   onDelete,
   onEdit,
@@ -1218,7 +1953,6 @@ function MiniCard({
   suggestion,
 }: {
   node: PlannerNode;
-  isFrog?: boolean;
   onComplete?: () => void;
   onDelete?: () => void;
   onEdit: () => void;
@@ -1313,32 +2047,6 @@ function MiniCard({
               : "all day"}
           </span>
         </div>
-      )}
-
-      {/* Frog badge */}
-      {isFrog && (
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.3rem",
-            padding: "0.15rem 0.35rem",
-            alignSelf: "flex-start",
-          }}
-        >
-          <PixelFrog px={2} />
-          <span
-            style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              fontSize: "0.78rem",
-              letterSpacing: "2px",
-              color: "#4ade80",
-              lineHeight: 1.4,
-            }}
-          >
-            FROG
-          </span>
-        </span>
       )}
 
       {/* Title + badge */}
@@ -1544,7 +2252,6 @@ function DoneChip({
 function OverdueCard({
   node,
   now,
-  isFrog,
   onComplete,
   onDelete,
   onEdit,
@@ -1552,7 +2259,6 @@ function OverdueCard({
 }: {
   node: PlannerNode;
   now: Date;
-  isFrog?: boolean;
   onComplete: () => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -1575,7 +2281,6 @@ function OverdueCard({
   return (
     <MiniCard
       node={node}
-      isFrog={isFrog}
       onComplete={onComplete}
       onDelete={onDelete}
       onEdit={onEdit}
@@ -1623,7 +2328,6 @@ function SuggestionCard({
 function TaskCard({
   node,
   now,
-  isFrog,
   subTasks,
   onToggleSubTask,
   onComplete,
@@ -1635,7 +2339,6 @@ function TaskCard({
 }: {
   node: PlannerNode;
   now: Date;
-  isFrog?: boolean;
   subTasks?: import("../types").SubTask[];
   onToggleSubTask?: (subId: string, current: boolean) => void;
   onComplete: () => void;
@@ -1870,7 +2573,7 @@ function TaskCard({
             )}
           </div>
 
-          {/* Center: dot (truly centered), frog overlaid to its right */}
+          {/* Center: dot */}
           <div
             style={{
               position: "relative",
@@ -1886,19 +2589,6 @@ function TaskCard({
               onDelete={onDelete}
               onEdit={onEdit}
             />
-            {isFrog && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "100%",
-                  top: "50%",
-                  paddingLeft: 12,
-                  animation: "frogWiggle 1.8s ease-in-out infinite",
-                }}
-              >
-                <PixelFrog px={2} />
-              </div>
-            )}
           </div>
 
           {/* Right: D-XX (hidden when D-0 — redundant in today view) */}
@@ -2106,7 +2796,7 @@ function TaskCard({
                 padding: "3px 8px",
                 zIndex: 9500,
                 pointerEvents: "none",
-                fontFamily: "'VT323', monospace",
+                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
                 fontSize: "1rem",
                 letterSpacing: "0.5px",
                 color: "rgba(255,255,255,0.85)",
@@ -2386,7 +3076,11 @@ function EventCalendarPanel({
                 style={{
                   ...mono,
                   fontSize: "1rem",
-                  color: isToday ? "#fff" : "rgba(255,255,255,0.5)",
+                  color: isToday ? "#000" : "rgba(255,255,255,0.5)",
+                  background: isToday ? "var(--teal)" : "transparent",
+                  lineHeight: 1.35,
+                  display: "inline-block",
+                  minWidth: "1.4em",
                 }}
               >
                 {d.getDate()}
@@ -2453,6 +3147,26 @@ function EventCalendarPanel({
               );
             })}
 
+            {/* Full-width current-time line */}
+            {weekOffset === 0 && (() => {
+              const topPct = (nowCal.getHours() * 60 + nowCal.getMinutes()) / 60 - START_HOUR;
+              if (topPct < 0 || topPct > TOTAL_HRS) return null;
+              return (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: topPct * hourH,
+                    left: 0,
+                    right: 0,
+                    height: 1,
+                    background: "rgba(255,59,59,0.3)",
+                    zIndex: 4,
+                    pointerEvents: "none",
+                  }}
+                />
+              );
+            })()}
+
             {days.map((d, di) => {
               const key = calToDS(d);
               const isToday = key === today;
@@ -2467,11 +3181,11 @@ function EventCalendarPanel({
                     borderLeft:
                       di === 0 ? "none" : "1px solid rgba(255,255,255,0.18)",
                     background: isToday
-                      ? "rgba(255,255,255,0.02)"
+                      ? "rgba(0,196,167,0.05)"
                       : "transparent",
                   }}
                 >
-                  {/* Current-time line */}
+                  {/* Today prominent time dot + line */}
                   {isToday &&
                     (() => {
                       const topPct =
@@ -2633,26 +3347,17 @@ function SidebarPanel({
   );
 }
 
-// Panel 1 — Today's Effort
-function TodayEffortPanel({
+// Header compact progress tracker
+function HeaderProgressTracker({
   todayNodes,
   doneSummary,
 }: {
   todayNodes: PlannerNode[];
   doneSummary: TodayDoneSummary;
 }) {
-  const remainingMins = todayNodes.reduce(
-    (s, n) => s + (n.estimated_duration_minutes ?? 0),
-    0,
-  );
-  const doneMins = doneSummary.effortMinutes;
-  const scheduledMins = remainingMins + doneMins;
   const totalCount = todayNodes.length + doneSummary.count;
-
-  const fmtMins = (m: number) => (m < 60 ? `${m}m` : `${(m / 60).toFixed(1)}h`);
-
   const pct =
-    scheduledMins > 0 ? Math.round((doneMins / scheduledMins) * 100) : 0;
+    totalCount > 0 ? Math.round((doneSummary.count / totalCount) * 100) : 0;
   const barColor =
     pct <= 25
       ? "#ff3b3b"
@@ -2662,137 +3367,33 @@ function TodayEffortPanel({
           ? "#4ade80"
           : "#64c8ff";
 
-  const noTasks = totalCount === 0;
-  const allDone =
-    totalCount > 0 && todayNodes.length === 0 && doneSummary.count > 0;
-
-  if (noTasks)
-    return (
-      <SidebarPanel title="today's effort" icon={Tea}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.4rem",
-            padding: "0.25rem 0 0.25rem 1.5rem",
-          }}
-        >
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: "#00c4a7",
-            }}
-          >
-            <Loader size={16} />
-            <span
-              style={{
-                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-                fontSize: "1.15rem",
-                letterSpacing: "2px",
-                lineHeight: 1.3,
-              }}
-            >
-              nothing scheduled.
-            </span>
-          </span>
-          <span
-            style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              fontSize: "1rem",
-              letterSpacing: "1px",
-              color: "rgba(255,255,255,0.3)",
-              lineHeight: 1.4,
-            }}
-          >
-            a rare 여유로운 day.
-            <br />
-            enjoy it — or get ahead
-            <br />
-            on what's coming.
-          </span>
-        </div>
-      </SidebarPanel>
-    );
-
-  if (allDone)
-    return (
-      <SidebarPanel title="today's effort" icon={Tea}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.4rem",
-            padding: "0.25rem 0 0.25rem 1.5rem",
-          }}
-        >
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              color: "#4ade80",
-            }}
-          >
-            <PartyPopper size={16} />
-            <span
-              style={{
-                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-                fontSize: "1.15rem",
-                letterSpacing: "2px",
-                lineHeight: 1.3,
-                textShadow: "0 0 14px #4ade8055",
-              }}
-            >
-              all done.
-            </span>
-          </span>
-          <span
-            style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              fontSize: "1rem",
-              letterSpacing: "1px",
-              color: "rgba(255,255,255,0.3)",
-              lineHeight: 1.4,
-            }}
-          >
-            go crack open a beer,
-            <br />
-            put on netflix, and
-            <br />
-            do absolutely nothing.
-          </span>
-        </div>
-      </SidebarPanel>
-    );
+  if (totalCount === 0) return null;
 
   return (
-    <SidebarPanel title="today's effort" icon={Tea}>
-      {/* big percentage + task count */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          marginBottom: "0.75rem",
-        }}
-      >
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        minWidth: 110,
+        maxWidth: 160,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
         <div
           style={{
-            border: `2px solid ${pct > 0 ? barColor + "66" : "rgba(255,255,255,0.12)"}`,
-            padding: "0.05rem 0.55rem 0.1rem",
+            border: `1px solid ${pct > 0 ? barColor + "66" : "rgba(255,255,255,0.12)"}`,
+            padding: "0 0.35rem",
             lineHeight: 1,
           }}
         >
           <span
             style={{
               fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              fontSize: "1.8rem",
+              fontSize: "1.3rem",
               lineHeight: 1,
               color: pct > 0 ? barColor : "rgba(255,255,255,0.2)",
-              textShadow: pct > 0 ? `0 0 18px ${barColor}66` : "none",
-              letterSpacing: "1px",
+              textShadow: pct > 0 ? `0 0 12px ${barColor}66` : "none",
             }}
           >
             {pct}%
@@ -2801,203 +3402,270 @@ function TodayEffortPanel({
         <span
           style={{
             fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-            fontSize: "1.1rem",
-            letterSpacing: "2px",
-            color: "rgba(255,255,255,0.25)",
+            fontSize: "1rem",
+            letterSpacing: "1.5px",
+            whiteSpace: "nowrap",
           }}
         >
-          <span style={{ color: "rgba(255,255,255,0.4)" }}>[ </span>
           <span style={{ color: "#4ade80" }}>{doneSummary.count}</span>
-          <span style={{ color: "rgba(255,255,255,0.4)" }}> / </span>
-          <span style={{ color: "#fff" }}>{totalCount}</span>
-          <span style={{ color: "rgba(255,255,255,0.4)" }}> tasks ]</span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>/</span>
+          <span style={{ color: "rgba(255,255,255,0.6)" }}>{totalCount}</span>
         </span>
       </div>
-
-      {/* stacked bar */}
-      <div
-        style={{
-          display: "flex",
-          height: 14,
-          marginBottom: "0.5rem",
-          background: "rgba(255,255,255,0.07)",
-          overflow: "hidden",
-        }}
-      >
-        {pct > 0 && (
-          <div
-            style={{
-              width: `${pct}%`,
-              height: "100%",
-              background:
-                pct <= 25
-                  ? "#ff3b3b"
-                  : pct <= 50
-                    ? "#ff6b35"
-                    : pct <= 75
-                      ? "#4ade80"
-                      : "#64c8ff",
-              boxShadow: `0 0 10px ${pct <= 25 ? "#ff3b3b" : pct <= 50 ? "#ff6b35" : pct <= 75 ? "#4ade80" : "#64c8ff"}66`,
-              transition: "width 0.4s ease, background 0.4s ease",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            {[
-              { duration: "2.1s", delay: "0s", top: 2 },
-              { duration: "3.0s", delay: "-0.8s", top: 7 },
-              { duration: "1.7s", delay: "-1.5s", top: 4 },
-              { duration: "2.6s", delay: "-0.3s", top: 10 },
-              { duration: "1.4s", delay: "-1.1s", top: 6 },
-              { duration: "3.4s", delay: "-2.0s", top: 1 },
-              { duration: "2.3s", delay: "-0.6s", top: 9 },
-              { duration: "1.9s", delay: "-1.8s", top: 3 },
-              { duration: "2.8s", delay: "-1.3s", top: 11 },
-              { duration: "1.6s", delay: "-0.4s", top: 5 },
-            ].map((p, i) => (
-              <div
-                key={i}
-                className="effort-particle"
-                style={{
-                  animationDuration: p.duration,
-                  animationDelay: p.delay,
-                  top: p.top,
-                }}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* legend row */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-          fontSize: "1rem",
-          letterSpacing: "1.5px",
-        }}
-      >
-        <span
-          style={{
-            color: "#4ade8066",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.3rem",
-          }}
-        >
-          <CheckboxOn size={14} />
-          {doneMins > 0 ? fmtMins(doneMins) : "—"}
-        </span>
-        <span style={{ color: "rgba(255,255,255,0.55)" }}>
-          {remainingMins > 0 ? fmtMins(remainingMins) : "—"} left
-        </span>
-      </div>
-    </SidebarPanel>
-  );
-}
-
-// Panel 2 — Ongoing Arcs
-function OngoingArcsPanel() {
-  const { arcs, nodes } = usePlannerStore();
-  const { setActiveView } = useViewStore();
-  const latestNodeUpdate = (arcId: string) =>
-    nodes
-      .filter((n) => n.arc_id === arcId)
-      .reduce((max, n) => (n.updated_at > max ? n.updated_at : max), "");
-  const activeArcs = arcs
-    .sort((a, b) =>
-      latestNodeUpdate(b.id).localeCompare(latestNodeUpdate(a.id)),
-    )
-    .slice(0, 3);
-  const totalArcs = arcs.length;
-  const [arcCounts, setArcCounts] = useState<ArcNodeCount[]>([]);
-  const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-  };
-
-  useEffect(() => {
-    loadArcNodeCounts().then(setArcCounts);
-  }, [nodes]);
-
-  if (activeArcs.length === 0) return null;
-
-  return (
-    <SidebarPanel title="ongoing arcs" icon={Forward}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {activeArcs.map((arc) => {
-          const counts = arcCounts.find((c) => c.arc_id === arc.id);
-          const done = counts?.done ?? 0;
-          const total = counts?.total ?? 0;
+      <div style={{ display: "flex", gap: 2, height: 8 }}>
+        {Array.from({ length: totalCount }).map((_, i) => {
+          const filled = i < doneSummary.count;
           return (
-            <div key={arc.id}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  lineHeight: 1.15,
-                }}
-              >
-                <span
-                  style={{
-                    color: arc.color_hex,
-                    opacity: 0.5,
-                    fontFamily: "monospace",
-                    fontSize: "0.8rem",
-                    marginLeft: "1rem",
-                  }}
-                >
-                  ›
-                </span>
-                <span
-                  style={{
-                    ...mono,
-                    fontSize: "1.05rem",
-                    letterSpacing: "1px",
-                    color: arc.color_hex,
-                    flex: 1,
-                  }}
-                >
-                  {arc.name}
-                </span>
-                <span
-                  style={{
-                    ...mono,
-                    fontSize: "0.85rem",
-                    letterSpacing: "1px",
-                    color: "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  {done}/{total}
-                </span>
-              </div>
-            </div>
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: "100%",
+                background: filled ? barColor : "rgba(255,255,255,0.1)",
+                boxShadow: filled ? `0 0 6px ${barColor}55` : "none",
+                transition: "background 0.3s ease, box-shadow 0.3s ease",
+              }}
+            />
           );
         })}
       </div>
-      {totalArcs > 3 && (
-        <div
-          onClick={() => setActiveView("focus")}
-          style={{
-            ...mono,
-            fontSize: "0.9rem",
-            letterSpacing: "2px",
-            color: "rgba(255,255,255,0.65)",
-            cursor: "pointer",
-            marginTop: "0.55rem",
-            textAlign: "right",
-          }}
+    </div>
+  );
+}
+
+// Panel 2 — Mini Calendar
+const WEEKDAY_LABELS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const MONTH_NAMES = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+
+// Gradient stops: teal → green → yellow → orange, opacity 0.18 → 0.60
+const HEAT_STOPS: Array<{ t: number; rgb: [number,number,number]; a: number }> = [
+  { t: 0,    rgb: [  0, 196, 167], a: 0.18 },
+  { t: 0.33, rgb: [ 74, 222, 128], a: 0.32 },
+  { t: 0.66, rgb: [245, 200,  66], a: 0.46 },
+  { t: 1,    rgb: [255, 107,  53], a: 0.60 },
+];
+
+function heatColor(count: number): string {
+  if (count === 0) return 'transparent';
+  const t = Math.min((count - 1) / 9, 1); // 1..10 → 0..1
+  for (let i = 0; i < HEAT_STOPS.length - 1; i++) {
+    const s0 = HEAT_STOPS[i], s1 = HEAT_STOPS[i + 1];
+    if (t <= s1.t) {
+      const f = (t - s0.t) / (s1.t - s0.t);
+      const r = Math.round(s0.rgb[0] + (s1.rgb[0] - s0.rgb[0]) * f);
+      const g = Math.round(s0.rgb[1] + (s1.rgb[1] - s0.rgb[1]) * f);
+      const b = Math.round(s0.rgb[2] + (s1.rgb[2] - s0.rgb[2]) * f);
+      const a = (s0.a + (s1.a - s0.a) * f).toFixed(2);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+  }
+  const last = HEAT_STOPS[HEAT_STOPS.length - 1];
+  return `rgba(${last.rgb[0]},${last.rgb[1]},${last.rgb[2]},${last.a})`;
+}
+
+function MiniCalendarPanel() {
+  const { nodes } = usePlannerStore();
+  const today = new Date();
+  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const [direction, setDirection] = useState<'next' | 'prev'>('next');
+  const [dayData, setDayData] = useState<CalendarDayData[]>([]);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; titles: string[]; date: string } | null>(null);
+
+  useEffect(() => {
+    loadMonthCompletions(viewDate.getFullYear(), viewDate.getMonth() + 1)
+      .then(setDayData)
+      .catch(() => {});
+  }, [viewDate, nodes]);
+
+  const dataMap = useMemo(() => {
+    const m = new Map<string, CalendarDayData>();
+    dayData.forEach(d => m.set(d.date, d));
+    return m;
+  }, [dayData]);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  // Build grid cells: leading nulls + day numbers
+  const cells: (number | null)[] = [
+    ...Array(firstDow).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  // Pad to full rows
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const prevMonth = () => { setDirection('prev'); setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)); };
+  const nextMonth = () => { setDirection('next'); setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)); };
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
+  const VT = "'VT323', 'HBIOS-SYS', monospace";
+  const TEAL = '#00c4a7';
+  const monthKey = `${year}-${month}`;
+
+  return (
+    <SidebarPanel title="calendar" icon={AlarmClock}>
+      {/* Month nav */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+        <button
+          onClick={prevMonth}
+          style={{ all: 'unset', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', padding: '0 4px' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}
         >
-          [ see more ]
+          <ChevronLeft width={14} height={14} />
+        </button>
+        <div style={{ overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={monthKey}
+              initial={{ opacity: 0, y: direction === 'next' ? -10 : 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: direction === 'next' ? 10 : -10 }}
+              transition={{ duration: 0.16, ease: 'easeInOut' }}
+              style={{ fontFamily: VT, fontSize: '1.1rem', letterSpacing: '3px', color: '#f5c842' }}
+            >
+              {MONTH_NAMES[month]} {year}
+            </motion.span>
+          </AnimatePresence>
         </div>
+        <button
+          onClick={nextMonth}
+          style={{ all: 'unset', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', padding: '0 4px' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'}
+        >
+          <ChevronRight width={14} height={14} />
+        </button>
+      </div>
+
+      {/* Weekday headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: '0.2rem' }}>
+        {WEEKDAY_LABELS.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontFamily: VT, fontSize: '0.8rem', letterSpacing: '1px', color: 'rgba(255,255,255,0.25)', lineHeight: 1.6 }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div style={{ overflow: 'hidden', position: 'relative' }}>
+      <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={monthKey}
+        initial={{ opacity: 0, x: direction === 'next' ? 28 : -28 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: direction === 'next' ? -28 : 28 }}
+        transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px' }}
+      >
+        {cells.map((day, i) => {
+          if (day === null) return <div key={i} />;
+          const pad = String(day).padStart(2, '0');
+          const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${pad}`;
+          const data = dataMap.get(dateStr);
+          const isToday = isCurrentMonth && dateStr === todayStr;
+
+          const bg = heatColor(data?.count ?? 0);
+
+          return (
+            <div
+              key={i}
+              onMouseEnter={data ? (e) => {
+                const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                setTooltip({ x: r.left + r.width / 2, y: r.top, titles: data.titles, date: dateStr });
+              } : undefined}
+              onMouseLeave={data ? () => setTooltip(null) : undefined}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '3px 0 4px',
+                background: bg,
+                outline: isToday ? `1px solid ${TEAL}` : 'none',
+                opacity: 1,
+                transition: 'opacity 0.1s',
+              }}
+            >
+              {/* Date number */}
+              <span style={{
+                fontFamily: VT,
+                fontSize: '1rem',
+                letterSpacing: '0.5px',
+                lineHeight: 1,
+                color: isToday ? TEAL : data ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.4)',
+                textShadow: isToday ? `0 0 10px ${TEAL}88` : 'none',
+                marginBottom: 3,
+              }}>
+                {day}
+              </span>
+
+              {/* Count circle */}
+              {data ? (
+                <div style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.35)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <span style={{
+                    fontFamily: VT,
+                    fontSize: '0.82rem',
+                    lineHeight: 1,
+                    color: 'rgba(255,255,255,0.9)',
+                  }}>
+                    {data.count > 9 ? '9+' : data.count}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ width: 18, height: 18 }} />
+              )}
+            </div>
+          );
+        })}
+      </motion.div>
+      </AnimatePresence>
+      </div>
+
+      {/* Tooltip portal */}
+      {tooltip && createPortal(
+        <div style={{
+          position: 'fixed',
+          left: tooltip.x,
+          top: tooltip.y - 8,
+          transform: 'translate(-50%, -100%)',
+          background: '#0c0c0c',
+          border: '1px solid rgba(255,255,255,0.1)',
+          padding: '5px 10px 6px',
+          zIndex: 9500,
+          pointerEvents: 'none',
+          fontFamily: VT,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.85)',
+          minWidth: 120,
+          maxWidth: 220,
+        }}>
+          <div style={{ fontSize: '0.85rem', letterSpacing: '2px', color: TEAL, marginBottom: 4 }}>
+            {tooltip.date}
+          </div>
+          {tooltip.titles.map((t, i) => (
+            <div key={i} style={{ fontSize: '0.95rem', letterSpacing: '0.5px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              › {t}
+            </div>
+          ))}
+        </div>,
+        document.body,
       )}
     </SidebarPanel>
   );
 }
 
-// Panel 3 — Pressure Gauge
+// Panel 4 — Pressure Gauge
 const PRESSURE_LEVELS = [
   { key: "safe", label: "SAFE", color: "#4ade80", min: 0, max: 25 },
   { key: "loaded", label: "LOADED", color: "#f5c842", min: 26, max: 50 },
@@ -3526,68 +4194,6 @@ function PressureGaugePanel({ pressure }: { pressure: PressureResult }) {
           />,
           document.body,
         )}
-    </SidebarPanel>
-  );
-}
-
-// ─── Panel 5 — Eat the Frog ───────────────────────────────────────────────────
-
-const FROG_GOAL = 3;
-
-function EatTheFrogPanel({ frogsDone }: { frogsDone: number }) {
-  const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-  };
-  const done = Math.min(frogsDone, FROG_GOAL);
-  const allDone = done >= FROG_GOAL;
-
-  const counter = (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-      {Array.from({ length: FROG_GOAL }).map((_, i) => (
-        <PixelFrog key={i} px={2} dim={i >= done} />
-      ))}
-      {allDone && (
-        <span
-          style={{
-            ...mono,
-            fontSize: "0.8rem",
-            letterSpacing: "1.5px",
-            color: "#4ade80",
-            marginLeft: "0.2rem",
-          }}
-        >
-          ✓
-        </span>
-      )}
-    </div>
-  );
-
-  return (
-    <SidebarPanel title="eat the frog" icon={Frown} titleRight={counter}>
-      <div
-        style={{
-          ...mono,
-          fontSize: "0.92rem",
-          letterSpacing: "0.5px",
-          color: "rgba(74,222,128,0.78)",
-          lineHeight: 1.5,
-          marginBottom: "0.75rem",
-          paddingLeft: "0.6rem",
-        }}
-      >
-        {allDone ? (
-          <>
-            so... more... frogs... ughhh....
-            <br />i think i'm gonna puke... good job though....
-          </>
-        ) : (
-          <>
-            tackle the hardest tasks first.
-            <br />
-            close your eyes. swallow it whole.
-          </>
-        )}
-      </div>
     </SidebarPanel>
   );
 }

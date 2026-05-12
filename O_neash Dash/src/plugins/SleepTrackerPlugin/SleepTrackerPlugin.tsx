@@ -1,6 +1,6 @@
 // cspell:ignore pixelarticons HBIOS sleeptracker ampm toolcase
 import { useState, useEffect } from "react";
-import { Shapes, BookOpen, Bed } from "pixelarticons/react";
+import { Shapes, BookOpen, Bed, CalendarRange } from "pixelarticons/react";
 import { Clock } from "pixelarticons/react/Clock";
 import { ArrowsHorizontal } from "pixelarticons/react/ArrowsHorizontal";
 import { ToolCase } from "pixelarticons/react/ToolCase";
@@ -15,6 +15,8 @@ import {
 } from "./lib/sleepDb";
 import SleepChart from "./components/SleepChart";
 import SleepLog from "./components/SleepLog";
+import PoincarePlot from "./components/PoincarePlot";
+import MonthlyChart from "./components/MonthlyChart";
 import LogEntryModal from "./components/LogEntryModal";
 import TargetModal from "./components/TargetModal";
 
@@ -22,16 +24,13 @@ const VT = "'VT323', 'HBIOS-SYS', monospace";
 const ACC = "#6366f1";
 const PX = "160px";
 
-type Tab = "dashboard" | "analytics" | "log";
+type Tab = "dashboard" | "poincare" | "monthly" | "log";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "dashboard", label: "DASHBOARD", icon: <Shapes size={16} /> },
-  {
-    id: "analytics",
-    label: "ANALYTICS",
-    icon: <Clock width={16} height={16} />,
-  },
-  { id: "log", label: "LOG", icon: <BookOpen size={16} /> },
+  { id: "dashboard", label: "DASHBOARD",      icon: <Shapes size={16} /> },
+  { id: "poincare",  label: "POINCARÉ PLOT",  icon: <Clock width={16} height={16} /> },
+  { id: "monthly",   label: "MONTHLY REVIEW", icon: <CalendarRange size={16} /> },
+  { id: "log",       label: "LOG",            icon: <BookOpen size={16} /> },
 ];
 
 export default function SleepTrackerPlugin() {
@@ -328,26 +327,35 @@ export default function SleepTrackerPlugin() {
         </div>
       )}
 
-      {tab === "analytics" && (
+      {tab === "poincare" && (
         <div
           style={{
             flex: 1,
+            padding: `80px ${PX} 28px`,
             display: "flex",
-            alignItems: "center",
+            gap: 16,
+            overflow: "hidden",
             justifyContent: "center",
+            alignItems: "flex-start",
           }}
         >
-          <span
-            style={{
-              fontFamily: VT,
-              fontSize: "1rem",
-              letterSpacing: 3,
-              color: "rgba(99,102,241,0.3)",
-              textTransform: "uppercase",
-            }}
-          >
-            analytics — coming soon
-          </span>
+          <PoincarePlot entries={entries} />
+        </div>
+      )}
+
+      {tab === "monthly" && (
+        <div
+          style={{
+            flex: 1,
+            padding: `80px ${PX} 28px`,
+            display: "flex",
+            gap: 16,
+            overflow: "hidden",
+            justifyContent: "center",
+            alignItems: "flex-start",
+          }}
+        >
+          <MonthlyChart target={target} />
         </div>
       )}
 

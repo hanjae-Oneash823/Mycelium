@@ -51,8 +51,6 @@ export interface PlannerNode {
   groups?: PlannerGroup[];
   sub_total?: number;
   sub_done?: number;
-  /** Marked as the "eat the frog" task for today. Persisted to DB. */
-  is_frog_pinned?: boolean;
   /** True for virtual instances expanded from a recurring template. Not persisted. */
   is_virtual?: boolean;
   /** True when this node was generated from a routine template. */

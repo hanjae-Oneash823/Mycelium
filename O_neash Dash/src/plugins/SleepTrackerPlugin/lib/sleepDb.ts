@@ -52,6 +52,17 @@ export async function addEntry(e: {
   );
 }
 
+export async function getEntriesForMonth(year: number, month: number): Promise<SleepEntry[]> {
+  const db     = getDb();
+  const prefix = `${year}-${month.toString().padStart(2, '0')}`;
+  return db.select<SleepEntry[]>(
+    `SELECT id, date, sleep_start, wake_time, notes, created_at
+     FROM sleep_entries WHERE is_nap = 0 AND date LIKE ?
+     ORDER BY date ASC`,
+    [`${prefix}-%`],
+  );
+}
+
 export async function deleteEntry(id: number): Promise<void> {
   const db = getDb();
   await db.execute(`DELETE FROM sleep_entries WHERE id = ?`, [id]);

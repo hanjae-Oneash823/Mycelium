@@ -1,6 +1,5 @@
 import type { WidgetDef } from './types';
 import { PressureGauge }   from './widgets/PressureGauge';
-import { TheFrog }         from './widgets/TheFrog';
 import { DailyTasks }      from './widgets/DailyTasks';
 import { ConwaysLife }     from './widgets/ConwaysLife';
 import { LangtonsAnt }     from './widgets/LangtonsAnt';
@@ -72,15 +71,6 @@ export const WIDGET_REGISTRY: WidgetDef[] = [
     defaultSize:  '2x2',
     allowedSizes: ['2x2', '4x2'],
     component:    PressureGauge,
-  },
-  {
-    id:           'the-frog',
-    label:        'Eat the Frog',
-    description:  'Surfaces your ugliest task — do it first.',
-    category:     'analytics-planner',
-    defaultSize:  '2x2',
-    allowedSizes: ['2x1', '2x2'],
-    component:    TheFrog,
   },
   {
     id:           'daily-tasks',

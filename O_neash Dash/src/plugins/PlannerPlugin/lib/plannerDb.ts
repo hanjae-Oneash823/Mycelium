@@ -30,7 +30,6 @@ async function hydrateRows(rows: PlannerNode[]): Promise<PlannerNode[]> {
     row.is_completed = Boolean(row.is_completed);
     row.is_locked = Boolean(row.is_locked);
     row.is_pinned = Boolean(row.is_pinned);
-    row.is_frog_pinned = Boolean(row.is_frog_pinned);
     row.is_routine = Boolean(row.is_routine);
 
     // ── Compute is_overdue fresh from due_at — don't trust stale DB column ───
@@ -1087,44 +1086,6 @@ export async function loadArcNodeCounts(): Promise<ArcNodeCount[]> {
   return rows;
 }
 
-// ─── Eat the Frog ────────────────────────────────────────────────────────────
-
-/** Count how many frog-pinned tasks were completed today. */
-export async function loadFrogsDoneToday(): Promise<number> {
-  const db = getDb();
-  // Fetch all frog-pinned completed tasks in the last 36 hours
-  const since = new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString();
-  const rows = await db.select<
-    {
-      actual_completed_at: string;
-      is_frog_pinned: number;
-    }[]
-  >(
-    `SELECT actual_completed_at, is_frog_pinned FROM nodes WHERE is_completed = 1 AND actual_completed_at >= ?`,
-    [since],
-  );
-  const todayStr = toDateString(new Date());
-  let count = 0;
-  for (const row of rows) {
-    if (!row.actual_completed_at || !row.is_frog_pinned) continue;
-    const localDate = toDateString(new Date(row.actual_completed_at));
-    if (localDate === todayStr) count++;
-  }
-  return count;
-}
-
-/** Pin or unpin a node as the frog task. */
-export async function setNodeFrogPinned(
-  id: string,
-  value: boolean,
-): Promise<void> {
-  const db = getDb();
-  await db.execute(`UPDATE nodes SET is_frog_pinned = ? WHERE id = ?`, [
-    value ? 1 : 0,
-    id,
-  ]);
-}
-
 // ─── Load Forecast ────────────────────────────────────────────────────────────
 
 export interface WeekForecastDay {
@@ -1172,6 +1133,46 @@ export async function loadWeekForecast(): Promise<WeekForecastDay[]> {
     });
   }
   return result;
+}
+
+// ─── Month Completions ────────────────────────────────────────────────────────
+
+export interface CalendarDayData {
+  date: string;
+  count: number;
+  titles: string[];
+}
+
+export async function loadMonthCompletions(
+  year: number,
+  month: number, // 1-indexed
+): Promise<CalendarDayData[]> {
+  const db = getDb();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const startStr = `${year}-${pad(month)}-01T00:00:00`;
+  const nextYear  = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const endStr = `${nextYear}-${pad(nextMonth)}-01T00:00:00`;
+
+  const rows = await db.select<{ actual_completed_at: string; title: string }[]>(
+    `SELECT actual_completed_at, title FROM nodes
+     WHERE is_completed = 1
+       AND actual_completed_at >= ?
+       AND actual_completed_at < ?`,
+    [startStr, endStr],
+  );
+
+  const map = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.actual_completed_at) continue;
+    const localDate = toDateString(new Date(row.actual_completed_at));
+    if (!map.has(localDate)) map.set(localDate, []);
+    map.get(localDate)!.push(row.title);
+  }
+
+  return Array.from(map.entries()).map(([date, titles]) => ({
+    date, count: titles.length, titles,
+  }));
 }
 
 // ─── Weekly Review ────────────────────────────────────────────────────────────

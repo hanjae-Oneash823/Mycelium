@@ -4,6 +4,11 @@
   top: 50%;
   left: 0;
   z-index: 1000;
+  pointer-events: none;
+}
+
+.aot-menu-wrapper.is-open {
+  pointer-events: auto;
 }
 
 /* ── Panel — slides in from left edge, centered vertically ────────────────── */
@@ -33,6 +38,11 @@
   top: 50%;
   right: 0;
   z-index: 1000;
+  pointer-events: none;
+}
+
+.aot-right-wrapper.is-open {
+  pointer-events: auto;
 }
 
 .aot-right-panel {
@@ -57,7 +67,7 @@
 
 /* ── Section labels ────────────────────────────────────────────────────────── */
 .aot-menu-section-label {
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: "VT323", "HBIOS-SYS", monospace;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.35);
   letter-spacing: 1px;
@@ -73,7 +83,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: "VT323", "HBIOS-SYS", monospace;
   font-size: 1.05rem;
   letter-spacing: 2px;
   padding: 4px 6px;

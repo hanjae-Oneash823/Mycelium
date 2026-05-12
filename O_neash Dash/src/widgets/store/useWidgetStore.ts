@@ -20,8 +20,7 @@ interface WidgetStore {
 function defaultInstances(): WidgetInstance[] {
   return [
     { instanceId: 'default-pressure', widgetId: 'pressure-gauge', size: '2x2', order: 0 },
-    { instanceId: 'default-frog',     widgetId: 'the-frog',       size: '2x2', order: 1 },
-    { instanceId: 'default-tasks',    widgetId: 'daily-tasks',    size: '2x1', order: 2 },
+    { instanceId: 'default-tasks',    widgetId: 'daily-tasks',    size: '2x1', order: 1 },
   ];
 }
 

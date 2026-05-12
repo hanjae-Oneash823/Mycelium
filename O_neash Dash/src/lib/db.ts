@@ -311,6 +311,69 @@ export async function setupDb(): Promise<Database> {
     target_duration    REAL NOT NULL,
     set_at             TEXT DEFAULT (datetime('now'))
   );
+
+  -- ─────────────────── DISPATCH PLUGIN ──────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS dispatch_locations (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    color       TEXT NOT NULL DEFAULT '#666666',
+    created_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS dispatch_work_blocks (
+    id          TEXT PRIMARY KEY,
+    date        TEXT NOT NULL,
+    start_time  INTEGER NOT NULL,
+    end_time    INTEGER NOT NULL,
+    location_id TEXT,
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY(location_id) REFERENCES dispatch_locations(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_dispatch_wb_date ON dispatch_work_blocks(date);
+
+  CREATE TABLE IF NOT EXISTS dispatch_node_placements (
+    id                TEXT PRIMARY KEY,
+    work_block_id     TEXT NOT NULL,
+    node_id           TEXT NOT NULL,
+    start_offset      INTEGER NOT NULL DEFAULT 0,
+    duration_override INTEGER,
+    created_at        TEXT DEFAULT (datetime('now')),
+    updated_at        TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY(work_block_id) REFERENCES dispatch_work_blocks(id) ON DELETE CASCADE,
+    FOREIGN KEY(node_id)       REFERENCES nodes(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_dispatch_np_block ON dispatch_node_placements(work_block_id);
+  CREATE INDEX IF NOT EXISTS idx_dispatch_np_node  ON dispatch_node_placements(node_id);
+
+  -- ─────────────────── HABITS PLUGIN ───────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS habits (
+    id             TEXT PRIMARY KEY,
+    name           TEXT NOT NULL,
+    color          TEXT NOT NULL DEFAULT '#4a8c6e',
+    type           TEXT NOT NULL DEFAULT 'daily'
+                       CHECK(type IN('daily','weekly','times_per_week')),
+    times_per_week INTEGER,
+    sort_order     INTEGER NOT NULL DEFAULT 0,
+    created_at     TEXT DEFAULT (datetime('now')),
+    archived_at    TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS habit_logs (
+    id         TEXT PRIMARY KEY,
+    habit_id   TEXT NOT NULL,
+    date       TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(habit_id, date),
+    FOREIGN KEY(habit_id) REFERENCES habits(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_habit_logs_habit ON habit_logs(habit_id);
+  CREATE INDEX IF NOT EXISTS idx_habit_logs_date  ON habit_logs(date);
     `;
 
     // Apply the full schema every time
@@ -326,7 +389,6 @@ export async function setupDb(): Promise<Database> {
     }
 
     const columnMigrations = [
-      `ALTER TABLE nodes ADD COLUMN is_frog_pinned BOOLEAN DEFAULT 0`,
       `ALTER TABLE nodes ADD COLUMN is_routine INTEGER DEFAULT 0`,
       `ALTER TABLE nodes ADD COLUMN routine_id TEXT`,
     ];

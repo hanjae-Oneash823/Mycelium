@@ -23,6 +23,7 @@ import {
   ImageSharp,
   Zap,
 } from "pixelarticons/react";
+import { Helicopter } from "pixelarticons/react/Helicopter";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,13 @@ export const CATEGORIES: Category[] = [
         icon: <Zap size={14} />,
         desc: "tasks, deadlines, project arcs",
         pluginId: "planner",
+      },
+      {
+        id: "dispatch",
+        label: "Dispatch",
+        icon: <Helicopter width={14} height={14} />,
+        desc: "schedule tasks to time & location",
+        pluginId: "dispatch",
       },
       {
         id: "journal",
@@ -168,6 +176,7 @@ export const CATEGORIES: Category[] = [
         label: "Habits and Health",
         icon: <Trophy size={14} />,
         desc: "habit & health analytics",
+        pluginId: "habits",
       },
       {
         id: "sleep",
