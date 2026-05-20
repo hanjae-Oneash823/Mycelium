@@ -4,7 +4,6 @@ import usePluginStore from "../store/usePluginStore";
 import {
   Terminal,
   Notes,
-  CheckDouble,
   SettingsCog2,
   Analytics,
   TeachSharp,
@@ -58,13 +57,6 @@ export const CATEGORIES: Category[] = [
         pluginId: "notes",
       },
       {
-        id: "todo",
-        label: "Todo List",
-        icon: <CheckDouble size={14} />,
-        desc: "eisenhower matrix task tracker",
-        pluginId: "todo-list",
-      },
-      {
         id: "planner",
         label: "Planner",
         icon: <Zap size={14} />,
@@ -83,6 +75,7 @@ export const CATEGORIES: Category[] = [
         label: "Journal",
         icon: <PcCase size={14} />,
         desc: "daily log. persistence is key",
+        pluginId: "journal",
       },
       {
         id: "settings",

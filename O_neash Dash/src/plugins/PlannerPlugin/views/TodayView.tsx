@@ -9,7 +9,12 @@ import React, {
 import { createPortal } from "react-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useAnimationControls,
+  type Variants,
+} from "framer-motion";
 import {
   CheckboxOn,
   PenSquare,
@@ -283,7 +288,7 @@ export default function TodayView() {
           display: "flex",
           alignItems: "center",
           gap: "1.5rem",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          border: "0.5px solid rgba(255,255,255,0.35)",
         }}
       >
         {/* Date + SYS_LOG block */}
@@ -353,12 +358,15 @@ export default function TodayView() {
         {/* Quick add input */}
         <div style={{ width: 330 }}>
           <QuickAddInput
-            onCommit={async (title) => {
+            onCommit={async (title, arcId, projectId, groupIds) => {
               await createNode({
                 title,
                 node_type: "task",
                 planned_start_at: today,
                 estimated_duration_minutes: 30,
+                arc_id: arcId,
+                project_id: projectId,
+                group_ids: groupIds,
               });
             }}
           />
@@ -1251,6 +1259,22 @@ function SectionLabel({
 
 // ─── Quick add ────────────────────────────────────────────────────────────────
 
+const BADGE_VARIANTS: Variants = {
+  initial: { opacity: 0, scale: 0.6, y: 10 },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 460, damping: 28 },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.5,
+    y: -8,
+    transition: { duration: 0.15, ease: "easeIn" as const },
+  },
+};
+
 function QuickAddButton({
   active,
   onClick,
@@ -1374,8 +1398,14 @@ function QAPlaceholder({ visible }: { visible: boolean }) {
 function QuickAddInput({
   onCommit,
 }: {
-  onCommit: (title: string) => Promise<void>;
+  onCommit: (
+    title: string,
+    arcId?: string,
+    projectId?: string,
+    groupIds?: string[],
+  ) => Promise<void>;
 }) {
+  const { arcs, projects, groups } = usePlannerStore();
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [pulseKey, setPulseKey] = useState(0);
@@ -1384,12 +1414,168 @@ function QuickAddInput({
     x: number;
     y: number;
   } | null>(null);
+  const [selectedArcId, setSelectedArcId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [dropPos, setDropPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [badgePos, setBadgePos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropListRef = useRef<HTMLDivElement>(null);
   const squishCtrl = useAnimationControls();
 
+  useEffect(() => {
+    if (!dropListRef.current) return;
+    const item = dropListRef.current.children[activeIdx] as
+      | HTMLElement
+      | undefined;
+    item?.scrollIntoView({ block: "nearest" });
+  }, [activeIdx]);
+
+  // Options depend on what's already selected:
+  // - arcs: always shown (max 1)
+  // - projects: only shown when an arc is selected, filtered to that arc (max 1)
+  // - groups: always shown, multiple allowed
+  const slug = (s: string) => s.replace(/\s+/g, "_");
+
+  const allOptions = useMemo(() => {
+    const opts: {
+      id: string;
+      label: string;
+      display: string;
+      color: string;
+      type: "arc" | "project" | "group";
+    }[] = [];
+    arcs.forEach((a) =>
+      opts.push({
+        id: a.id,
+        label: `arc-${slug(a.name)}`,
+        display: a.name,
+        color: a.color_hex,
+        type: "arc",
+      }),
+    );
+    if (selectedArcId) {
+      projects
+        .filter((p) => p.arc_id === selectedArcId)
+        .forEach((p) =>
+          opts.push({
+            id: p.id,
+            label: `project-${slug(p.name)}`,
+            display: p.name,
+            color: "rgba(255,255,255,0.5)",
+            type: "project",
+          }),
+        );
+    }
+    groups
+      .filter((g) => !g.is_ungrouped)
+      .forEach((g) =>
+        opts.push({
+          id: g.id,
+          label: `group-${slug(g.name)}`,
+          display: g.name,
+          color: g.color_hex,
+          type: "group",
+        }),
+      );
+    return opts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arcs, projects, groups, selectedArcId]);
+
+  const filteredOptions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return allOptions.filter((o) => o.label.toLowerCase().includes(q));
+  }, [mentionQuery, allOptions]);
+
+  useEffect(() => {
+    if (mentionQuery !== null && boxRef.current) {
+      const rect = boxRef.current.getBoundingClientRect();
+      setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    } else {
+      setDropPos(null);
+    }
+  }, [mentionQuery]);
+
+  useEffect(() => {
+    if (!boxRef.current) return;
+    const rect = boxRef.current.getBoundingClientRect();
+    setBadgePos({ top: rect.top, left: rect.left, width: rect.width });
+  }, [selectedArcId, selectedProjectId, selectedGroupIds]);
+
+  useEffect(() => {
+    const update = () => {
+      if (!boxRef.current) return;
+      const rect = boxRef.current.getBoundingClientRect();
+      setBadgePos({ top: rect.top, left: rect.left, width: rect.width });
+    };
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  function detectMention(v: string, cursor: number) {
+    const before = v.slice(0, cursor);
+    const atIdx = before.lastIndexOf("@");
+    if (atIdx !== -1) {
+      const query = before.slice(atIdx + 1);
+      if (!query.includes(" ")) {
+        setMentionQuery(query);
+        setActiveIdx(0);
+        return;
+      }
+    }
+    setMentionQuery(null);
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setValue(v);
+    setPulseKey((k) => k + 1);
+    detectMention(v, e.target.selectionStart ?? v.length);
+  }
+
+  function selectOption(opt: (typeof allOptions)[0]) {
+    // Strip the @query from the input — selection is shown as a badge instead
+    const cursor = inputRef.current?.selectionStart ?? value.length;
+    const before = value.slice(0, cursor);
+    const after = value.slice(cursor);
+    const atIdx = before.lastIndexOf("@");
+    const newVal = (before.slice(0, atIdx) + after).trimStart();
+    setValue(newVal);
+
+    if (opt.type === "arc") {
+      setSelectedArcId(opt.id);
+      setSelectedProjectId(null);
+    } else if (opt.type === "project") {
+      setSelectedProjectId(opt.id);
+    } else {
+      setSelectedGroupIds((ids) =>
+        ids.includes(opt.id)
+          ? ids.filter((id) => id !== opt.id)
+          : [...ids, opt.id],
+      );
+    }
+
+    setMentionQuery(null);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
   async function handleCommit() {
-    const text = value.trim();
-    if (!text) return;
+    const title = value.trim();
+    if (!title) return;
     const rect = boxRef.current?.getBoundingClientRect();
     const lx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
     const ly = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
@@ -1402,9 +1588,17 @@ function QuickAddInput({
         ease: "easeOut",
       },
     });
-    setLaunchItem({ text, x: lx, y: ly });
+    setLaunchItem({ text: title, x: lx, y: ly });
     setValue("");
-    await onCommit(text);
+    setSelectedArcId(null);
+    setSelectedProjectId(null);
+    setSelectedGroupIds([]);
+    await onCommit(
+      title,
+      selectedArcId ?? undefined,
+      selectedProjectId ?? undefined,
+      selectedGroupIds.length > 0 ? selectedGroupIds : undefined,
+    );
   }
 
   return (
@@ -1487,12 +1681,34 @@ function QuickAddInput({
           >
             <QAPlaceholder visible={!focused && !value} />
             <input
+              ref={inputRef}
               value={value}
-              onChange={(e) => {
-                setValue(e.target.value);
-                setPulseKey((k) => k + 1);
-              }}
+              onChange={handleChange}
               onKeyDown={(e) => {
+                if (mentionQuery !== null && filteredOptions.length > 0) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveIdx((i) =>
+                      Math.min(i + 1, filteredOptions.length - 1),
+                    );
+                    return;
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveIdx((i) => Math.max(i - 1, 0));
+                    return;
+                  }
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    selectOption(filteredOptions[activeIdx]);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setMentionQuery(null);
+                    return;
+                  }
+                }
                 if (e.key === "Enter") {
                   e.preventDefault();
                   handleCommit();
@@ -1503,7 +1719,15 @@ function QuickAddInput({
                 }
               }}
               onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
+              onBlur={() => {
+                setFocused(false);
+                setTimeout(() => {
+                  setMentionQuery(null);
+                  setSelectedArcId(null);
+                  setSelectedProjectId(null);
+                  setSelectedGroupIds([]);
+                }, 150);
+              }}
               placeholder=""
               style={{
                 flex: 1,
@@ -1518,6 +1742,94 @@ function QuickAddInput({
                 width: "100%",
               }}
             />
+            {dropPos &&
+              filteredOptions.length > 0 &&
+              createPortal(
+                <div
+                  ref={dropListRef}
+                  className="quick-add-dropdown"
+                  style={{
+                    position: "fixed",
+                    top: dropPos.top,
+                    left: dropPos.left,
+                    width: dropPos.width,
+                    background: "#0d0d0d",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    zIndex: 99999,
+                    fontFamily: "'VT323','HBIOS-SYS',monospace",
+                    fontSize: "1rem",
+                    letterSpacing: "1px",
+                    maxHeight: Math.min(
+                      220,
+                      window.innerHeight - dropPos.top - 8,
+                    ),
+                    overflowY: "auto",
+                  }}
+                >
+                  {filteredOptions.map((opt, i) => {
+                    const isGroupSelected =
+                      opt.type === "group" && selectedGroupIds.includes(opt.id);
+                    return (
+                      <div
+                        key={opt.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectOption(opt);
+                        }}
+                        style={{
+                          padding: "5px 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          background:
+                            i === activeIdx
+                              ? "rgba(255,255,255,0.07)"
+                              : "transparent",
+                          color:
+                            i === activeIdx
+                              ? "#fff"
+                              : isGroupSelected
+                                ? "var(--teal)"
+                                : "rgba(255,255,255,0.55)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 7,
+                            height: 7,
+                            background: opt.color,
+                            flexShrink: 0,
+                            display: "inline-block",
+                          }}
+                        />
+                        <span
+                          style={{
+                            color: "rgba(255,255,255,0.25)",
+                            fontSize: "0.8rem",
+                            marginRight: 2,
+                          }}
+                        >
+                          {opt.type}
+                        </span>
+                        {opt.display}
+                        {isGroupSelected && (
+                          <span
+                            style={{
+                              marginLeft: "auto",
+                              color: "var(--teal)",
+                              fontSize: "0.8rem",
+                            }}
+                          >
+                            ✓
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>,
+                document.documentElement,
+              )}
           </div>
 
           <button
@@ -1562,6 +1874,165 @@ function QuickAddInput({
           </button>
         </motion.div>
       </motion.div>
+
+      {/* Floating badges — portaled above the input box */}
+      {badgePos &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: badgePos.top - 10,
+              left: badgePos.left,
+              width: badgePos.width,
+              transform: "translateY(-100%)",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+              zIndex: 99999,
+              pointerEvents: "auto",
+            }}
+          >
+            <AnimatePresence mode="popLayout">
+              {selectedArcId &&
+                (() => {
+                  const arc = arcs.find((a) => a.id === selectedArcId);
+                  return arc ? (
+                    <motion.span
+                      key={arc.id}
+                      layout
+                      variants={BADGE_VARIANTS}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      style={{ display: "inline-flex" }}
+                    >
+                      <motion.span
+                        animate={{ y: [0, -3, 0] }}
+                        transition={{
+                          duration: 2.6,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                        className="badge-idle-pulse"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelectedArcId(null);
+                          setSelectedProjectId(null);
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "2px 8px",
+                          background: arc.color_hex,
+                          border: `1px solid ${arc.color_hex}`,
+                          color: "#000",
+                          fontFamily: "'VT323','HBIOS-SYS',monospace",
+                          fontSize: "0.85rem",
+                          letterSpacing: "1px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        arc · {arc.name}
+                      </motion.span>
+                    </motion.span>
+                  ) : null;
+                })()}
+              {selectedProjectId &&
+                (() => {
+                  const proj = projects.find((p) => p.id === selectedProjectId);
+                  return proj ? (
+                    <motion.span
+                      key={proj.id}
+                      layout
+                      variants={BADGE_VARIANTS}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      style={{ display: "inline-flex" }}
+                    >
+                      <motion.span
+                        animate={{ y: [0, -3, 0] }}
+                        transition={{
+                          duration: 3.0,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: 0.5,
+                        }}
+                        className="badge-idle-pulse"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelectedProjectId(null);
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          padding: "2px 8px",
+                          background: "#b0b0a8",
+                          border: "1px solid #b0b0a8",
+                          color: "#000",
+                          fontFamily: "'VT323','HBIOS-SYS',monospace",
+                          fontSize: "0.85rem",
+                          letterSpacing: "1px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        project · {proj.name}
+                      </motion.span>
+                    </motion.span>
+                  ) : null;
+                })()}
+              {selectedGroupIds.map((gid, gi) => {
+                const grp = groups.find((g) => g.id === gid);
+                return grp ? (
+                  <motion.span
+                    key={gid}
+                    layout
+                    variants={BADGE_VARIANTS}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    style={{ display: "inline-flex" }}
+                  >
+                    <motion.span
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{
+                        duration: 2.4 + gi * 0.28,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: gi * 0.45,
+                      }}
+                      className="badge-idle-pulse"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setSelectedGroupIds((ids) =>
+                          ids.filter((id) => id !== gid),
+                        );
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "2px 8px",
+                        background: grp.color_hex,
+                        border: `1px solid ${grp.color_hex}`,
+                        color: "#000",
+                        fontFamily: "'VT323','HBIOS-SYS',monospace",
+                        fontSize: "0.85rem",
+                        letterSpacing: "1px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      group · {grp.name}
+                    </motion.span>
+                  </motion.span>
+                ) : null;
+              })}
+            </AnimatePresence>
+          </div>,
+          document.documentElement,
+        )}
     </div>
   );
 }
@@ -1591,7 +2062,7 @@ function TaskRow({
   rescheduleAction?: { onClick: () => void; title: string; color: string };
   onHover?: (id: string | null) => void;
 }) {
-  const { arcs } = usePlannerStore();
+  const { arcs, projects } = usePlannerStore();
   const [subtasksOpen, setSubtasksOpen] = useState(false);
   const [hov, setHov] = useState(false);
   const [exitAnim, setExitAnim] = useState<
@@ -1631,6 +2102,7 @@ function TaskRow({
   }
 
   const arc = node.arc_id ? arcs.find((a) => a.id === node.arc_id) : null;
+  const proj = node.project_id ? projects.find((p) => p.id === node.project_id) : null;
 
   const leftBorderColor = variant === "overdue" ? "#ff3b3b" : null;
 
@@ -1886,9 +2358,10 @@ function TaskRow({
             </span>
           </div>
 
-          {/* Line 2: subtask count + arc + groups (only rendered when content exists) */}
+          {/* Line 2: subtask count + arc + project + groups (only rendered when content exists) */}
           {(subTotal > 0 ||
             arc ||
+            proj ||
             (node.groups ?? []).some((g) => !g.is_ungrouped)) && (
             <div
               style={{
@@ -1915,6 +2388,20 @@ function TaskRow({
                   }}
                 >
                   {arc.name}
+                </span>
+              )}
+
+              {proj && (
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.38)",
+                    flexShrink: 0,
+                    fontSize: "0.78rem",
+                    letterSpacing: "1.5px",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {proj.name}
                 </span>
               )}
 
@@ -3058,9 +3545,25 @@ function EventCalendarPanel({
       `}</style>
 
       {/* Section title */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem", flexShrink: 0 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          marginBottom: "0.5rem",
+          flexShrink: 0,
+        }}
+      >
         <AspectRatio width={15} height={15} style={{ color: "#f5c842" }} />
-        <span style={{ fontFamily: "'VT323','HBIOS-SYS',monospace", fontSize: "1.05rem", letterSpacing: "3px", textTransform: "uppercase", color: "#f5c842" }}>
+        <span
+          style={{
+            fontFamily: "'VT323','HBIOS-SYS',monospace",
+            fontSize: "1.05rem",
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+            color: "#f5c842",
+          }}
+        >
           weekly overview
         </span>
       </div>
@@ -3810,9 +4313,15 @@ function MiniCalendarPanel() {
               key={monthKey}
               custom={direction}
               variants={{
-                initial: (dir: string) => ({ opacity: 0, y: dir === "next" ? 10 : -10 }),
+                initial: (dir: string) => ({
+                  opacity: 0,
+                  y: dir === "next" ? 10 : -10,
+                }),
                 animate: { opacity: 1, y: 0 },
-                exit: (dir: string) => ({ opacity: 0, y: dir === "next" ? -10 : 10 }),
+                exit: (dir: string) => ({
+                  opacity: 0,
+                  y: dir === "next" ? -10 : 10,
+                }),
               }}
               initial="initial"
               animate="animate"
@@ -3883,9 +4392,15 @@ function MiniCalendarPanel() {
             key={monthKey}
             custom={direction}
             variants={{
-              initial: (dir: string) => ({ opacity: 0, x: dir === "next" ? 28 : -28 }),
+              initial: (dir: string) => ({
+                opacity: 0,
+                x: dir === "next" ? 28 : -28,
+              }),
               animate: { opacity: 1, x: 0 },
-              exit: (dir: string) => ({ opacity: 0, x: dir === "next" ? -28 : 28 }),
+              exit: (dir: string) => ({
+                opacity: 0,
+                x: dir === "next" ? -28 : 28,
+              }),
             }}
             initial="initial"
             animate="animate"

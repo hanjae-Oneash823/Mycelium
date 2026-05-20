@@ -2,16 +2,17 @@ import "./App.css";
 import PluginBox from "./plugins/PluginBox";
 import AlwaysOnTop from "./always-visible/AOT-elements";
 import { Toaster } from "./components/ui/sonner";
+import { FloatingEditor } from "./components/FloatingEditor";
 import React, { useEffect, useState } from "react";
 import { setupDb } from "./lib/db";
 
-// No more fade state or displayedPlugin needed!
 function AppContent() {
   return (
     <main className="main-container relative" data-tauri-drag-region>
       <AlwaysOnTop />
       <PluginBox />
       <Toaster />
+      <FloatingEditor />
     </main>
   );
 }

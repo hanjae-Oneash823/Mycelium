@@ -80,70 +80,57 @@ function HomePage() {
         height: "100%",
         display: "flex",
         flexDirection: "row",
-        padding: "12vh 5vw",
-        gap: "4vw",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8vw",
         boxSizing: "border-box",
+        padding: "0 6vw",
       }}
     >
-      {/* ── Left column — avatar + clock + app selector ── */}
-      <div
-        style={{
-          position: "relative",
-          width: "40vw",
-          flexShrink: 0,
-        }}
-      >
-        {/* Avatar + clock — pinned to top of column */}
-        <div style={{ display: "flex", alignItems: "flex-start", paddingLeft: "3vw" }}>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.6rem",
-              flexShrink: 0,
-              marginTop: 20,
-            }}
-          >
-            <AvatarWithEyes />
-            <div style={{ fontFamily: "'VT323', monospace" }}>
-              <div
-                style={{
-                  fontSize: "0.9rem",
-                  color: "rgba(255,255,255,0.35)",
-                  letterSpacing: "2px",
-                }}
-              >
-                Welcome,
-              </div>
-              <div
-                style={{
-                  fontSize: "1.7rem",
-                  color: "#fff",
-                  letterSpacing: "3px",
-                  lineHeight: 1.1,
-                }}
-              >
-                HAN-JAE
-              </div>
-            </div>
-          </div>
-          <ClockPlugin />
-        </div>
-
-        {/* App selector — top aligned to 50% of window height */}
+      {/* ── Avatar + clock ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", flexShrink: 0 }}>
         <div
           style={{
-            position: "absolute",
-            top: "calc(50vh - 15vh)",
-            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.6rem",
+            flexShrink: 0,
+            marginTop: 20,
           }}
         >
-          <LaunchMenu />
+          <AvatarWithEyes />
+          <div style={{ fontFamily: "'VT323', monospace" }}>
+            <div
+              style={{
+                fontSize: "0.9rem",
+                color: "rgba(255,255,255,0.35)",
+                letterSpacing: "2px",
+              }}
+            >
+              Welcome,
+            </div>
+            <div
+              style={{
+                fontSize: "1.7rem",
+                color: "#fff",
+                letterSpacing: "3px",
+                lineHeight: 1.1,
+              }}
+            >
+              HAN-JAE
+            </div>
+          </div>
         </div>
+        <ClockPlugin />
       </div>
 
-      {/* ── Right column — widget panel ── */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      {/* ── App selector ── */}
+      <div style={{ flexShrink: 0 }}>
+        <LaunchMenu />
+      </div>
+
+      {/* ── Widget panel — hidden, code preserved ── */}
+      <div style={{ display: "none" }}>
         <WidgetPanel />
       </div>
     </div>

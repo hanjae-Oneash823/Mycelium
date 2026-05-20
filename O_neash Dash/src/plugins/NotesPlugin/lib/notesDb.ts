@@ -17,6 +17,11 @@ export interface NoteRow {
 
 const gid = () => Math.random().toString(36).slice(2, 18);
 
+export async function getNoteById(id: string): Promise<NoteRow | null> {
+  const rows = await getDb().select<NoteRow[]>(`SELECT * FROM notes WHERE id = ?`, [id]);
+  return rows[0] ?? null;
+}
+
 export async function loadArchivedMemos(): Promise<NoteRow[]> {
   const db = getDb();
   return db.select<NoteRow[]>(

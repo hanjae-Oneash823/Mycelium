@@ -374,6 +374,24 @@ export async function setupDb(): Promise<Database> {
 
   CREATE INDEX IF NOT EXISTS idx_habit_logs_habit ON habit_logs(habit_id);
   CREATE INDEX IF NOT EXISTS idx_habit_logs_date  ON habit_logs(date);
+
+  -- ─────────────────── JOURNAL PLUGIN ──────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS journal_entries (
+    id          TEXT PRIMARY KEY,
+    date        TEXT NOT NULL UNIQUE,
+    content     TEXT NOT NULL DEFAULT '',
+    images      TEXT NOT NULL DEFAULT '[]',
+    created_at  TEXT DEFAULT (datetime('now')),
+    updated_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TRIGGER IF NOT EXISTS journal_ts AFTER UPDATE ON journal_entries
+  BEGIN
+    UPDATE journal_entries SET updated_at = datetime('now') WHERE id = NEW.id;
+  END;
+
+  CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(date);
     `;
 
     // Apply the full schema every time
@@ -391,6 +409,13 @@ export async function setupDb(): Promise<Database> {
     const columnMigrations = [
       `ALTER TABLE nodes ADD COLUMN is_routine INTEGER DEFAULT 0`,
       `ALTER TABLE nodes ADD COLUMN routine_id TEXT`,
+      // habits v2 schema
+      `ALTER TABLE habits ADD COLUMN value_type TEXT NOT NULL DEFAULT 'boolean'`,
+      `ALTER TABLE habits ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'none'`,
+      `ALTER TABLE habits ADD COLUMN goal_value INTEGER`,
+      `ALTER TABLE habit_logs ADD COLUMN value REAL`,
+      // habits v3 schema
+      `ALTER TABLE habits ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`,
     ];
     for (const sql of columnMigrations) {
       try {

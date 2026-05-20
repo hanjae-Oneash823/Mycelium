@@ -461,14 +461,17 @@ function LinkToolbar({ editor }: { editor: Editor }) {
 // ── TypewriterEditor ──────────────────────────────────────────────────────────
 
 interface Props {
-  doc:         NoteRow;
-  onSave:      (title: string, json: string) => void;
-  onBack:      () => void;
-  onDelete?:   () => void;
-  onNavigate?: (docId: string) => void;
+  doc:                NoteRow;
+  onSave:             (title: string, json: string) => void;
+  onBack:             () => void;
+  onDelete?:          () => void;
+  onNavigate?:        (docId: string) => void;
+  hideOutline?:       boolean;
+  hideCommentPanel?:  boolean;
+  transparentBg?:     boolean;
 }
 
-export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavigate }: Props) {
+export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavigate, hideOutline = false, hideCommentPanel = false, transparentBg = false }: Props) {
   const [title,    setTitle]    = useState(doc.title ?? '');
   const [zoom,     setZoom]     = useState(1.3);
   const [headings, setHeadings] = useState<TocItem[]>([]);
@@ -763,7 +766,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', overflow: 'hidden' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: transparentBg ? 'transparent' : '#000', overflow: 'hidden' }}>
 
       {/* Top chrome */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: '10px 40px', flexShrink: 0 }}>
@@ -896,9 +899,9 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
 
         {/* Top fade — masks paper content as it scrolls under the toolbar */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 240,
+          position: 'absolute', top: 0, left: 0, right: hideCommentPanel ? 0 : 240,
           height: 180,
-          background: `linear-gradient(to bottom,
+          background: transparentBg ? 'none' : `linear-gradient(to bottom,
             #000 0%,
             rgba(0,0,0,0.97) 6%,
             rgba(0,0,0,0.92) 12%,
@@ -918,9 +921,9 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
 
         {/* Bottom fade */}
         <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 240,
+          position: 'absolute', bottom: 0, left: 0, right: hideCommentPanel ? 0 : 240,
           height: 120,
-          background: `linear-gradient(to top,
+          background: transparentBg ? 'none' : `linear-gradient(to top,
             #000 0%,
             rgba(0,0,0,0.97) 6%,
             rgba(0,0,0,0.92) 12%,
@@ -939,7 +942,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
         }} />
 
         {/* TOC outline — absolute, left side, vertically centred */}
-        {headings.length > 0 && (
+        {!hideOutline && headings.length > 0 && (
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,
             width: 340, zIndex: 10,
@@ -1109,7 +1112,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
         </div>{/* end scroll area */}
 
         {/* Comment panel — floating right */}
-        <CommentPanel
+        {!hideCommentPanel && <CommentPanel
           hasSelection={hasSelection}
           composing={selectionRange !== null}
           onStartCompose={handleStartCompose}
@@ -1134,7 +1137,7 @@ export default function TypewriterEditor({ doc, onSave, onBack, onDelete, onNavi
           }}
           onUpdate={updateComment}
           onSetActive={setActive}
-        />
+        />}
 
         {/* Wiki-link autocomplete menu */}
         {createPortal(

@@ -333,3 +333,17 @@
   outline: none;
   border-color: rgba(0,196,167,0.5) !important;
 }
+
+/* Quick-add mention dropdown scrollbar (portaled outside .planner-plugin) */
+.quick-add-dropdown { color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+.quick-add-dropdown::-webkit-scrollbar       { width: 4px; }
+.quick-add-dropdown::-webkit-scrollbar-track { background: transparent; }
+.quick-add-dropdown::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
+.quick-add-dropdown::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.26); }
+
+/* Floating badge idle pulse (box-shadow only — doesn't conflict with FM y-float) */
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+  50%       { box-shadow: 0 4px 12px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.18); }
+}
+.badge-idle-pulse { animation: badgePulse 3s ease-in-out infinite; }

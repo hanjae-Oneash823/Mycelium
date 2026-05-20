@@ -1,45 +1,66 @@
 import { create } from 'zustand';
-import type { Habit, HabitLog, HabitType } from '../types';
+import type { Habit, HabitLog, GoalType, HabitValueType } from '../types';
 import * as db from '../lib/habitsDb';
-
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
+import { getActiveTarget } from '../../SleepTrackerPlugin/lib/sleepDb';
 
 interface HabitsStore {
   habits: Habit[];
   logs: HabitLog[];
+  sleepByDate: Record<string, number>;
+  sleepTarget: number | null;
+  viewYear: number;
+  viewMonth: number;
   loading: boolean;
   reload: () => Promise<void>;
-  createHabit: (name: string, color: string, type: HabitType, n: number | null) => Promise<void>;
-  updateHabit: (id: string, name: string, color: string, type: HabitType, n: number | null) => Promise<void>;
+  setMonth: (year: number, month: number) => Promise<void>;
+  createHabit: (name: string, color: string, valueType: HabitValueType, goalType: GoalType, goalValue: number | null) => Promise<void>;
+  updateHabit: (id: string, name: string, color: string, valueType: HabitValueType, goalType: GoalType, goalValue: number | null) => Promise<void>;
   archiveHabit: (id: string) => Promise<void>;
-  toggleLog: (habitId: string, date: string) => Promise<void>;
+  toggleBoolean: (habitId: string, date: string) => Promise<void>;
+  setNumeric: (habitId: string, date: string, value: number | null) => Promise<void>;
 }
+
+const now = new Date();
 
 export const useHabitsStore = create<HabitsStore>((set, get) => ({
   habits: [],
   logs: [],
+  sleepByDate: {},
+  sleepTarget: null,
+  viewYear: now.getFullYear(),
+  viewMonth: now.getMonth() + 1,
   loading: false,
 
   reload: async () => {
+    const { viewYear, viewMonth } = get();
     set({ loading: true });
-    const [habits, logs] = await Promise.all([
+    const [habits, logs, sleepByDate, target] = await Promise.all([
       db.getHabits(),
-      db.getLogsFrom(daysAgo(90)),
+      db.getLogsForMonth(viewYear, viewMonth),
+      db.getSleepForMonth(viewYear, viewMonth),
+      getActiveTarget(),
     ]);
-    set({ habits, logs, loading: false });
+    set({ habits, logs, sleepByDate, sleepTarget: target?.target_duration ?? null, loading: false });
   },
 
-  createHabit: async (name, color, type, n) => {
-    await db.createHabit(name, color, type, n);
+  setMonth: async (year, month) => {
+    set({ viewYear: year, viewMonth: month, loading: true });
+    const [habits, logs, sleepByDate, target] = await Promise.all([
+      db.getHabits(),
+      db.getLogsForMonth(year, month),
+      db.getSleepForMonth(year, month),
+      getActiveTarget(),
+    ]);
+    set({ habits, logs, sleepByDate, sleepTarget: target?.target_duration ?? null, loading: false });
+  },
+
+  createHabit: async (name, color, valueType, goalType, goalValue) => {
+    await db.createHabit(name, color, valueType, goalType, goalValue);
     await get().reload();
   },
 
-  updateHabit: async (id, name, color, type, n) => {
-    await db.updateHabit(id, name, color, type, n);
+  updateHabit: async (id, name, color, valueType, goalType, goalValue) => {
+    await db.updateHabit(id, name, color, valueType, goalType, goalValue);
     await get().reload();
   },
 
@@ -48,20 +69,25 @@ export const useHabitsStore = create<HabitsStore>((set, get) => ({
     await get().reload();
   },
 
-  toggleLog: async (habitId, date) => {
-    // optimistic
+  toggleBoolean: async (habitId, date) => {
     const hit = get().logs.find(l => l.habit_id === habitId && l.date === date);
     if (hit) {
       set(s => ({ logs: s.logs.filter(l => !(l.habit_id === habitId && l.date === date)) }));
     } else {
-      const stub: HabitLog = {
-        id: crypto.randomUUID(),
-        habit_id: habitId,
-        date,
-        created_at: new Date().toISOString(),
-      };
+      const stub: HabitLog = { id: crypto.randomUUID(), habit_id: habitId, date, value: null, created_at: new Date().toISOString() };
       set(s => ({ logs: [...s.logs, stub] }));
     }
-    await db.toggleLog(habitId, date);
+    await db.toggleBooleanLog(habitId, date);
+  },
+
+  setNumeric: async (habitId, date, value) => {
+    set(s => ({
+      logs: value === null
+        ? s.logs.filter(l => !(l.habit_id === habitId && l.date === date))
+        : s.logs.some(l => l.habit_id === habitId && l.date === date)
+          ? s.logs.map(l => l.habit_id === habitId && l.date === date ? { ...l, value } : l)
+          : [...s.logs, { id: crypto.randomUUID(), habit_id: habitId, date, value, created_at: new Date().toISOString() }],
+    }));
+    await db.setNumericLog(habitId, date, value);
   },
 }));
