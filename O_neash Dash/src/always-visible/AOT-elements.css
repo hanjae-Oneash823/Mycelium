@@ -32,12 +32,22 @@
   pointer-events: auto;
 }
 
-/* ── Right panel ────────────────────────────────────────────────────────────── */
-.aot-right-wrapper {
+/* ── Right panels group (both panels centered together) ─────────────────────── */
+.aot-right-group {
   position: fixed;
   top: 50%;
   right: 0;
+  transform: translateY(-50%);
   z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 15px;
+}
+
+/* ── Right panel (notes / speak your mind) ──────────────────────────────────── */
+.aot-right-wrapper {
   pointer-events: none;
 }
 
@@ -55,13 +65,44 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  transform: translateY(-50%) translateX(calc(100% - 11px));
+  transform: translateX(calc(100% - 11px));
   transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   pointer-events: none;
 }
 
 .aot-right-wrapper.is-open .aot-right-panel {
-  transform: translateY(-50%) translateX(0);
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* ── On the Clock panel ────────────────────────────────────────────────────── */
+.aot-otc-wrapper {
+  pointer-events: none;
+}
+
+.aot-otc-wrapper.is-open {
+  pointer-events: auto;
+}
+
+.aot-otc-panel {
+  background: rgba(8, 8, 8, 0.97);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  padding: 12px 14px;
+  width: 290px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transform: translateX(calc(100% - 11px));
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.aot-otc-wrapper.is-open .aot-otc-panel {
+  transform: translateX(0);
   pointer-events: auto;
 }
 

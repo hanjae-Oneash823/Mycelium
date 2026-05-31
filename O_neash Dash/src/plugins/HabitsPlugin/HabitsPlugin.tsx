@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useHabitsStore } from "./store/useHabitsStore";
 import HabitForm from "./components/HabitForm";
 import type { Habit, GoalType, HabitValueType } from "./types";
+import { getEntryDates } from "../JournalPlugin/lib/journalDb";
 
 const VT = "'VT323', 'HBIOS-SYS', monospace";
 const ACC = "#6366f1";
@@ -320,18 +321,24 @@ const NAME_W = 300;
 const GOAL_W = 100;
 const ACHIEVED_W = 90;
 const SLEEP_COLOR = "#7060e0";
+const JOURNAL_COLOR = "#00c4a7";
 
 export default function HabitsPlugin() {
   const store = useHabitsStore();
   const today = todayStr();
   const [form, setForm] = useState<FormMode>(null);
   const [hovRow, setHovRow] = useState<string | null>(null);
+  const [journalDates, setJournalDates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     store.reload();
   }, []);
 
   const { viewYear, viewMonth } = store;
+
+  useEffect(() => {
+    getEntryDates().then(dates => setJournalDates(new Set(dates)));
+  }, [viewYear, viewMonth]);
   const numDays = daysInMonth(viewYear, viewMonth);
   const todayDay = today.startsWith(
     `${viewYear}-${String(viewMonth).padStart(2, "0")}`,
@@ -903,6 +910,106 @@ export default function HabitsPlugin() {
                     </span>
                   );
                 })()}
+            </div>
+          </div>
+
+          {/* ── Journal row (built-in, read-only) ── */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              height: ROW_H,
+              borderBottom: "1px solid rgba(255,255,255,0.15)",
+            }}
+          >
+            <div
+              style={{
+                width: NAME_W,
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                paddingRight: 12,
+              }}
+            >
+              <div
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: JOURNAL_COLOR,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: VT,
+                  fontSize: "1.05rem",
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.65)",
+                }}
+              >
+                journal
+              </span>
+            </div>
+            {Array.from({ length: numDays }, (_, i) => {
+              const day = i + 1;
+              const ds = dateStr(viewYear, viewMonth, day);
+              const isFuture = ds > today;
+              const isToday = todayDay === day;
+              const logged = journalDates.has(ds);
+              return (
+                <div
+                  key={day}
+                  style={{
+                    width: COL_W,
+                    height: "100%",
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: isToday ? "rgba(255,255,255,0.03)" : "transparent",
+                    borderLeft: isToday ? "1px solid rgba(255,255,255,0.2)" : "none",
+                    borderRight: isToday ? "1px solid rgba(255,255,255,0.2)" : "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 14,
+                      height: 14,
+                      background: logged ? JOURNAL_COLOR : "transparent",
+                      border: `1px solid ${logged ? JOURNAL_COLOR : isFuture ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.4)"}`,
+                      filter: logged ? "brightness(1.2) saturate(1.1)" : "none",
+                    }}
+                  />
+                </div>
+              );
+            })}
+            <div style={{ width: GOAL_W, flexShrink: 0, height: "100%", borderLeft: "1px solid rgba(255,255,255,0.18)" }} />
+            <div
+              style={{
+                width: ACHIEVED_W,
+                flexShrink: 0,
+                height: "100%",
+                borderLeft: "1px solid rgba(255,255,255,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {(() => {
+                const elapsed = todayDay ?? numDays;
+                const count = Array.from({ length: elapsed }, (_, i) =>
+                  journalDates.has(dateStr(viewYear, viewMonth, i + 1))
+                ).filter(Boolean).length;
+                const ratio = elapsed > 0 ? count / elapsed : 0;
+                return (
+                  <span style={{ fontFamily: VT, fontSize: "0.95rem", letterSpacing: 1, color: ratio > 0 ? completionColor(ratio) : "rgba(255,255,255,0.3)" }}>
+                    {count}/{elapsed}
+                  </span>
+                );
+              })()}
             </div>
           </div>
 

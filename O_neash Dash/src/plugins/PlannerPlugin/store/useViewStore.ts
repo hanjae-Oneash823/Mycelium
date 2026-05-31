@@ -1,12 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PlannerViewType, FocusContext, CreateNodeData, PlannerNode } from '../types';
+import type { PlannerViewType, CreateNodeData, PlannerNode } from '../types';
 
 interface ViewStore {
   activeView: PlannerViewType;
   setActiveView: (v: PlannerViewType) => void;
-  focusContext: FocusContext | null;
-  setFocusContext: (ctx: FocusContext | null) => void;
   taskFormOpen: boolean;
   taskFormDefaults: Partial<CreateNodeData>;
   editNode: PlannerNode | null;
@@ -29,8 +27,6 @@ export const useViewStore = create<ViewStore>()(
     (set) => ({
       activeView: 'today',
       setActiveView: (v) => set({ activeView: v }),
-      focusContext: null,
-      setFocusContext: (ctx) => set({ focusContext: ctx }),
       taskFormOpen: false,
       taskFormDefaults: {},
       editNode: null,

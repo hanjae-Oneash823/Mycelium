@@ -63,7 +63,7 @@ body {
 
 @layer base {
   * {
-    font-family: 'VT323', 'HBIOS-SYS', monospace;
+    font-family: 'VT323', 'HBIOS-SYS', 'Gowun Dodum', monospace;
   }
 
   :root {

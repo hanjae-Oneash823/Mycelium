@@ -1,4 +1,4 @@
-export type PlannerViewType = 'today' | 'eisenhower' | 'focus' | 'routines';
+export type PlannerViewType = 'today' | 'eisenhower' | 'routines' | 'on-the-clock';
 export type NodeType = 'task' | 'event';
 /** User-facing binary input stored in DB: 0 = normal, 1 = important */
 export type UserImportance = 0 | 1;
@@ -137,10 +137,6 @@ export interface CreateNodeData {
   group_ids?: string[];
 }
 
-export interface FocusContext {
-  type: 'arc' | 'project' | 'group' | 'ungrouped';
-  id: string;
-}
 
 export const DOT_COLORS: Record<number, string> = {
   0: '#7ecfff',

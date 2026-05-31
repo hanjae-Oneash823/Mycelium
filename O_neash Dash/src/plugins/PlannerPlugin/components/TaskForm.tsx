@@ -116,14 +116,6 @@ function nextPickerPrompt(): string {
   return PICKER_PROMPTS[pickerPromptIndex++ % PICKER_PROMPTS.length];
 }
 
-function minutesToEffortKey(minutes: number | null | undefined): string {
-  if (!minutes) return "·";
-  const match = EFFORT_SIZES.find(
-    (e) => e.hours > 0 && Math.abs(e.hours * 60 - minutes) < 3,
-  );
-  return match?.key ?? "custom";
-}
-
 // ── Shared style constant ─────────────────────────────────────────────────────
 const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
 
@@ -267,7 +259,7 @@ function DotStageStrip({ importanceLevel, effortMinutes, isEvent, dueAt }: {
   const dur     = pulseDurOf(importanceLevel, overdue);
   const effortH = effortMinutes > 0 ? (effortMinutes / 60).toFixed(1).replace(/\.0$/, "") : "0";
   const n       = Math.max(0, Math.min(4, importanceLevel));
-  const label   = isEvent ? `EVENT · ${effortH}h` : !dueAt ? "L0 · seed" : `L${n} · ${effortH}h · ${LEVEL_LABELS[n]}`;
+  const label   = isEvent ? `EVENT · ${effortH}h` : !dueAt ? "L0 · seed" : `L${n} · ${LEVEL_LABELS[n]}`;
 
   const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -667,14 +659,13 @@ function IdentityStep({
 // ── Scheduling step ───────────────────────────────────────────────────────────
 
 function SchedulingStep({
-  mode, effortSize, setEffortSize, customEffortHours, setCustomEffortHours,
+  mode,
   plannedAt, setPlannedAt, dueAt,
   eventDate, setEventDate, eventTime, setEventTime, eventTimeInputRef,
   durationHours, setDurationHours,
   accent, onNext,
 }: {
-  mode: Mode; effortSize: string; setEffortSize: (v: string) => void;
-  customEffortHours: number; setCustomEffortHours: (v: number) => void;
+  mode: Mode;
   plannedAt: Date | null; setPlannedAt: (d: Date | null) => void;
   dueAt: Date | null; eventDate: Date | null; setEventDate: (d: Date | null) => void;
   eventTime: string; setEventTime: (v: string) => void;
@@ -685,10 +676,9 @@ function SchedulingStep({
   const isEvent = mode === "event";
   const today   = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const [focusedRow, setFocusedRow] = useState(0);
-  const numRows = isEvent ? 2 : 2;
+  const numRows = isEvent ? 2 : 1;
 
-  const effortKeys = EFFORT_SIZES.map(e => e.key);
-  const weekDays   = useMemo(() => Array.from({ length: 7 }, (_, i) => new Date(today.getTime() + i * 86400000)), [today]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => new Date(today.getTime() + i * 86400000)), [today]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName;
@@ -702,11 +692,6 @@ function SchedulingStep({
       setFocusedRow(r => Math.max(0, r - 1));
     }
     if (!isEvent && focusedRow === 0) {
-      const idx = effortKeys.indexOf((effortSize || "·") as typeof effortKeys[number]);
-      if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); setEffortSize(effortKeys[(idx + 1) % effortKeys.length] as string); }
-      if (e.key === "ArrowLeft")  { e.preventDefault(); e.stopPropagation(); setEffortSize(effortKeys[(idx - 1 + effortKeys.length) % effortKeys.length] as string); }
-    }
-    if (!isEvent && focusedRow === 1) {
       const validDays = dueAt ? weekDays.filter(d => d <= dueAt) : weekDays;
       const idx = validDays.findIndex(d => plannedAt && d.toDateString() === plannedAt.toDateString());
       const si = idx === -1 ? -1 : idx;
@@ -724,42 +709,10 @@ function SchedulingStep({
     <div onKeyDown={handleKeyDown} style={{ display: "flex", flexDirection: "column", gap: "1.1rem", outline: "none" }} tabIndex={-1}>
       {!isEvent ? (
         <>
-          {/* effort — inline terminal style */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ ...mono, fontSize: "1rem", color: "rgba(255,255,255,0.45)", minWidth: 68, flexShrink: 0 }}>effort:</span>
-            <FocusIndicator focused={focusedRow === 0} />
-            <div style={{ display: "flex", alignItems: "center" }}>
-              {EFFORT_SIZES.map(({ key }, idx) => (
-                <React.Fragment key={key}>
-                  {idx > 0 && <span style={{ ...mono, color: "rgba(255,255,255,0.18)", padding: "0 0.22rem" }}>|</span>}
-                  <button
-                    onClick={() => setEffortSize(effortSize === key ? "" : key)}
-                    style={{ ...mono, fontSize: "1rem", background: "none", border: "none", cursor: "pointer", padding: 0, color: effortSize === key ? accent : "rgba(255,255,255,0.4)", transition: "color 0.1s" }}
-                  >
-                    {key}
-                  </button>
-                </React.Fragment>
-              ))}
-              <span style={{ ...mono, color: "rgba(255,255,255,0.18)", padding: "0 0.22rem" }}>|</span>
-              <span style={{ ...mono, color: "rgba(255,255,255,0.32)", fontSize: "1rem" }}>[</span>
-              <input
-                placeholder="#"
-                value={effortSize === "custom" ? (customEffortHours || "") : ""}
-                onFocus={() => setEffortSize("custom")}
-                onChange={e => {
-                  const v = e.target.value;
-                  if (v === "" || /^\d*\.?\d*$/.test(v)) setCustomEffortHours(parseFloat(v) || 0);
-                }}
-                style={{ ...mono, fontSize: "1rem", width: 30, background: "transparent", border: "none", outline: "none", color: effortSize === "custom" ? accent : "rgba(255,255,255,0.35)", padding: 0, textAlign: "center" }}
-              />
-              <span style={{ ...mono, color: "rgba(255,255,255,0.32)", fontSize: "1rem" }}>]</span>
-            </div>
-          </div>
-
           {/* when — calendar week grid */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
             <span style={{ ...mono, fontSize: "1rem", color: "rgba(255,255,255,0.45)", minWidth: 68, flexShrink: 0, paddingTop: "0.15rem" }}>when?:</span>
-            <FocusIndicator focused={focusedRow === 1} />
+            <FocusIndicator focused={focusedRow === 0} />
             <div>
               {(() => {
                 const displayDays = dueAt ? weekDays.filter(d => d <= dueAt) : weekDays;
@@ -952,8 +905,6 @@ export default function TaskForm() {
   const dueAtRef = useRef<Date | null>(null);
   dueAtRef.current = dueAt;
   const [plannedAt,      setPlannedAt]      = useState<Date | null>(null);
-  const [effortSize,          setEffortSize]          = useState<string>("");
-  const [customEffortHours,   setCustomEffortHours]   = useState<number>(0);
   const [eventDate,      setEventDate]      = useState<Date | null>(null);
   const [eventTime,      setEventTime]      = useState("");
   const eventTimeInputRef = useRef<HTMLInputElement>(null);
@@ -974,8 +925,7 @@ export default function TaskForm() {
   const steps       = STEPS[mode];
   const lastStepIdx = steps.length - 1;
   const isEvent     = mode === "event";
-  const effortHours = effortSize === "custom" ? customEffortHours : (EFFORT_SIZES.find(e => e.key === effortSize)?.hours ?? 0);
-  const effortMinutes = (isEvent ? durationHours : effortHours) * 60;
+  const effortMinutes = isEvent ? durationHours * 60 : 0;
   const dotUrgency = (isEvent ? 0 : computeUrgencyLevel(isImportant, dueAt?.toISOString() ?? null, new Date())) as number;
   const activeAccent = MODE_CONFIG[mode].accent;
 
@@ -999,7 +949,7 @@ export default function TaskForm() {
     setStep(goToForm ? "form" : "pick");
     setFormStep(0);
     setMode("task"); setTitle(""); setSelected([]);
-    setIsImportant(false); setDueAt(null); setPlannedAt(null); setEffortSize("");
+    setIsImportant(false); setDueAt(null); setPlannedAt(null);
     setEventDate(null); setEventTime(""); setDurationHours(0); setArcId(null); setProjectId(null);
     setSaving(false); setError(""); setShowNewGroup(false); setIsClosingGroup(false);
     setNewGroupName(""); setNewGroupColor("#64c8ff");
@@ -1009,7 +959,6 @@ export default function TaskForm() {
       setIsImportant(editNode.importance_level === 1);
       setDueAt(editNode.due_at ? new Date(editNode.due_at) : null);
       setPlannedAt(editNode.planned_start_at ? new Date(editNode.planned_start_at) : null);
-      setEffortSize(minutesToEffortKey(editNode.estimated_duration_minutes));
       setDurationHours(editNode.estimated_duration_minutes ? editNode.estimated_duration_minutes / 60 : 0);
       setArcId(editNode.arc_id ?? null);
       setProjectId(editNode.project_id ?? null);
@@ -1079,7 +1028,8 @@ export default function TaskForm() {
         await updateNode(editNode.id, {
           title: title.trim(),
           importance_level: isEvent ? 0 : importanceLevel,
-          estimated_duration_minutes: effortMinutes || null,
+          // For events use the form value; for tasks preserve whatever duration was set by a session
+          estimated_duration_minutes: isEvent ? (effortMinutes || null) : (editNode.estimated_duration_minutes ?? null),
           due_at: dueAtRef.current ? toDateString(dueAtRef.current) : null,
           planned_start_at: planStart ?? null,
           arc_id: arcId ?? null, project_id: projectId ?? null,
@@ -1090,7 +1040,8 @@ export default function TaskForm() {
           title: title.trim(),
           node_type: isEvent ? "event" : "task",
           importance_level: isEvent ? 0 : importanceLevel,
-          estimated_duration_minutes: effortMinutes || undefined,
+          // Events get duration from the form; tasks/assignments start with null
+          estimated_duration_minutes: isEvent ? (effortMinutes || undefined) : undefined,
           due_at: dueAtRef.current ? toDateString(dueAtRef.current) : undefined,
           planned_start_at: planStart, arc_id: arcId ?? undefined, project_id: projectId ?? undefined,
           group_ids: selectedGroups.length > 0 ? selectedGroups : undefined,
@@ -1103,7 +1054,7 @@ export default function TaskForm() {
     }
   }, [
     title, isEvent, eventDate, eventTime, plannedAt,
-    isImportant, effortMinutes, arcId, projectId, selectedGroups,
+    isImportant, durationHours, arcId, projectId, selectedGroups,
     isEditMode, editNode, pendingSubTasks, storeCreateSubTask,
     createNode, updateNode, replaceNodeGroups, closeTaskForm, mode,
   ]);
@@ -1199,8 +1150,7 @@ export default function TaskForm() {
               )}
               {steps[formStep] === "scheduling" && (
                 <SchedulingStep
-                  mode={mode} effortSize={effortSize} setEffortSize={setEffortSize}
-                  customEffortHours={customEffortHours} setCustomEffortHours={setCustomEffortHours}
+                  mode={mode}
                   plannedAt={plannedAt} setPlannedAt={setPlannedAt} dueAt={dueAt}
                   eventDate={eventDate} setEventDate={setEventDate}
                   eventTime={eventTime} setEventTime={setEventTime}

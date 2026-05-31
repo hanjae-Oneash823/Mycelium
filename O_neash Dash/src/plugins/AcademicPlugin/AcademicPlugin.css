@@ -1,0 +1,125 @@
+/* ── Scrollbars ─────────────────────────────────────────────────────────────── */
+
+.academic-plugin *::-webkit-scrollbar              { width: 5px; height: 5px; }
+.academic-plugin *::-webkit-scrollbar-track        { background: transparent; }
+.academic-plugin *::-webkit-scrollbar-thumb        { background: rgba(255,255,255,0.14); }
+.academic-plugin *::-webkit-scrollbar-thumb:hover  { background: rgba(255,255,255,0.24); }
+
+/* Firefox */
+.academic-plugin * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+
+.subject-card svg,
+.subject-card *:focus { outline: none; }
+
+.subject-card {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  transition: border-color 0.1s;
+  cursor: pointer;
+}
+
+.subject-card:hover {
+  border-color: rgba(255,255,255,0.35);
+}
+
+.subject-card.expanded {
+  border-color: rgba(245,158,11,0.45);
+}
+
+.node-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.65);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.node-row.completed {
+  color: rgba(255,255,255,0.2);
+  text-decoration: line-through;
+}
+
+.node-row .due-label {
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.timetable-grid {
+  display: grid;
+  grid-template-columns: 52px repeat(5, 1fr);
+  gap: 0;
+  height: 100%;
+}
+
+.timetable-header {
+  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-transform: uppercase;
+}
+
+.timetable-header.today {
+  color: #f59e0b;
+  border-bottom-color: #f59e0b;
+}
+
+.timetable-col {
+  position: relative;
+  border-left: 1px solid rgba(255,255,255,0.06);
+}
+
+.session-block {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-left: 3px solid;
+  padding: 3px 6px;
+  overflow: hidden;
+  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  line-height: 1.3;
+  cursor: default;
+  user-select: none;
+}
+
+@keyframes academic-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.academic-content {
+  animation: academic-fadein 0.18s ease;
+}
+
+@keyframes page-forward {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes page-back {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter-forward {
+  animation: page-forward 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.page-enter-back {
+  animation: page-back 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.canvas-drag-node {
+  -webkit-app-region: no-drag;
+  -webkit-user-drag: element;
+}

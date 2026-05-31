@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { createPortal } from "react-dom";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ComposedChart, Bar } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import {
   motion,
@@ -34,8 +34,10 @@ import { Calendar } from "pixelarticons/react/Calendar";
 import { Chart } from "pixelarticons/react/Chart";
 import { Wind } from "pixelarticons/react/Wind";
 import { AspectRatio } from "pixelarticons/react/AspectRatio";
+import { ArrowBarDown } from "pixelarticons/react/ArrowBarDown";
 import { usePlannerStore } from "../store/usePlannerStore";
 import { useViewStore } from "../store/useViewStore";
+import { useSessionStore } from "../store/useSessionStore";
 import {
   scoreSuggestion,
   isSameDay,
@@ -50,6 +52,8 @@ import {
   type TodayDoneSummary,
   type CalendarDayData,
 } from "../lib/plannerDb";
+import { loadSessionsForWeek, loadSessionNodes } from "../lib/onTheClockDb";
+import type { WorkSession, SessionNodeWithNode } from "../lib/onTheClockDb";
 import DotNode from "../components/DotNode";
 import type { PlannerNode, Arc, Project } from "../types";
 
@@ -72,6 +76,11 @@ export default function TodayView() {
     createNode,
   } = usePlannerStore();
   const { openTaskForm, openTaskFormEdit } = useViewStore();
+  const activeSessionNodes = useSessionStore((s) => s.activeSessionNodes);
+  const activeSessionNodeIds = useMemo(
+    () => new Set(activeSessionNodes.map((n) => n.node_id)),
+    [activeSessionNodes],
+  );
   const [now, setNow] = useState(() => new Date());
   const [overdueCollapsed, setOverdueCollapsed] = useState(false);
   const [doneSummary, setDoneSummary] = useState<TodayDoneSummary>({
@@ -599,18 +608,22 @@ export default function TodayView() {
                   </div>
                 ) : (
                   <>
-                    {todayNodes.map((node) => (
-                      <TaskRow
-                        key={node.id}
-                        {...cardProps(node)}
-                        variant="today"
-                        rescheduleAction={{
-                          onClick: () => rescheduleNode(node.id, tomorrow),
-                          title: "→ tmrw",
-                          color: "rgba(255,255,255,0.5)",
-                        }}
-                      />
-                    ))}
+                    {todayNodes.map((node) =>
+                      activeSessionNodeIds.has(node.id) ? (
+                        <InSessionRow key={node.id} node={node} />
+                      ) : (
+                        <TaskRow
+                          key={node.id}
+                          {...cardProps(node)}
+                          variant="today"
+                          rescheduleAction={{
+                            onClick: () => rescheduleNode(node.id, tomorrow),
+                            title: "→ tmrw",
+                            color: "rgba(255,255,255,0.5)",
+                          }}
+                        />
+                      ),
+                    )}
                     {suggestionsOn &&
                       suggestions.map((node) => (
                         <TaskRow
@@ -627,6 +640,7 @@ export default function TodayView() {
                             onClick: () => rescheduleNode(node.id, today),
                             title: "+ today",
                             color: "#00c4a7",
+                            icon: <ArrowBarDown size={14} />,
                           }}
                         />
                       ))}
@@ -2037,6 +2051,37 @@ function QuickAddInput({
   );
 }
 
+// ─── In-session locked row ────────────────────────────────────────────────────
+
+function InSessionRow({ node }: { node: PlannerNode }) {
+  const VT = "'VT323', 'HBIOS-SYS', monospace";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.65rem",
+        padding: "0.3rem 0.5rem",
+        border: "1px solid rgba(245,158,11,0.2)",
+        background: "rgba(245,158,11,0.04)",
+        fontFamily: VT,
+        fontSize: "1.05rem",
+        letterSpacing: "1px",
+        minHeight: "2rem",
+        opacity: 0.65,
+        userSelect: "none",
+      }}
+    >
+      <span style={{ color: "#f59e0b", fontSize: "0.75rem", letterSpacing: 2, flexShrink: 0 }}>
+        ● in session
+      </span>
+      <span style={{ color: "rgba(255,255,255,0.4)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {node.title}
+      </span>
+    </div>
+  );
+}
+
 // ─── Task row (today / overdue / suggestion) ──────────────────────────────────
 
 function TaskRow({
@@ -2059,7 +2104,7 @@ function TaskRow({
   onDelete?: () => void;
   onEdit: () => void;
   variant: "today" | "overdue" | "suggestion";
-  rescheduleAction?: { onClick: () => void; title: string; color: string };
+  rescheduleAction?: { onClick: () => void; title: string; color: string; icon?: React.ReactNode };
   onHover?: (id: string | null) => void;
 }) {
   const { arcs, projects } = usePlannerStore();
@@ -2327,7 +2372,7 @@ function TaskRow({
             >
               {rescheduleAction && (
                 <IconAction
-                  icon={<Forward size={14} />}
+                  icon={rescheduleAction.icon ?? <Forward size={14} />}
                   color={rescheduleAction.color}
                   title={rescheduleAction.title}
                   onClick={handleReschedule}
@@ -2518,7 +2563,7 @@ function MiniCard({
   onDelete?: () => void;
   onEdit: () => void;
   badge: { label: string; color: string };
-  primaryAction?: { label: string; onClick: () => void };
+  primaryAction?: { label: string; onClick: () => void; icon?: React.ReactNode };
   suggestion?: boolean;
 }) {
   const { arcs, projects } = usePlannerStore();
@@ -2688,19 +2733,22 @@ function MiniCard({
         {primaryAction && (
           <button
             onClick={primaryAction.onClick}
+            title={primaryAction.label}
             style={{
               background: "transparent",
               border: "1px solid rgba(255,255,255,0.18)",
               color: "rgba(255,255,255,0.55)",
-              padding: "0.05rem 0.5rem",
+              padding: primaryAction.icon ? "0.1rem 0.35rem" : "0.05rem 0.5rem",
               fontSize: "0.9rem",
               letterSpacing: "1px",
               cursor: "pointer",
               fontFamily: "'VT323', 'HBIOS-SYS', monospace",
               marginRight: "0.15rem",
+              display: "flex",
+              alignItems: "center",
             }}
           >
-            {primaryAction.label}
+            {primaryAction.icon ?? primaryAction.label}
           </button>
         )}
         {onComplete &&
@@ -2878,7 +2926,7 @@ function SuggestionCard({
       node={node}
       onEdit={onEdit}
       badge={badge}
-      primaryAction={{ label: "+ today", onClick: rescheduleToday }}
+      primaryAction={{ label: "+ today", onClick: rescheduleToday, icon: <ArrowBarDown width={16} height={16} /> }}
       suggestion
     />
   );
@@ -3459,6 +3507,8 @@ function EventCalendarPanel({
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekDir, setWeekDir] = useState<1 | -1>(1);
   const [eventNodes, setEventNodes] = useState<PlannerNode[]>([]);
+  const [weekSessions, setWeekSessions] = useState<WorkSession[]>([]);
+  const [weekSessionNodes, setWeekSessionNodes] = useState<Map<string, SessionNodeWithNode[]>>(new Map());
   const [nowCal, setNowCal] = useState(new Date());
   const [tooltip, setTooltip] = useState<{
     title: string;
@@ -3483,6 +3533,15 @@ function EventCalendarPanel({
     const from = calToDS(mon);
     const to = calToDS(calAddDays(mon, 6));
     loadEventNodesForWeek(from, to).then(setEventNodes);
+    loadSessionsForWeek(from, to).then(async sessions => {
+      setWeekSessions(sessions);
+      const nodeMap = new Map<string, SessionNodeWithNode[]>();
+      await Promise.all(sessions.map(async s => {
+        const nodes = await loadSessionNodes(s.id);
+        nodeMap.set(s.id, nodes);
+      }));
+      setWeekSessionNodes(nodeMap);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekOffset, storeNodes]);
 
@@ -4010,6 +4069,94 @@ function EventCalendarPanel({
                         />
                       );
                     })}
+
+                    {/* Work session blocks */}
+                    {weekSessions
+                      .filter((s) => s.planned_date === key && s.actual_start)
+                      .map((s) => {
+                        const startD = new Date(s.actual_start!);
+                        const endD = s.actual_end ? new Date(s.actual_end) : nowCal;
+                        const sh = startD.getHours() + startD.getMinutes() / 60;
+                        const eh = endD.getHours() + endD.getMinutes() / 60;
+                        const topPx = (sh - START_HOUR) * hourH;
+                        const heightPx = Math.max(4, (eh - sh) * hourH);
+                        if (topPx < 0) return null;
+                        const isActive = s.status === 'active' || s.status === 'paused';
+                        const startLabel = `${String(startD.getHours()).padStart(2, '0')}:${String(startD.getMinutes()).padStart(2, '0')}`;
+                        const endLabel = s.actual_end
+                          ? `${String(endD.getHours()).padStart(2, '0')}:${String(endD.getMinutes()).padStart(2, '0')}`
+                          : '...';
+                        const sNodes = (weekSessionNodes.get(s.id) ?? []).filter(n => n.time_started != null);
+                        const totalSessionMins = (eh - sh) * 60;
+
+                        return (
+                          <div
+                            key={s.id}
+                            onMouseEnter={(e) =>
+                              setTooltip({
+                                title: `${s.location_name ?? s.title} · ${startLabel}–${endLabel}`,
+                                x: e.clientX,
+                                y: e.clientY,
+                              })
+                            }
+                            onMouseMove={(e) =>
+                              setTooltip((t) =>
+                                t ? { ...t, x: e.clientX, y: e.clientY } : null,
+                              )
+                            }
+                            onMouseLeave={() => setTooltip(null)}
+                            style={{
+                              position: "absolute",
+                              top: topPx + 1,
+                              left: 3,
+                              right: 3,
+                              height: heightPx - 2,
+                              background: "rgba(245,158,11,0.22)",
+                              border: `1.5px solid rgba(245,158,11,${isActive ? '0.9' : '0.55'})`,
+                              zIndex: 1,
+                              cursor: "default",
+                              boxSizing: "border-box",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {sNodes.length === 0 && isActive && (
+                              <div style={{
+                                position: "absolute", top: 2, left: 4,
+                                fontFamily: "'VT323','HBIOS-SYS',monospace",
+                                fontSize: 9, letterSpacing: 1,
+                                color: "rgba(245,158,11,0.5)",
+                                textTransform: "uppercase", pointerEvents: "none",
+                              }}>live</div>
+                            )}
+                            {sNodes.map(n => {
+                              const nStart = new Date(n.time_started!);
+                              const nStartH = nStart.getHours() + nStart.getMinutes() / 60;
+                              const nTop = (nStartH - sh) * hourH;
+                              const finished = !!n.time_finished;
+                              const nH = finished
+                                ? Math.max(3, (new Date(n.time_finished!).getTime() - nStart.getTime()) / 3600000 * hourH)
+                                : n.total_minutes
+                                  ? Math.max(3, n.total_minutes / 60 * hourH)
+                                  : Math.max(3, (endD.getTime() - nStart.getTime()) / 3600000 * hourH);
+                              return (
+                                <div
+                                  key={n.node_id}
+                                  style={{
+                                    position: "absolute",
+                                    top: nTop,
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    width: 8,
+                                    height: nH,
+                                    background: n.arc_color + (finished ? "cc" : "55"),
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                   </div>
                 );
               })}
@@ -4051,11 +4198,13 @@ function SidebarPanel({
   title,
   icon: Icon,
   titleRight,
+  onTitleClick,
   children,
 }: {
   title: string;
   icon?: React.FC<{ size?: number; style?: React.CSSProperties }>;
   titleRight?: React.ReactNode;
+  onTitleClick?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -4074,12 +4223,16 @@ function SidebarPanel({
       >
         {Icon && <Icon size={15} style={{ color: "#f5c842", flexShrink: 0 }} />}
         <span
+          onClick={onTitleClick}
           style={{
             fontFamily: "'VT323', 'HBIOS-SYS', monospace",
             fontSize: "1.05rem",
             letterSpacing: "3px",
             textTransform: "uppercase",
             color: "#f5c842",
+            cursor: onTitleClick ? "pointer" : undefined,
+            textDecoration: onTitleClick ? "underline dotted" : undefined,
+            textUnderlineOffset: "3px",
           }}
         >
           {title}
@@ -4366,6 +4519,8 @@ function MiniCalendarPanel() {
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
           marginBottom: "0.2rem",
+          paddingLeft: "6px",
+          paddingRight: "6px",
         }}
       >
         {WEEKDAY_LABELS.map((d) => (
@@ -4386,7 +4541,7 @@ function MiniCalendarPanel() {
       </div>
 
       {/* Day grid */}
-      <div style={{ overflow: "hidden", position: "relative" }}>
+      <div style={{ overflow: "hidden", position: "relative", paddingLeft: "6px", paddingRight: "6px" }}>
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
             key={monthKey}
@@ -4504,6 +4659,7 @@ function MiniCalendarPanel() {
           </motion.div>
         </AnimatePresence>
       </div>
+      <div style={{ paddingBottom: '0.6rem' }} />
 
       {/* Tooltip portal */}
       {tooltip &&
@@ -4645,12 +4801,181 @@ function StreakPanel() {
   );
 }
 
+// Panel 4 — Velocity expanded popup (6 weeks)
+
+function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const [pts, setPts] = useState<{ date: string; count: number; label: string }[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const now = new Date();
+      const seen = new Set<string>();
+      const months: { year: number; month: number }[] = [];
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const key = `${d.getFullYear()}-${d.getMonth() + 1}`;
+        if (!seen.has(key)) { seen.add(key); months.push({ year: d.getFullYear(), month: d.getMonth() + 1 }); }
+      }
+      const allMonths = await Promise.all(months.map(m => loadMonthCompletions(m.year, m.month)));
+      const map = new Map<string, number>();
+      for (const month of allMonths) for (const d of month) map.set(d.date, d.count);
+
+      setPts(Array.from({ length: 42 }, (_, i) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 41 + i);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const label = i % 7 === 0 ? `${d.getMonth() + 1}/${d.getDate()}` : "";
+        return { date: dateKey, count: map.get(dateKey) ?? 0, label };
+      }));
+    };
+    load();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const todayStr = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`; })();
+  const total = pts.reduce((s, p) => s + p.count, 0);
+  const avg = pts.length > 0 ? (total / pts.length).toFixed(1) : "—";
+  const best = pts.length > 0 ? Math.max(...pts.map(p => p.count)) : 0;
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.12)", width: 620, padding: "24px 28px 20px", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+          <span style={{ ...mono, fontSize: "1.4rem", letterSpacing: 4, color: "#f5c842", textTransform: "uppercase" }}>velocity</span>
+          <span style={{ ...mono, fontSize: "0.9rem", letterSpacing: 2, color: "rgba(255,255,255,0.3)", marginLeft: 12 }}>6 weeks</span>
+          <button
+            onClick={onClose}
+            style={{ marginLeft: "auto", background: "none", border: "none", ...mono, fontSize: "1.4rem", color: "rgba(255,255,255,0.3)", cursor: "pointer", padding: 0, lineHeight: 1 }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#fff"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.3)"; }}
+          >×</button>
+        </div>
+
+        {/* Chart */}
+        <ChartContainer
+          config={{ count: { label: "Completed", color: "#00c4a7" } }}
+          style={{ width: "100%", height: 200 }}
+        >
+          <ComposedChart data={pts} margin={{ top: 8, right: 16, left: 32, bottom: 4 }}>
+            <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+            <XAxis
+              dataKey="label"
+              axisLine={false}
+              tickLine={false}
+              interval={0}
+              tick={(props: { x: number; y: number; payload: { value: string } }) => {
+                const { x, y, payload } = props;
+                if (!payload.value) return <g />;
+                return (
+                  <g transform={`translate(${x},${y})`}>
+                    <text x={0} y={14} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={13} fontFamily="'VT323','HBIOS-SYS',monospace">
+                      {payload.value}
+                    </text>
+                  </g>
+                );
+              }}
+            />
+            <YAxis hide />
+            <ChartTooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const pt = payload[0].payload as { date: string; count: number };
+                return (
+                  <div style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.15)", padding: "3px 10px", ...mono, fontSize: "0.9rem", color: "#fff" }}>
+                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}>{pt.date}</span>
+                    {" · "}
+                    <span style={{ color: "#00c4a7" }}>{pt.count}</span>
+                  </div>
+                );
+              }}
+            />
+            {/* Bars — rendered first so line sits on top */}
+            <Bar
+              dataKey="count"
+              radius={0}
+              isAnimationActive={false}
+              shape={(props: { x: number; y: number; width: number; height: number; index: number }) => {
+                const { x, y, width, height, index } = props;
+                const isToday = pts[index]?.date === todayStr;
+                return (
+                  <rect
+                    key={index}
+                    x={x} y={y} width={width} height={height}
+                    fill={isToday ? "rgba(245,200,66,0.18)" : "rgba(0,196,167,0.15)"}
+                  />
+                );
+              }}
+            />
+            {/* Line only — drawn after bars */}
+            <Line
+              type="monotone"
+              dataKey="count"
+              stroke="#00c4a7"
+              strokeWidth={1.5}
+              dot={false}
+              activeDot={false}
+              animationDuration={2500}
+              animationEasing="ease-out"
+            />
+            {/* Dots only — drawn last so they sit on top */}
+            <Line
+              type="monotone"
+              dataKey="count"
+              stroke="transparent"
+              dot={(props: { cx: number; cy: number; index: number }) => {
+                const isToday = pts[props.index]?.date === todayStr;
+                return (
+                  <circle key={props.index} cx={props.cx} cy={props.cy}
+                    r={isToday ? 5 : 3}
+                    fill={isToday ? "#f5c842" : "#00c4a7"}
+                    stroke="#0a0a0a"
+                    strokeWidth={1.5}
+                  />
+                );
+              }}
+              activeDot={{ r: 5, fill: "#ffffff", stroke: "none" }}
+              isAnimationActive={false}
+            />
+          </ComposedChart>
+        </ChartContainer>
+
+        {/* Stats */}
+        <div style={{ display: "flex", gap: 40, marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          {([
+            { label: "6w total", value: total },
+            { label: "daily avg", value: avg },
+            { label: "best day",  value: best },
+          ] as { label: string; value: number | string }[]).map(s => (
+            <div key={s.label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ ...mono, fontSize: "0.72rem", letterSpacing: 2, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{s.label}</span>
+              <span style={{ ...mono, fontSize: "1.8rem", letterSpacing: 2, color: "#00c4a7", lineHeight: 1 }}>{s.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // Panel 4 — Task Velocity
 
 function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
   const mono: React.CSSProperties = {
     fontFamily: "'VT323', 'HBIOS-SYS', monospace",
   };
+  const [popupOpen, setPopupOpen] = useState(false);
   const [pts, setPts] = useState<
     { date: string; count: number; day: string }[]
   >([]);
@@ -4698,7 +5023,9 @@ function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
   };
 
   return (
-    <SidebarPanel title="velocity" icon={Chart}>
+    <>
+    {popupOpen && <VelocityExpandedPopup onClose={() => setPopupOpen(false)} />}
+    <SidebarPanel title="velocity" icon={Chart} onTitleClick={() => setPopupOpen(true)}>
       <ChartContainer
         config={chartConfig}
         style={{ width: "93%", height: 108, margin: "0 auto" }}
@@ -4807,6 +5134,7 @@ function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
         </span>
       </div>
     </SidebarPanel>
+    </>
   );
 }
 

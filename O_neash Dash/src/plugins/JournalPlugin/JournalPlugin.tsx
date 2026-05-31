@@ -101,11 +101,29 @@ function DateStrip({ loggedDates, onDayClick }: {
   );
 }
 
+// ── Highlight helper ──────────────────────────────────────────────────────────
+
+function Highlighted({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part)
+          ? <mark key={i} style={{ background: '#e9ff00', color: '#000', borderRadius: 0, fontFamily: "'Gowun Dodum', sans-serif" }}>{part}</mark>
+          : part
+      )}
+    </>
+  );
+}
+
 // ── Entry Card ────────────────────────────────────────────────────────────────
 
-function EntryCard({ entry, isToday, onSave, onAddImage, onRemoveImage, onBlurEmpty, entryRef }: {
+function EntryCard({ entry, isToday, query, onSave, onAddImage, onRemoveImage, onBlurEmpty, entryRef }: {
   entry: JournalEntry;
   isToday: boolean;
+  query: string;
   onSave: (id: string, content: string, images: string[]) => void;
   onAddImage: (id: string) => void;
   onRemoveImage: (id: string, path: string) => void;
@@ -114,6 +132,7 @@ function EntryCard({ entry, isToday, onSave, onAddImage, onRemoveImage, onBlurEm
 }) {
   const [content, setContent] = useState(entry.content);
   const [visible, setVisible] = useState(isToday);
+  const [hov, setHov] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -123,7 +142,7 @@ function EntryCard({ entry, isToday, onSave, onAddImage, onRemoveImage, onBlurEm
 
   const [y, m, d] = entry.date.split('-').map(Number);
   const dateObj = new Date(y, m - 1, d);
-  const dayNum = String(d);
+  const mmdd = `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
   const dayAbbr = dateObj.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 
   // Fade in on scroll
@@ -145,7 +164,7 @@ function EntryCard({ entry, isToday, onSave, onAddImage, onRemoveImage, onBlurEm
     if (!ta) return;
     ta.style.height = 'auto';
     ta.style.height = ta.scrollHeight + 'px';
-  }, [entry.id, content]);
+  }, [entry.id, content, visible]);
 
   const setRef = useCallback((el: HTMLDivElement | null) => {
     containerRef.current = el;
@@ -165,49 +184,60 @@ function EntryCard({ entry, isToday, onSave, onAddImage, onRemoveImage, onBlurEm
   return (
     <div
       ref={setRef}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{
-        display: 'flex',
-        marginBottom: 56,
+        position: 'relative',
+        marginBottom: 52,
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(10px)',
         transition: 'opacity 0.4s ease, transform 0.4s ease',
       }}
     >
-      {/* Date gutter */}
+      {/* Hanging date — floats in left margin */}
       <div style={{
-        width: 48, flexShrink: 0,
-        paddingRight: 20, paddingTop: 3,
-        borderRight: `1px solid rgba(255,255,255,${isToday ? 0.1 : 0.05})`,
-        textAlign: 'right',
+        position: 'absolute', left: -110, top: 2,
+        textAlign: 'center', userSelect: 'none',
+        opacity: 1,
       }}>
-        <div style={{
-          fontFamily: VT, fontSize: '1.5rem', lineHeight: 1, letterSpacing: 0,
-          color: isToday ? TEAL : 'rgba(255,255,255,0.28)',
-        }}>{dayNum}</div>
-        <div style={{
-          fontFamily: VT, fontSize: '0.6rem', letterSpacing: 1, marginTop: 3,
-          color: isToday ? 'rgba(0,196,167,0.5)' : 'rgba(255,255,255,0.13)',
-        }}>{dayAbbr}</div>
+        {isToday ? (
+          <div style={{ fontFamily: VT, fontSize: '1.8rem', lineHeight: 1, letterSpacing: 2, color: TEAL }}>today</div>
+        ) : (
+          <>
+            <div style={{ fontFamily: VT, fontSize: '2rem', lineHeight: 1, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 }}>{mmdd}</div>
+            <div style={{ fontFamily: VT, fontSize: '1.1rem', letterSpacing: 1.5, color: 'rgba(255,255,255,0.45)', marginTop: 0 }}>{dayAbbr}</div>
+          </>
+        )}
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, paddingLeft: 32 }}>
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={e => handleChange(e.target.value)}
-          onBlur={() => { if (!content.trim() && !isToday) onBlurEmpty(entry.id); }}
-          placeholder={isToday ? 'write anything.' : ''}
-          rows={3}
-          style={{
-            width: '100%', boxSizing: 'border-box' as const,
-            background: 'transparent', border: 'none', outline: 'none',
-            resize: 'none', overflow: 'hidden',
-            fontFamily: PT, fontSize: '0.9rem', lineHeight: 1.75,
-            color: 'rgba(255,255,255,0.72)', letterSpacing: 0.2,
-            caretColor: TEAL,
-          }}
-        />
+      <div>
+        {query.trim() ? (
+          <div style={{
+            fontFamily: PT, fontSize: '1rem', lineHeight: 1.85,
+            color: 'rgba(255,255,255,0.75)', letterSpacing: 0.3,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          }}>
+            <Highlighted text={content} query={query} />
+          </div>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={e => handleChange(e.target.value)}
+            onBlur={() => { if (!content.trim() && !isToday) { clearTimeout(saveTimer.current); onBlurEmpty(entry.id); } }}
+            placeholder={isToday ? 'write anything.' : ''}
+            rows={1}
+            style={{
+              width: '100%', boxSizing: 'border-box' as const,
+              background: 'transparent', border: 'none', outline: 'none',
+              resize: 'none', overflow: 'hidden',
+              fontFamily: PT, fontSize: '1rem', lineHeight: 1.85,
+              color: 'rgba(255,255,255,0.75)', letterSpacing: 0.3,
+              caretColor: TEAL,
+            }}
+          />
+        )}
 
         {/* Images */}
         {entry.images.length > 0 && (
@@ -290,17 +320,12 @@ export default function JournalPlugin() {
   }, []);
 
   const handleBlurEmpty = useCallback(async (id: string) => {
-    if (!provisionalIds.current.has(id)) return;
     provisionalIds.current.delete(id);
+    const entry = entries.find(e => e.id === id);
+    if (!entry) return;
     await deleteEntry(id);
     setEntries(prev => prev.filter(e => e.id !== id));
-    setLoggedDates(prev => {
-      const next = new Set(prev);
-      // find the date for this id and remove it
-      const entry = entries.find(e => e.id === id);
-      if (entry) next.delete(entry.date);
-      return next;
-    });
+    setLoggedDates(prev => { const next = new Set(prev); next.delete(entry.date); return next; });
   }, [entries]);
 
   const handleAddImage = (entryId: string) => {
@@ -337,7 +362,7 @@ export default function JournalPlugin() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', overflow: 'hidden' }}>
-      <style>{`@keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
+      <style>{`@keyframes dot-blink { 0%,100%{opacity:1} 50%{opacity:0} } *::-webkit-scrollbar { display: none; }`}</style>
 
       {/* Header */}
       <div style={{ padding: '112px 160px 0', flexShrink: 0 }}>
@@ -349,24 +374,11 @@ export default function JournalPlugin() {
             onChange={e => setQuery(e.target.value)}
             placeholder="search..."
             style={{
-              fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1,
+              fontFamily: PT, fontSize: '0.88rem', letterSpacing: 1,
               background: 'transparent', border: 'none', borderBottom: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.6)', outline: 'none', padding: '2px 4px', width: 160,
+              color: 'rgba(255,255,255,0.6)', outline: 'none', padding: '2px 4px', width: 280,
             }}
           />
-          <button
-            onClick={() => { setQuery(''); setTimeout(() => scrollToDate(todayStr), 0); }}
-            style={{
-              fontFamily: VT, fontSize: '0.78rem', letterSpacing: 1.5,
-              background: 'transparent', border: '1px solid rgba(0,196,167,0.3)',
-              color: 'rgba(0,196,167,0.7)', padding: '3px 12px', cursor: 'pointer',
-              transition: 'all 0.12s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = TEAL; e.currentTarget.style.color = TEAL; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,196,167,0.3)'; e.currentTarget.style.color = 'rgba(0,196,167,0.7)'; }}
-          >
-            today ↓
-          </button>
         </div>
 
         {/* Date strip */}
@@ -389,7 +401,7 @@ export default function JournalPlugin() {
       {/* Entry chain */}
       <div
         ref={scrollRef}
-        style={{ flex: 1, overflowY: 'auto', padding: '8px 160px 80px', scrollbarWidth: 'none' as const }}
+        style={{ flex: 1, overflowY: 'auto', padding: '8px 460px 80px', scrollbarWidth: 'none' as const }}
       >
         {displayed.length === 0 && (
           <div style={{ fontFamily: VT, fontSize: '0.88rem', color: 'rgba(255,255,255,0.15)', letterSpacing: 1, paddingLeft: 80 }}>
@@ -401,6 +413,7 @@ export default function JournalPlugin() {
             key={entry.id}
             entry={entry}
             isToday={entry.date === todayStr}
+            query={query}
             onSave={handleSave}
             onAddImage={handleAddImage}
             onRemoveImage={handleRemoveImage}

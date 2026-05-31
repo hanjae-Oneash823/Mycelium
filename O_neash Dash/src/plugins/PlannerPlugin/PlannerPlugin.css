@@ -121,6 +121,12 @@
 }
 .dot-anim-missed { animation: amberp 2.6s ease-in-out infinite; }
 
+@keyframes liveBlink {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.15; }
+}
+.otc-live-blink { animation: liveBlink 1.1s ease-in-out infinite; }
+
 /* VT323 scaled-up alias — makes VT323 glyphs ~40% larger at any given font-size,
    while HBIOS-SYS (Korean fallback) renders at its natural size */
 @font-face {
@@ -193,6 +199,10 @@
 /* Hide scrollbar on today task column */
 .today-task-col::-webkit-scrollbar { display: none; }
 .today-task-col { scrollbar-width: none; }
+
+/* Hide scrollbar on session log */
+.otc-session-log::-webkit-scrollbar { display: none; }
+.otc-session-log { scrollbar-width: none; }
 
 /* Hide scrollbar on pressure popup overlay */
 .pressure-popup-overlay::-webkit-scrollbar { display: none; }
@@ -340,6 +350,21 @@
 .quick-add-dropdown::-webkit-scrollbar-track { background: transparent; }
 .quick-add-dropdown::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); }
 .quick-add-dropdown::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.26); }
+
+/* Skeleton shimmer */
+@keyframes skelShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skel-shimmer {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.06) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: skelShimmer 3.6s linear infinite;
+}
 
 /* Floating badge idle pulse (box-shadow only — doesn't conflict with FM y-float) */
 @keyframes badgePulse {

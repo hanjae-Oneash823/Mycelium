@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import usePluginStore from "../store/usePluginStore";
+import { useFloatingEditorStore } from "../store/useFloatingEditorStore";
 import {
   Terminal,
   Notes,
@@ -22,7 +23,6 @@ import {
   ImageSharp,
   Zap,
 } from "pixelarticons/react";
-import { Helicopter } from "pixelarticons/react/Helicopter";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -64,11 +64,11 @@ export const CATEGORIES: Category[] = [
         pluginId: "planner",
       },
       {
-        id: "dispatch",
-        label: "Dispatch",
-        icon: <Helicopter width={14} height={14} />,
-        desc: "schedule tasks to time & location",
-        pluginId: "dispatch",
+        id: "projects",
+        label: "Arcs and Projects",
+        icon: <TeachSharp size={14} />,
+        desc: "deadlines, milestones, progress",
+        pluginId: "projects",
       },
       {
         id: "journal",
@@ -106,16 +106,11 @@ export const CATEGORIES: Category[] = [
         pluginId: "esra",
       },
       {
-        id: "projects",
-        label: "Projects",
-        icon: <TeachSharp size={14} />,
-        desc: "deadlines, milestones, progress",
-      },
-      {
         id: "academic",
         label: "Academic Planner",
         icon: <BookOpen size={14} />,
         desc: "study goals & assignments",
+        pluginId: "academic",
       },
       {
         id: "protocol",
@@ -192,6 +187,7 @@ export const CATEGORIES: Category[] = [
 
 export function LaunchMenu() {
   const setActivePlugin = usePluginStore((s) => s.setActivePlugin);
+  const floatingOpen = useFloatingEditorStore((s) => s.docs.some(d => d.state === 'open'));
   const [activeCat, setActiveCat] = useState(0);
   const [activeApp, setActiveApp] = useState(0);
 
@@ -199,6 +195,7 @@ export function LaunchMenu() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (floatingOpen) return;
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement
@@ -240,7 +237,7 @@ export function LaunchMenu() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [activeCat, activeApp, setActivePlugin]);
+  }, [activeCat, activeApp, setActivePlugin, floatingOpen]);
 
   return (
     <div style={{ fontFamily: "'VT323', monospace", width: "100%" }}>

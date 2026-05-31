@@ -83,6 +83,7 @@ export const usePlannerStore = create<PlannerStore>((set, get) => ({
     await db.updateNode(id, patch);
     const nodes = await db.loadNodes();
     set({ nodes });
+    window.dispatchEvent(new CustomEvent('planner:node-changed'));
     toast.success('task updated');
   },
 

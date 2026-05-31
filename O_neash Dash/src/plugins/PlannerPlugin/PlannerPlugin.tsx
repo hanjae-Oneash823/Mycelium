@@ -9,15 +9,15 @@ import TaskForm from './components/TaskForm';
 import CommandPalette from './components/CommandPalette';
 import TodayView from './views/TodayView';
 import EisenhowerView from './views/EisenhowerView';
-import FocusView from './views/FocusView';
 import RoutinesView from './views/RoutinesView';
+import OnTheClockView from './views/OnTheClockView';
 import type { PlannerViewType } from './types';
 
 function renderView(v: PlannerViewType) {
-  if (v === 'today')      return <TodayView />;
-  if (v === 'eisenhower') return <EisenhowerView />;
-  if (v === 'focus')      return <FocusView />;
-  if (v === 'routines')   return <RoutinesView />;
+  if (v === 'today')        return <TodayView />;
+  if (v === 'eisenhower')   return <EisenhowerView />;
+  if (v === 'routines')     return <RoutinesView />;
+  if (v === 'on-the-clock') return <OnTheClockView />;
   return null;
 }
 

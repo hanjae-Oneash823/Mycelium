@@ -392,6 +392,102 @@ export async function setupDb(): Promise<Database> {
   END;
 
   CREATE INDEX IF NOT EXISTS idx_journal_date ON journal_entries(date);
+
+  -- ─────────────────── ACADEMIC PLUGIN ─────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS academic_subjects (
+    project_id TEXT PRIMARY KEY,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS academic_canvases (
+    id         TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name       TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS academic_canvas_nodes (
+    canvas_id   TEXT NOT NULL,
+    node_id     TEXT NOT NULL,
+    day         TEXT NOT NULL,
+    x_slot      INTEGER DEFAULT 0,
+    is_deadline INTEGER DEFAULT 0,
+    PRIMARY KEY (canvas_id, node_id),
+    FOREIGN KEY (canvas_id) REFERENCES academic_canvases(id) ON DELETE CASCADE,
+    FOREIGN KEY (node_id)   REFERENCES nodes(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS academic_canvas_edges (
+    canvas_id    TEXT NOT NULL,
+    from_node_id TEXT NOT NULL,
+    to_node_id   TEXT NOT NULL,
+    PRIMARY KEY (canvas_id, from_node_id, to_node_id),
+    FOREIGN KEY (canvas_id)    REFERENCES academic_canvases(id) ON DELETE CASCADE,
+    FOREIGN KEY (from_node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_node_id)   REFERENCES nodes(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ac_project ON academic_canvases(project_id);
+  CREATE INDEX IF NOT EXISTS idx_acn_canvas ON academic_canvas_nodes(canvas_id);
+  CREATE INDEX IF NOT EXISTS idx_ace_canvas ON academic_canvas_edges(canvas_id);
+
+  -- ─────────────────── ON THE CLOCK ─────────────────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS work_locations (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS work_sessions (
+    id           TEXT PRIMARY KEY,
+    title        TEXT NOT NULL,
+    location_id  TEXT REFERENCES work_locations(id) ON DELETE SET NULL,
+    planned_date TEXT NOT NULL,
+    actual_start TEXT,
+    actual_end   TEXT,
+    status       TEXT NOT NULL DEFAULT 'planned'
+                 CHECK(status IN('planned','active','paused','completed','interrupted')),
+    created_at   TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS session_nodes (
+    session_id    TEXT    NOT NULL REFERENCES work_sessions(id) ON DELETE CASCADE,
+    node_id       TEXT    NOT NULL,
+    sort_order    INTEGER NOT NULL DEFAULT 0,
+    status        TEXT    NOT NULL DEFAULT 'queued'
+                  CHECK(status IN('queued','in_progress','done','incomplete')),
+    time_started  TEXT,
+    time_finished TEXT,
+    total_minutes REAL,
+    PRIMARY KEY (session_id, node_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS session_pauses (
+    id          TEXT PRIMARY KEY,
+    session_id  TEXT NOT NULL REFERENCES work_sessions(id) ON DELETE CASCADE,
+    paused_at   TEXT NOT NULL,
+    resumed_at  TEXT,
+    pause_type  TEXT NOT NULL DEFAULT 'manual'
+                CHECK(pause_type IN('manual','pomo_short','pomo_long'))
+  );
+
+  CREATE TABLE IF NOT EXISTS session_pomo_blocks (
+    id          TEXT PRIMARY KEY,
+    session_id  TEXT NOT NULL REFERENCES work_sessions(id) ON DELETE CASCADE,
+    started_at  TEXT NOT NULL,
+    ended_at    TEXT,
+    block_type  TEXT NOT NULL
+                CHECK(block_type IN('work','short_break','long_break'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ws_status   ON work_sessions(status);
+  CREATE INDEX IF NOT EXISTS idx_ws_date     ON work_sessions(planned_date);
+  CREATE INDEX IF NOT EXISTS idx_sn_session  ON session_nodes(session_id);
+  CREATE INDEX IF NOT EXISTS idx_sp_session  ON session_pauses(session_id);
+  CREATE INDEX IF NOT EXISTS idx_spb_session ON session_pomo_blocks(session_id);
     `;
 
     // Apply the full schema every time
@@ -416,6 +512,13 @@ export async function setupDb(): Promise<Database> {
       `ALTER TABLE habit_logs ADD COLUMN value REAL`,
       // habits v3 schema
       `ALTER TABLE habits ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'`,
+      // arcs & projects plugin
+      `ALTER TABLE arcs ADD COLUMN description TEXT DEFAULT ''`,
+      `ALTER TABLE arcs ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`,
+      `ALTER TABLE projects ADD COLUMN description TEXT DEFAULT ''`,
+      `ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`,
+      `ALTER TABLE projects ADD COLUMN start_date TEXT`,
+      `ALTER TABLE projects ADD COLUMN end_date TEXT`,
     ];
     for (const sql of columnMigrations) {
       try {
