@@ -553,6 +553,7 @@ export default function CanvasView({
                       const isHovered      = hoveredNode === cn.node_id;
                       const isDraggingThis = dragState?.nodeId === cn.node_id;
                       const isSource       = connectSource === cn.node_id;
+                      const isCompleted    = node.is_completed ?? false;
 
                       return (
                         <div
@@ -562,25 +563,25 @@ export default function CanvasView({
                             else nodeCardRefs.current.delete(cn.node_id);
                           }}
                           className="canvas-drag-node"
-                          onMouseDown={e => startDrag(e, cn, node, day)}
+                          onMouseDown={isCompleted ? undefined : e => startDrag(e, cn, node, day)}
                           onClick={e => { e.stopPropagation(); if (connectMode) handleNodeConnect(cn.node_id, day); }}
                           onMouseEnter={() => { if (!dragState) setHoveredNode(cn.node_id); }}
                           onMouseLeave={() => setHoveredNode(null)}
                           style={{
                             width: NODE_W, height: NODE_H, flexShrink: 0,
                             padding: '8px 10px',
-                            border: `1.5px solid ${isDraggingThis || isSource ? accentColor : 'rgba(255,255,255,0.45)'}`,
+                            border: `1.5px solid ${isDraggingThis || isSource ? accentColor : isCompleted ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.45)'}`,
                             background: isDraggingThis ? 'rgba(255,255,255,0.04)' : '#1a1a1a',
                             boxShadow: isSource ? `0 0 10px ${accentColor}55` : 'none',
-                            cursor: connectMode ? 'crosshair' : node.node_type === 'task' ? 'grab' : 'default',
+                            cursor: isCompleted ? 'default' : connectMode ? 'crosshair' : node.node_type === 'task' ? 'grab' : 'default',
                             userSelect: 'none', position: 'relative',
                             display: 'flex', flexDirection: 'column',
                             justifyContent: 'center', alignItems: 'center',
                             transition: 'border-color 0.1s, background 0.1s, box-shadow 0.1s',
-                            opacity: isDraggingThis ? 0.4 : 1,
+                            opacity: isDraggingThis ? 0.4 : isCompleted ? 0.35 : 1,
                           }}
                         >
-                          <div style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 0.5, color: 'rgba(255,255,255,0.8)', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 0.5, color: 'rgba(255,255,255,0.8)', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: isCompleted ? 'line-through' : 'none' }}>
                             {node.title}
                           </div>
                           <div style={{ fontFamily: VT, fontSize: '0.68rem', color: 'rgba(255,255,255,0.22)', marginTop: 2, letterSpacing: 1, textAlign: 'center' }}>
