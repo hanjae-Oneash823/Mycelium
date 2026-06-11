@@ -255,7 +255,7 @@ export default function TodayView() {
         style={{
           flexShrink: 0,
           padding: "0.8rem 1.4rem 0.7rem",
-          marginBottom: "0.6rem",
+          marginBottom: "1rem",
           display: "flex",
           alignItems: "center",
           gap: "1.5rem",
@@ -419,7 +419,7 @@ export default function TodayView() {
             style={{
               flex: 1,
               overflowY: "auto",
-              padding: "1.25rem 1rem",
+              padding: "1.25rem 1.8rem 1.25rem 1rem",
               display: "flex",
               flexDirection: "column",
               gap: "2.25rem",
@@ -428,23 +428,71 @@ export default function TodayView() {
             {/* IN SESSION */}
             {activeSession && (() => {
               const visibleSessionNodes = activeSessionNodes.filter((sn) => {
+                const plannerNode = nodes.find((n) => n.id === sn.node_id);
+                if (plannerNode?.is_completed) return false;
                 if (sn.status === 'queued' || sn.status === 'in_progress') return true;
-                // A 'done' session node whose planner node was uncompleted should re-surface
-                if (sn.status === 'done') {
-                  const plannerNode = nodes.find((n) => n.id === sn.node_id);
-                  return plannerNode ? !plannerNode.is_completed : false;
-                }
+                if (sn.status === 'done') return plannerNode ? !plannerNode.is_completed : false;
                 return false;
               });
-              if (visibleSessionNodes.length === 0) return null;
+              // always render — title stays visible even with no nodes
+              const elapsedMs = activeSession.actual_start
+                ? Date.now() - new Date(activeSession.actual_start).getTime()
+                : 0;
+              const elapsedMins = Math.floor(elapsedMs / 60000);
+              const elapsedStr = elapsedMins >= 60
+                ? `${Math.floor(elapsedMins / 60)}h ${elapsedMins % 60}m`
+                : `${elapsedMins}m`;
+              const sessionLocation = activeSession.location_name ?? activeSession.title;
+              const completedCount = activeSessionNodes.filter((n) => n.status === "done").length;
+              const totalCount = activeSessionNodes.length;
               return (
                 <section>
-                  <SectionLabel
-                    icon={<Algorithm size={20} />}
-                    label={`in session · ${visibleSessionNodes.length}`}
-                    color="#f5c842"
-                    labelClassName="in-session-label"
-                  />
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.65rem",
+                    marginBottom: "0.5rem",
+                    background: "#f5c842",
+                    padding: "0.1rem 0.6rem",
+                    color: "#000",
+                  }}>
+                    <span style={{ display: "flex", alignItems: "center", color: "#0055FF" }}>
+                      <Algorithm size={20} />
+                    </span>
+                    <span style={{
+                      fontSize: "1.45rem",
+                      letterSpacing: "4px",
+                      textTransform: "uppercase",
+                      lineHeight: 1,
+                      fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                    }}>
+                      {`in session · ${visibleSessionNodes.length}`.split("").map((ch, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            animation: `letterDip 3.2s steps(1) infinite`,
+                            animationDelay: `${i * 0.2}s`,
+                            display: "inline-block",
+                          }}
+                        >{ch}</span>
+                      ))}
+                    </span>
+                    <div style={{
+                      marginLeft: "auto",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                      fontSize: "1.1rem",
+                      letterSpacing: "1px",
+                      opacity: 0.75,
+                    }}>
+                      <span>{elapsedStr}</span>
+                      {sessionLocation && <><span style={{ opacity: 0.4 }}>·</span><span>{sessionLocation}</span></>}
+                      <span style={{ opacity: 0.4 }}>·</span>
+                      <span>{completedCount} / {totalCount}</span>
+                    </div>
+                  </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
                     {visibleSessionNodes.map((sn) => {
                       const fullNode = nodes.find((n) => n.id === sn.node_id);
@@ -455,7 +503,7 @@ export default function TodayView() {
                           node={fullNode}
                           onStartNode={() => sessionStartNode(sn.node_id)}
                           onReturnQueue={() => sessionReturnQueue(sn.node_id)}
-                          onFinish={() => { sessionFinishNode(sn.node_id); loadAll(); }}
+                          onFinish={() => { sessionFinishNode(sn.node_id); if (fullNode) completeNode(fullNode.id); loadAll(); }}
                           onEdit={() => fullNode && openTaskFormEdit(fullNode)}
                           onRemove={() => sessionRemoveNode(sn.node_id)}
                         />
@@ -476,18 +524,14 @@ export default function TodayView() {
                     alignItems: "center",
                     gap: "0.65rem",
                     marginBottom: "0.5rem",
-                    color: "#ff3b3b",
+                    background: "#ff3b3b",
+                    padding: "0.1rem 0.6rem",
+                    color: "#000",
                     cursor: "pointer",
                     userSelect: "none",
                   }}
                 >
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      opacity: 0.9,
-                    }}
-                  >
+                  <span style={{ display: "flex", alignItems: "center" }}>
                     <Frown size={20} />
                   </span>
                   <span
@@ -501,20 +545,13 @@ export default function TodayView() {
                   >
                     overdue · {overdue.length}
                   </span>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 1,
-                      background: "#ff3b3b",
-                      opacity: 0.4,
-                    }}
-                  />
                   <ChevronDown
                     size={16}
                     style={{
+                      marginLeft: "auto",
                       transition: "transform 0.18s",
                       transform: overdueCollapsed ? "rotate(-90deg)" : "none",
-                      opacity: 0.5,
+                      opacity: 0.6,
                     }}
                   />
                 </div>
@@ -554,11 +591,28 @@ export default function TodayView() {
             {/* EVENTS */}
             {todayEvents.length > 0 && (
               <section style={{ marginBottom: "0.5rem" }}>
-                <SectionLabel
-                  icon={<AlarmClock size={20} />}
-                  label={`events · ${todayEvents.length}`}
-                  color="rgba(192,132,252,1)"
-                />
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.65rem",
+                  marginBottom: "0.5rem",
+                  background: "rgba(192,132,252,1)",
+                  padding: "0.1rem 0.6rem",
+                  color: "#000",
+                }}>
+                  <span style={{ display: "flex", alignItems: "center" }}>
+                    <AlarmClock size={20} />
+                  </span>
+                  <span style={{
+                    fontSize: "1.45rem",
+                    letterSpacing: "4px",
+                    textTransform: "uppercase",
+                    lineHeight: 1,
+                    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  }}>
+                    {`events · ${todayEvents.length}`}
+                  </span>
+                </div>
                 <div
                   style={{
                     display: "flex",
@@ -584,11 +638,28 @@ export default function TodayView() {
 
             {/* TODAY */}
             <section>
-              <SectionLabel
-                icon={<HumanArmsUp size={20} />}
-                label={`today · ${todayNodes.length}`}
-                color="#00c4a7"
-              />
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.65rem",
+                marginBottom: "0.5rem",
+                background: "#00c4a7",
+                padding: "0.1rem 0.6rem",
+                color: "#000",
+              }}>
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  <HumanArmsUp size={20} />
+                </span>
+                <span style={{
+                  fontSize: "1.45rem",
+                  letterSpacing: "4px",
+                  textTransform: "uppercase",
+                  lineHeight: 1,
+                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                }}>
+                  {`today · ${todayNodes.length}`}
+                </span>
+              </div>
               <div
                 style={{
                   display: "flex",
@@ -620,7 +691,7 @@ export default function TodayView() {
                           rescheduleAction={{
                             onClick: () => rescheduleNode(node.id, tomorrow),
                             title: "→ tmrw",
-                            color: "rgba(255,255,255,0.5)",
+                            color: "rgba(255,255,255,0.75)",
                           }}
                           sessionAction={activeSession
                             ? { onClick: () => sessionAddNodes([node.id]) }
@@ -1019,7 +1090,7 @@ function EventRow({
               : hov
                 ? "rgba(192,132,252,0.06)"
                 : "transparent",
-            border: `1px solid ${hov ? "rgba(192,132,252,0.18)" : "rgba(192,132,252,0.08)"}`,
+            border: `1.5px solid ${hov ? "rgba(192,132,252,1)" : "rgba(192,132,252,0.6)"}`,
             transition: "background 0.2s, border-color 0.1s",
             fontFamily: VT,
             fontSize: "1.05rem",
@@ -1495,7 +1566,7 @@ function QuickAddInput({
             id: p.id,
             label: `project-${slug(p.name)}`,
             display: p.name,
-            color: "rgba(255,255,255,0.5)",
+            color: "rgba(255,255,255,0.75)",
             type: "project",
           }),
         );
@@ -2082,6 +2153,21 @@ function InSessionTaskRow({
   const arc  = node?.arc_id     ? arcs.find((a) => a.id === node.arc_id)         : null;
   const proj = node?.project_id ? projects.find((p) => p.id === node.project_id) : null;
 
+  const [elapsedSecs, setElapsedSecs] = useState(0);
+  useEffect(() => {
+    if (!isActive || !sessionNode.time_started) { setElapsedSecs(0); return; }
+    const tick = () => setElapsedSecs(Math.floor((Date.now() - new Date(sessionNode.time_started!).getTime()) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [isActive, sessionNode.time_started]);
+
+  const elapsedLabel = (() => {
+    const m = Math.floor(elapsedSecs / 60);
+    const s = elapsedSecs % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  })();
+
   return (
     <div
       onMouseEnter={() => setHov(true)}
@@ -2094,7 +2180,7 @@ function InSessionTaskRow({
         gap: 0,
         padding: "0.3rem 0.5rem",
         border: `1px solid ${isActive ? "#f5c842" : hov ? "rgba(245,200,66,0.6)" : "rgba(245,200,66,0.32)"}`,
-        background: hov ? "rgba(245,200,66,0.05)" : "transparent",
+        background: "#000",
         transition: "background 0.1s, border-color 0.1s",
         fontFamily: "'VT323', 'HBIOS-SYS', monospace",
         fontSize: "1.05rem",
@@ -2129,6 +2215,17 @@ function InSessionTaskRow({
 
         {/* Actions */}
         <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+          {/* Elapsed time badge (active nodes only) */}
+          {isActive && sessionNode.time_started && (
+            <span style={{
+              background: "#f5c842", color: "#000",
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: "1rem", letterSpacing: "1px",
+              padding: "0 5px", lineHeight: 1.2, flexShrink: 0, marginRight: "0.35rem",
+            }}>
+              {elapsedLabel}
+            </span>
+          )}
           {/* Active / Queue toggle */}
           {isActive ? (
             <IconAction
@@ -2931,7 +3028,7 @@ function DoneChip({
           ...mono,
           fontSize: "1rem",
           letterSpacing: "0.5px",
-          color: "rgba(255,255,255,0.5)",
+          color: "rgba(255,255,255,0.75)",
           textDecoration: "line-through",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -3677,7 +3774,7 @@ function EventCalendarPanel({
   useEffect(() => {
     if (!gridRef.current) return;
     const obs = new ResizeObserver(([entry]) => {
-      setHourH(Math.max(16, entry.contentRect.height / TOTAL_HRS));
+      setHourH(Math.max(16, (entry.contentRect.height - 14) / TOTAL_HRS));
     });
     obs.observe(gridRef.current);
     return () => obs.disconnect();
@@ -3694,7 +3791,7 @@ function EventCalendarPanel({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        padding: "0.75rem 1rem",
+        padding: "0.75rem 1.8rem 0.75rem 0.5rem",
         minHeight: 0,
       }}
     >
@@ -3705,29 +3802,7 @@ function EventCalendarPanel({
         }
       `}</style>
 
-      {/* Section title */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          marginBottom: "0.5rem",
-          flexShrink: 0,
-        }}
-      >
-        <AspectRatio size={15} style={{ color: "#f5c842", flexShrink: 0 }} />
-        <span
-          style={{
-            fontFamily: "'VT323','HBIOS-SYS',monospace",
-            fontSize: "1.05rem",
-            letterSpacing: "3px",
-            textTransform: "uppercase",
-            color: "#f5c842",
-          }}
-        >
-          weekly overview
-        </span>
-      </div>
+
 
       {/* Week nav */}
       <div
@@ -3758,7 +3833,7 @@ function EventCalendarPanel({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: "rgba(255,255,255,0.5)",
+              color: "rgba(255,255,255,0.75)",
               padding: 0,
             }}
           >
@@ -3803,7 +3878,7 @@ function EventCalendarPanel({
               background: "none",
               border: "none",
               cursor: "pointer",
-              color: "rgba(255,255,255,0.5)",
+              color: "rgba(255,255,255,0.75)",
               padding: 0,
             }}
           >
@@ -3952,29 +4027,34 @@ function EventCalendarPanel({
           }}
         >
           <div style={{ position: "absolute", inset: 0, display: "flex" }}>
+
             {/* Hour labels */}
             <div
-              style={{ width: LABEL_W, flexShrink: 0, position: "relative" }}
+              style={{ width: LABEL_W, flexShrink: 0, position: "relative", overflow: "visible" }}
             >
               {Array.from({ length: TOTAL_HRS + 1 }, (_, i) => {
                 const h = i + START_HOUR;
-                const isCurrentHour =
-                  weekOffset === 0 && h === nowCal.getHours();
+                const isCurrentHour = weekOffset === 0 && h === nowCal.getHours();
+                const isKeyHour = [9, 12, 15, 18, 21, 24].includes(h);
                 return (
                   <div
                     key={i}
                     style={{
                       position: "absolute",
                       top: Math.max(0, i * hourH - 9),
-                      right: 6,
+                      left: 0,
+                      right: 0,
+                      textAlign: "center",
                       ...mono,
-                      fontSize: "0.85rem",
+                      fontSize: isKeyHour ? "0.97rem" : "0.85rem",
                       color: isCurrentHour
                         ? "#ff5555"
-                        : "rgba(255,255,255,0.3)",
+                        : isKeyHour
+                          ? "rgba(255,255,255,0.6)"
+                          : "rgba(255,255,255,0.4)",
                       lineHeight: 1,
                       userSelect: "none",
-                      fontWeight: isCurrentHour ? "bold" : "normal",
+                      fontWeight: isCurrentHour || isKeyHour ? "bold" : "normal",
                     }}
                   >
                     {String(h).padStart(2, "0")}
@@ -3988,7 +4068,7 @@ function EventCalendarPanel({
               style={{ flex: 1, position: "relative", display: "flex", gap: 2 }}
             >
               {/* Hour lines */}
-              {Array.from({ length: TOTAL_HRS }, (_, i) => {
+              {Array.from({ length: TOTAL_HRS + 1 }, (_, i) => {
                 const h = i + START_HOUR;
                 const isMajor = h % 3 === 0;
                 return (
@@ -4001,8 +4081,8 @@ function EventCalendarPanel({
                       right: 0,
                       height: 1,
                       background: isMajor
-                        ? "rgba(255,255,255,0.14)"
-                        : "rgba(255,255,255,0.05)",
+                        ? "rgba(255,255,255,0.35)"
+                        : "rgba(255,255,255,0.15)",
                       pointerEvents: "none",
                       zIndex: 1,
                     }}
@@ -4046,7 +4126,7 @@ function EventCalendarPanel({
                       flex: 1,
                       position: "relative",
                       borderLeft:
-                        di === 0 ? "none" : "1px solid rgba(255,255,255,0.07)",
+                        di === 0 ? "none" : "1px solid rgba(255,255,255,0.15)",
                       background: isToday
                         ? "rgba(0,196,167,0.06)"
                         : "transparent",
@@ -4176,7 +4256,9 @@ function EventCalendarPanel({
                         const startD = new Date(s.actual_start!);
                         const endD = s.actual_end ? new Date(s.actual_end) : nowCal;
                         const sh = startD.getHours() + startD.getMinutes() / 60;
-                        const eh = endD.getHours() + endD.getMinutes() / 60;
+                        const rawEh = endD.getHours() + endD.getMinutes() / 60;
+                        // clamp to 24 if session crosses midnight into the next day
+                        const eh = rawEh < sh ? 24 : rawEh;
                         const topPx = (sh - START_HOUR) * hourH;
                         const heightPx = Math.max(4, (eh - sh) * hourH);
                         if (topPx < 0) return null;
@@ -4210,7 +4292,7 @@ function EventCalendarPanel({
                               left: 3,
                               right: 3,
                               height: heightPx - 2,
-                              background: "rgba(245,158,11,0.22)",
+                              background: "#3d2502",
                               border: `1.5px solid rgba(245,158,11,${isActive ? '0.9' : '0.55'})`,
                               zIndex: 1,
                               cursor: "default",
@@ -4298,12 +4380,14 @@ function SidebarPanel({
   icon: Icon,
   titleRight,
   onTitleClick,
+  hideTitle,
   children,
 }: {
   title: string;
   icon?: React.FC<{ size?: number; style?: React.CSSProperties }>;
   titleRight?: React.ReactNode;
   onTitleClick?: () => void;
+  hideTitle?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -4312,32 +4396,34 @@ function SidebarPanel({
         padding: "0.65rem 1.1rem 0.6rem",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          marginBottom: "0.35rem",
-        }}
-      >
-        {Icon && <Icon size={15} style={{ color: "#f5c842", flexShrink: 0 }} />}
-        <span
-          onClick={onTitleClick}
+      {!hideTitle && (
+        <div
           style={{
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-            fontSize: "1.05rem",
-            letterSpacing: "3px",
-            textTransform: "uppercase",
-            color: "#f5c842",
-            cursor: onTitleClick ? "pointer" : undefined,
-            textDecoration: onTitleClick ? "underline dotted" : undefined,
-            textUnderlineOffset: "3px",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            marginBottom: "0.35rem",
           }}
         >
-          {title}
-        </span>
-        {titleRight && <span style={{ marginLeft: "auto" }}>{titleRight}</span>}
-      </div>
+          {Icon && <Icon size={15} style={{ color: "rgba(255,255,255,0.75)", flexShrink: 0 }} />}
+          <span
+            onClick={onTitleClick}
+            style={{
+              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontSize: "1.05rem",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.75)",
+              cursor: onTitleClick ? "pointer" : undefined,
+              textDecoration: onTitleClick ? "underline dotted" : undefined,
+              textUnderlineOffset: "3px",
+            }}
+          >
+            {title}
+          </span>
+          {titleRight && <span style={{ marginLeft: "auto" }}>{titleRight}</span>}
+        </div>
+      )}
       {children}
     </div>
   );
@@ -4901,7 +4987,7 @@ function StreakPanel() {
 
 function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
   const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
-  const [pts, setPts] = useState<{ date: string; count: number; label: string }[]>([]);
+  const [pts, setPts] = useState<{ date: string; count: number; sessionMins: number; eventMins: number; label: string }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -4918,12 +5004,36 @@ function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
       const map = new Map<string, number>();
       for (const month of allMonths) for (const d of month) map.set(d.date, d.count);
 
+      const start42 = new Date(now); start42.setDate(now.getDate() - 41);
+      const fromKey = `${start42.getFullYear()}-${String(start42.getMonth() + 1).padStart(2, "0")}-${String(start42.getDate()).padStart(2, "0")}`;
+      const toKey   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const [sessions, eventNodes] = await Promise.all([
+        loadSessionsForWeek(fromKey, toKey),
+        loadEventNodesForWeek(fromKey, toKey),
+      ]);
+
+      const minsMap = new Map<string, number>();
+      for (const s of sessions) {
+        if (!s.actual_start) continue;
+        const startMs = new Date(s.actual_start).getTime();
+        const endMs   = s.actual_end ? new Date(s.actual_end).getTime() : Date.now();
+        const mins    = Math.max(0, Math.round((endMs - startMs) / 60000));
+        minsMap.set(s.planned_date.slice(0, 10), (minsMap.get(s.planned_date.slice(0, 10)) ?? 0) + mins);
+      }
+
+      const eventMinsMap = new Map<string, number>();
+      for (const ev of eventNodes) {
+        if (!ev.planned_start_at) continue;
+        const dayKey = ev.planned_start_at.slice(0, 10);
+        eventMinsMap.set(dayKey, (eventMinsMap.get(dayKey) ?? 0) + (ev.estimated_duration_minutes ?? 0));
+      }
+
       setPts(Array.from({ length: 42 }, (_, i) => {
         const d = new Date(now);
         d.setDate(d.getDate() - 41 + i);
         const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
         const label = i % 7 === 0 ? `${d.getMonth() + 1}/${d.getDate()}` : "";
-        return { date: dateKey, count: map.get(dateKey) ?? 0, label };
+        return { date: dateKey, count: map.get(dateKey) ?? 0, sessionMins: minsMap.get(dateKey) ?? 0, eventMins: eventMinsMap.get(dateKey) ?? 0, label };
       }));
     };
     load();
@@ -4982,22 +5092,26 @@ function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
                 );
               }}
             />
-            <YAxis hide />
+            <YAxis yAxisId="left" hide />
+            <YAxis yAxisId="right"  orientation="right" hide />
+            <YAxis yAxisId="right2" orientation="right" hide />
             <ChartTooltip
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
-                const pt = payload[0].payload as { date: string; count: number };
+                const pt = payload[0].payload as { date: string; count: number; sessionMins: number; eventMins: number };
+                const fmt = (m: number) => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
                 return (
-                  <div style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.15)", padding: "3px 10px", ...mono, fontSize: "0.9rem", color: "#fff" }}>
-                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}>{pt.date}</span>
-                    {" · "}
-                    <span style={{ color: "#00c4a7" }}>{pt.count}</span>
+                  <div style={{ background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.15)", padding: "3px 10px", ...mono, fontSize: "0.9rem", color: "#fff", display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span><span style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.8rem" }}>{pt.date}</span>{" · "}<span style={{ color: "#00c4a7" }}>{pt.count} tasks</span></span>
+                    {pt.sessionMins > 0 && <span style={{ color: "#f5c842" }}>{fmt(pt.sessionMins)} session</span>}
+                    {pt.eventMins  > 0 && <span style={{ color: "#c084fc" }}>{fmt(pt.eventMins)} events</span>}
                   </div>
                 );
               }}
             />
-            {/* Bars — rendered first so line sits on top */}
+            {/* Bars — rendered first */}
             <Bar
+              yAxisId="left"
               dataKey="count"
               radius={0}
               isAnimationActive={false}
@@ -5005,27 +5119,30 @@ function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
                 const { x, y, width, height, index } = props;
                 const isToday = pts[index]?.date === todayStr;
                 return (
-                  <rect
-                    key={index}
-                    x={x} y={y} width={width} height={height}
+                  <rect key={index} x={x} y={y} width={width} height={height}
                     fill={isToday ? "rgba(245,200,66,0.18)" : "rgba(0,196,167,0.15)"}
                   />
                 );
               }}
             />
-            {/* Line only — drawn after bars */}
+            {/* Red — session time */}
+            <Line yAxisId="right" type="monotone" dataKey="sessionMins" stroke="#f5c842" strokeWidth={1.5} dot={false} activeDot={{ r: 4, fill: "#f5c842", stroke: "none" }} isAnimationActive={false} />
+            {/* Purple — event time */}
+            <Line yAxisId="right2" type="monotone" dataKey="eventMins" stroke="#c084fc" strokeWidth={1.5} dot={false} activeDot={{ r: 4, fill: "#c084fc", stroke: "none" }} isAnimationActive={false} />
+            {/* Teal line — thickest, drawn last (on top) */}
             <Line
+              yAxisId="left"
               type="monotone"
               dataKey="count"
               stroke="#00c4a7"
-              strokeWidth={1.5}
+              strokeWidth={2.5}
               dot={false}
               activeDot={false}
-              animationDuration={2500}
-              animationEasing="ease-out"
+              isAnimationActive={false}
             />
-            {/* Dots only — drawn last so they sit on top */}
+            {/* Dots — topmost layer */}
             <Line
+              yAxisId="left"
               type="monotone"
               dataKey="count"
               stroke="transparent"
@@ -5073,30 +5190,52 @@ function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
   };
   const [popupOpen, setPopupOpen] = useState(false);
   const [pts, setPts] = useState<
-    { date: string; count: number; day: string }[]
+    { date: string; count: number; sessionMins: number; eventMins: number; day: string }[]
   >([]);
 
   useEffect(() => {
     const now = new Date();
     const load = async () => {
-      const curr = await loadMonthCompletions(
-        now.getFullYear(),
-        now.getMonth() + 1,
-      );
+      const curr = await loadMonthCompletions(now.getFullYear(), now.getMonth() + 1);
       const prevD = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const prev = await loadMonthCompletions(
-        prevD.getFullYear(),
-        prevD.getMonth() + 1,
-      );
+      const prev  = await loadMonthCompletions(prevD.getFullYear(), prevD.getMonth() + 1);
       const map = new Map<string, number>();
       for (const d of [...prev, ...curr]) map.set(d.date, d.count);
+
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - 6);
+      const fromKey = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}-${String(weekStart.getDate()).padStart(2, "0")}`;
+      const toKey   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+      const [sessions, eventNodes] = await Promise.all([
+        loadSessionsForWeek(fromKey, toKey),
+        loadEventNodesForWeek(fromKey, toKey),
+      ]);
+
+      const minsMap = new Map<string, number>();
+      for (const s of sessions) {
+        if (!s.actual_start) continue;
+        const startMs = new Date(s.actual_start).getTime();
+        const endMs   = s.actual_end ? new Date(s.actual_end).getTime() : Date.now();
+        const mins    = Math.max(0, Math.round((endMs - startMs) / 60000));
+        const dayKey  = s.planned_date.slice(0, 10);
+        minsMap.set(dayKey, (minsMap.get(dayKey) ?? 0) + mins);
+      }
+
+      const eventMinsMap = new Map<string, number>();
+      for (const ev of eventNodes) {
+        if (!ev.planned_start_at) continue;
+        const dayKey = ev.planned_start_at.slice(0, 10);
+        eventMinsMap.set(dayKey, (eventMinsMap.get(dayKey) ?? 0) + (ev.estimated_duration_minutes ?? 0));
+      }
+
       setPts(
         Array.from({ length: 7 }, (_, i) => {
           const d = new Date(now);
           d.setDate(d.getDate() - 6 + i);
-          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           const label = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"][d.getDay()];
-          return { date: key, count: map.get(key) ?? 0, day: label };
+          return { date: key, count: map.get(key) ?? 0, sessionMins: minsMap.get(key) ?? 0, eventMins: eventMinsMap.get(key) ?? 0, day: label };
         }),
       );
     };
@@ -5166,10 +5305,14 @@ function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
               );
             }}
           />
-          <YAxis hide />
+          <YAxis yAxisId="left" hide />
+          <YAxis yAxisId="right" orientation="right" hide />
+          <YAxis yAxisId="right2" orientation="right" hide />
           <ChartTooltip
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null;
+              const countVal = payload.find((p) => p.dataKey === "count")?.value;
+              const minsVal  = payload.find((p) => p.dataKey === "sessionMins")?.value as number | undefined;
               return (
                 <div
                   style={{
@@ -5179,27 +5322,77 @@ function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
                     ...mono,
                     fontSize: "0.9rem",
                     color: "#fff",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
                   }}
                 >
-                  {label} ·{" "}
-                  <span style={{ color: "var(--teal)" }}>
-                    {payload[0].value}
-                  </span>
+                  <span>{label} · <span style={{ color: "var(--teal)" }}>{countVal} tasks</span></span>
+                  {minsVal != null && minsVal > 0 && (
+                    <span style={{ color: "#f5c842" }}>
+                      {minsVal >= 60 ? `${Math.floor(minsVal / 60)}h ${minsVal % 60}m` : `${minsVal}m`} session
+                    </span>
+                  )}
+                  {(() => { const ev = payload.find((p) => p.dataKey === "eventMins")?.value as number | undefined; return ev != null && ev > 0 ? <span style={{ color: "var(--purple)" }}>{ev >= 60 ? `${Math.floor(ev / 60)}h ${ev % 60}m` : `${ev}m`} events</span> : null; })()}
                 </div>
               );
             }}
           />
           <Bar
+            yAxisId="left"
             dataKey="count"
             fill="rgba(0,196,167,0.18)"
             radius={[2, 2, 0, 0]}
             isAnimationActive={false}
           />
           <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="sessionMins"
+            stroke="#f5c842"
+            strokeWidth={1.5}
+            dot={(props) => {
+              const isToday = pts[props.index]?.date === todayStr;
+              return (
+                <circle
+                  key={props.index}
+                  cx={props.cx}
+                  cy={props.cy}
+                  r={isToday ? 4 : 2.5}
+                  fill={isToday ? "#fff" : "rgba(245,200,66,0.6)"}
+                  stroke="none"
+                />
+              );
+            }}
+            activeDot={{ r: 4, fill: "#f5c842", stroke: "none" }}
+          />
+          <Line
+            yAxisId="right2"
+            type="monotone"
+            dataKey="eventMins"
+            stroke="var(--purple)"
+            strokeWidth={1.5}
+            dot={(props) => {
+              const isToday = pts[props.index]?.date === todayStr;
+              return (
+                <circle
+                  key={props.index}
+                  cx={props.cx}
+                  cy={props.cy}
+                  r={isToday ? 4 : 2.5}
+                  fill={isToday ? "#f5c842" : "rgba(192,132,252,0.6)"}
+                  stroke="none"
+                />
+              );
+            }}
+            activeDot={{ r: 4, fill: "var(--purple)", stroke: "none" }}
+          />
+          <Line
+            yAxisId="left"
             type="monotone"
             dataKey="count"
             stroke="var(--teal)"
-            strokeWidth={1.5}
+            strokeWidth={2.5}
             dot={(props) => {
               const isToday = pts[props.index]?.date === todayStr;
               return (

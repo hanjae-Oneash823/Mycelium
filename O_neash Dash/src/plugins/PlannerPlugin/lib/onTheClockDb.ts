@@ -272,6 +272,19 @@ export async function endOpenPomoWorkBlock(sessionId: string): Promise<void> {
 
 // ── Session nodes ─────────────────────────────────────────────────────────────
 
+export interface SessionNodeMinutes {
+  node_id: string;
+  total_minutes: number;
+}
+
+/** All done session-node rows that have a recorded actual duration. */
+export async function loadAllDoneSessionNodeMinutes(): Promise<SessionNodeMinutes[]> {
+  return getDb().select<SessionNodeMinutes[]>(
+    `SELECT node_id, total_minutes FROM session_nodes
+     WHERE status = 'done' AND total_minutes IS NOT NULL AND total_minutes > 0`,
+  );
+}
+
 export async function loadSessionNodes(sessionId: string): Promise<SessionNodeWithNode[]> {
   return getDb().select<SessionNodeWithNode[]>(
     `SELECT sn.*,

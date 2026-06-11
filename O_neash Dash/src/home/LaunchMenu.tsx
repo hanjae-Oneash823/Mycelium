@@ -22,6 +22,7 @@ import {
   StickyNoteText,
   ImageSharp,
   Zap,
+  ToolCase,
 } from "pixelarticons/react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -83,6 +84,13 @@ export const CATEGORIES: Category[] = [
         icon: <SettingsCog2 size={14} />,
         desc: "widgets, layout, preferences",
         pluginId: "settings",
+      },
+      {
+        id: "analytics",
+        label: "Analytics",
+        icon: <ToolCase size={14} />,
+        desc: "cross-plugin data & insights",
+        pluginId: "analytics",
       },
       {
         id: "monitor",

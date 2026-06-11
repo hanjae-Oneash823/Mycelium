@@ -312,11 +312,10 @@
 .session-active-pulse { animation: sessionActivePulse 1.3s ease-in-out infinite; }
 
 /* IN SESSION title flow */
-@keyframes inSessionFlow {
-  0%,100% { opacity: 1; }
-  50%     { opacity: 0.32; }
+@keyframes letterDip {
+  0%, 20%, 100% { color: #000; }
+  10%           { color: #0055FF; }
 }
-.in-session-label { animation: inSessionFlow 3.2s ease-in-out infinite; }
 
 /* Pressure gauge level label blink */
 @keyframes pressureLevelBlink {

@@ -1324,3 +1324,127 @@ export async function reorderSubTasks(
     );
   }
 }
+
+// ─── Analytics ───────────────────────────────────────────────────────────────
+
+export interface CompletionRecord {
+  actual_completed_at: string | null;
+  arc_id: string | null;
+}
+
+// ─── Behavioral state space ───────────────────────────────────────────────────
+
+export interface DailyBehaviorRecord {
+  actual_completed_at: string;
+  planned_start_at: string | null;
+  created_at: string;
+  arc_id: string | null;
+  is_routine: number;
+  sub_total: number;
+  sub_done: number;
+}
+
+export async function loadDailyBehaviorRecords(days = 90): Promise<DailyBehaviorRecord[]> {
+  const db = getDb();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return db.select<DailyBehaviorRecord[]>(
+    `SELECT n.actual_completed_at, n.planned_start_at, n.created_at, n.arc_id, n.is_routine,
+       (SELECT COUNT(*) FROM sub_tasks s WHERE s.node_id = n.id) AS sub_total,
+       (SELECT COUNT(*) FROM sub_tasks s WHERE s.node_id = n.id AND s.is_completed = 1) AS sub_done
+     FROM nodes n
+     WHERE n.is_completed = 1
+       AND n.actual_completed_at IS NOT NULL
+       AND (n.node_type IS NULL OR n.node_type != 'event')
+       AND n.actual_completed_at >= ?
+     ORDER BY n.actual_completed_at ASC`,
+    [since],
+  );
+}
+
+// ─── Arc composition stream ───────────────────────────────────────────────────
+
+export interface ArcCompletionRecord {
+  arc_id: string | null;
+  arc_name: string | null;
+  arc_color: string | null;
+  actual_completed_at: string;
+  estimated_duration_minutes: number | null;
+  node_type: string | null;
+}
+
+export async function loadArcCompletions(days = 90): Promise<ArcCompletionRecord[]> {
+  const db = getDb();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return db.select<ArcCompletionRecord[]>(
+    `SELECT n.arc_id, a.name AS arc_name, a.color_hex AS arc_color,
+            n.actual_completed_at, n.estimated_duration_minutes, n.node_type
+     FROM nodes n
+     LEFT JOIN arcs a ON a.id = n.arc_id
+     WHERE n.is_completed = 1
+       AND n.actual_completed_at IS NOT NULL
+       AND n.actual_completed_at >= ?
+     ORDER BY n.actual_completed_at ASC`,
+    [since],
+  );
+}
+
+export interface IrfTaskRecord {
+  id: string;
+  actual_completed_at: string;
+  estimated_duration_minutes: number | null;
+}
+
+export async function loadIrfTaskData(days = 90): Promise<IrfTaskRecord[]> {
+  const db = getDb();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return db.select<IrfTaskRecord[]>(
+    `SELECT id, actual_completed_at, estimated_duration_minutes
+     FROM nodes
+     WHERE is_completed = 1
+       AND actual_completed_at IS NOT NULL
+       AND (node_type IS NULL OR node_type != 'event')
+       AND actual_completed_at >= ?
+     ORDER BY actual_completed_at ASC`,
+    [since],
+  );
+}
+
+export interface IrfTaskWithArcRecord {
+  id: string;
+  actual_completed_at: string;
+  estimated_duration_minutes: number | null;
+  arc_id: string | null;
+}
+
+export async function loadIrfTaskDataWithArc(days = 180): Promise<IrfTaskWithArcRecord[]> {
+  const db = getDb();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return db.select<IrfTaskWithArcRecord[]>(
+    `SELECT id, actual_completed_at, estimated_duration_minutes, arc_id
+     FROM nodes
+     WHERE is_completed = 1
+       AND actual_completed_at IS NOT NULL
+       AND (node_type IS NULL OR node_type != 'event')
+       AND actual_completed_at >= ?
+     ORDER BY actual_completed_at ASC`,
+    [since],
+  );
+}
+
+export async function loadCompletionsForRange(
+  from: string,
+  to: string,
+): Promise<CompletionRecord[]> {
+  const db = getDb();
+  return db.select<CompletionRecord[]>(
+    `SELECT actual_completed_at, arc_id
+     FROM nodes
+     WHERE is_completed = 1
+       AND actual_completed_at IS NOT NULL
+       AND (node_type IS NULL OR node_type != 'event')
+       AND substr(actual_completed_at, 1, 10) >= ?
+       AND substr(actual_completed_at, 1, 10) <= ?
+     ORDER BY actual_completed_at ASC`,
+    [from, to],
+  );
+}
