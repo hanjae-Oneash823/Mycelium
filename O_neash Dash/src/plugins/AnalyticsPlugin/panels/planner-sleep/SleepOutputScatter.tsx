@@ -61,6 +61,26 @@ function drawFrame(
 
   const revealX = leftX + progress * spanX;
 
+  // ── Wall: below-threshold zone + vertical line ────────────────────────────
+  const wallX = scx(r.shockThreshH);
+  if (wallX > leftX && wallX < rightX) {
+    const fillW = Math.min(wallX, revealX) - leftX;
+    if (fillW > 0) {
+      ctx.fillStyle = "rgba(248,113,113,0.07)";
+      ctx.fillRect(leftX, topY, fillW, spanY);
+    }
+    if (revealX >= wallX) {
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = "rgba(248,113,113,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(wallX, topY);
+      ctx.lineTo(wallX, botY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
   // ── Regression line (sweeps left to right) ────────────────────────────────
   ctx.save();
   ctx.beginPath();
@@ -165,6 +185,44 @@ function drawFrame(
   ctx.textAlign    = "right";
   ctx.textBaseline = "top";
   ctx.fillText(`R = ${r.r.toFixed(2)}`, rightX, topY + 4);
+
+  // ── Wall label ────────────────────────────────────────────────────────────
+  {
+    const wX = scx(r.shockThreshH);
+    if (wX > leftX && wX < rightX) {
+      ctx.font = `${fs}px ${VT}`;
+
+      // Rotated "WALL" text to the left of the line
+      ctx.save();
+      ctx.fillStyle = "rgba(248,113,113,0.72)";
+      ctx.translate(wX - 9, topY + spanY * 0.38);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("WALL", 0, 0);
+      ctx.restore();
+
+      // Boxed threshold value at the top of the wall line
+      const label  = `≤${r.shockThreshH.toFixed(1)}H`;
+      const tw     = ctx.measureText(label).width;
+      const padX   = 5, padY = 3;
+      const boxW   = tw + padX * 2;
+      const boxH   = fs + padY * 2;
+      const boxX   = Math.max(leftX, Math.min(rightX - boxW, wX - boxW / 2));
+      const boxY   = topY + 6;
+
+      ctx.fillStyle   = "rgba(0,0,0,0.82)";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = "rgba(248,113,113,0.65)";
+      ctx.lineWidth   = 1;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.fillStyle    = "rgba(248,113,113,0.9)";
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(label, boxX + boxW / 2, boxY + padY);
+    }
+  }
 
   ctx.globalAlpha = 1;
 }
