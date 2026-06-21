@@ -5,6 +5,7 @@ import { ChevronLeft } from 'pixelarticons/react/ChevronLeft';
 import { ChevronRight } from 'pixelarticons/react/ChevronRight';
 import { useRoutineStore } from '../store/useRoutineStore';
 import { usePlannerStore } from '../store/usePlannerStore';
+import { useArcVisibilityStore } from '../../../store/useArcVisibilityStore';
 import { loadRoutineCompletedCounts, deleteRoutineNodeByDate } from '../lib/routineDb';
 import { loadRoutineNodesForWeek } from '../lib/plannerDb';
 import RoutineForm from '../components/RoutineForm';
@@ -499,7 +500,9 @@ function WeekTimeView({ weekOffset, setOffset, nodes, hoveredRoutineId, onHoverR
 
 export default function RoutinesView() {
   const { routines, loadAll, deleteRoutine, createRoutineComplete, updateRoutineWithRules } = useRoutineStore();
-  const { nodes, groups, arcs, projects, completeNode, deleteNode, loadAll: reloadNodes } = usePlannerStore();
+  const { nodes, groups, arcs: allArcs, projects, completeNode, deleteNode, loadAll: reloadNodes } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const [completedCounts, setCompletedCounts] = useState<Record<string, number>>({});
 
   const [weekOffset,       setWeekOffset]       = useState(0);

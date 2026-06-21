@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { loadArcCompletions } from "../../../PlannerPlugin/lib/plannerDb";
+import { useArcVisibilityStore } from "../../../../store/useArcVisibilityStore";
 import { computeArcStreams, buildStreamInsights } from "./arcStreamMath";
 import type { StreamResult } from "./arcStreamMath";
 
@@ -209,10 +210,12 @@ export default function ArcCompositionStream({ onInsights }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const [result, setResult] = useState<StreamResult | null>(null);
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
 
   useEffect(() => {
     loadArcCompletions(90)
-      .then(records => {
+      .then(allRecords => {
+        const records = allRecords.filter(r => !r.arc_id || !hiddenArcIds.includes(r.arc_id));
         const r = computeArcStreams(records);
         if (r) {
           setResult(r);
@@ -222,7 +225,7 @@ export default function ArcCompositionStream({ onInsights }: Props) {
         }
       })
       .catch(() => onInsights(["FAILED TO LOAD ARC DATA"]));
-  }, [onInsights]);
+  }, [onInsights, hiddenArcIds]);
 
   // Keep canvas buffer in sync with container dimensions (HiDPI)
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WidgetStudio } from './sections/WidgetStudio';
+import { ArcVisibility } from './sections/ArcVisibility';
 
 type Section = 'widgets' | 'general' | 'appearance';
 
@@ -79,7 +80,7 @@ function SettingsPlugin() {
       {/* ── Content ── */}
       <div style={{ flex: 1, minHeight: 0, marginTop: '2rem', overflow: 'hidden' }}>
         {active === 'widgets'    && <WidgetStudio />}
-        {active === 'general'    && <PlaceholderSection label="GENERAL" />}
+        {active === 'general'    && <ArcVisibility />}
         {active === 'appearance' && <PlaceholderSection label="APPEARANCE" />}
       </div>
 

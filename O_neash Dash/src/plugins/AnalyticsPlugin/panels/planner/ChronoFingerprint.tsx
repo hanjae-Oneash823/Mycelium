@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { loadChronoData } from "./chronoData";
 import { loadArcs } from "../../../PlannerPlugin/lib/plannerDb";
+import { useArcVisibilityStore } from "../../../../store/useArcVisibilityStore";
 import {
   runChronoModel,
   concentrationLabel,
@@ -76,13 +77,16 @@ export default function ChronoFingerprint({ onInsights }: Props) {
   const [arcNames, setArcNames]   = useState<Map<string, string>>(new Map());
   const [viewMode, setViewMode]   = useState<ViewMode>("main");
   const [status, setStatus]       = useState<"loading" | "ready" | "empty" | "error">("loading");
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [pts, arcs] = await Promise.all([loadChronoData(), loadArcs()]);
+        const [allPts, allArcs] = await Promise.all([loadChronoData(), loadArcs()]);
         if (cancelled) return;
+        const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
+        const pts  = allPts.filter(p => !p.arcId || !hiddenArcIds.includes(p.arcId));
         const names = new Map(arcs.map((a) => [a.id, a.name]));
         setArcColors(new Map(arcs.map((a) => [a.id, a.color_hex])));
         setArcNames(names);
@@ -97,7 +101,7 @@ export default function ChronoFingerprint({ onInsights }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [hiddenArcIds]);
 
   if (status === "loading") {
     return (

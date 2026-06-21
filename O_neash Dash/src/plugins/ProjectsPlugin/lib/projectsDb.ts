@@ -97,6 +97,68 @@ export interface ProjectCounts {
   noteCount: number;
 }
 
+export interface DateRange {
+  start: string | null;
+  end: string | null;
+}
+
+export async function getArcDateRanges(): Promise<Map<string, DateRange>> {
+  const db = getDb();
+  const rows = await db.select<{ arc_id: string; start: string | null; end: string | null }[]>(
+    `SELECT arc_id,
+            MIN(created_at) as start,
+            MAX(COALESCE(actual_completed_at, created_at)) as end
+     FROM nodes WHERE arc_id IS NOT NULL GROUP BY arc_id`,
+  );
+  return new Map(rows.map(r => [r.arc_id, { start: r.start, end: r.end }]));
+}
+
+export async function getProjectDateRanges(): Promise<Map<string, DateRange>> {
+  const db = getDb();
+  const rows = await db.select<{ project_id: string; start: string | null; end: string | null }[]>(
+    `SELECT project_id,
+            MIN(created_at) as start,
+            MAX(COALESCE(actual_completed_at, created_at)) as end
+     FROM nodes WHERE project_id IS NOT NULL GROUP BY project_id`,
+  );
+  return new Map(rows.map(r => [r.project_id, { start: r.start, end: r.end }]));
+}
+
+export interface NodeDayCount {
+  day: string;
+  count: number;
+}
+
+export async function getArcNodeDates(): Promise<Map<string, NodeDayCount[]>> {
+  const db = getDb();
+  const rows = await db.select<{ arc_id: string; day: string; count: number }[]>(
+    `SELECT arc_id, DATE(COALESCE(actual_completed_at, created_at)) as day, COUNT(*) as count
+     FROM nodes WHERE arc_id IS NOT NULL GROUP BY arc_id, day`,
+  );
+  const map = new Map<string, NodeDayCount[]>();
+  for (const r of rows) {
+    const arr = map.get(r.arc_id) ?? [];
+    arr.push({ day: r.day, count: r.count });
+    map.set(r.arc_id, arr);
+  }
+  return map;
+}
+
+export async function getProjectNodeDates(): Promise<Map<string, NodeDayCount[]>> {
+  const db = getDb();
+  const rows = await db.select<{ project_id: string; day: string; count: number }[]>(
+    `SELECT project_id, DATE(COALESCE(actual_completed_at, created_at)) as day, COUNT(*) as count
+     FROM nodes WHERE project_id IS NOT NULL GROUP BY project_id, day`,
+  );
+  const map = new Map<string, NodeDayCount[]>();
+  for (const r of rows) {
+    const arr = map.get(r.project_id) ?? [];
+    arr.push({ day: r.day, count: r.count });
+    map.set(r.project_id, arr);
+  }
+  return map;
+}
+
 export async function getAllArcNodeCounts(): Promise<Map<string, number>> {
   const db = getDb();
   const rows = await db.select<{ arc_id: string; count: number }[]>(

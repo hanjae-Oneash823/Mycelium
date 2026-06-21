@@ -39,6 +39,7 @@ import { Wind } from "pixelarticons/react/Wind";
 import { AspectRatio } from "pixelarticons/react/AspectRatio";
 import { ArrowBarDown } from "pixelarticons/react/ArrowBarDown";
 import { usePlannerStore } from "../store/usePlannerStore";
+import { useArcVisibilityStore } from "../../../store/useArcVisibilityStore";
 import { useViewStore } from "../store/useViewStore";
 import { useSessionStore } from "../store/useSessionStore";
 import {
@@ -65,7 +66,7 @@ const SUGGESTION_LIMIT = 3;
 export default function TodayView() {
   const {
     nodes,
-    arcs,
+    arcs: allArcs,
     projects,
     capacity,
     subTasksByNode,
@@ -78,6 +79,8 @@ export default function TodayView() {
     toggleSubTask,
     createNode,
   } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const { openTaskForm, openTaskFormEdit } = useViewStore();
   const activeSession      = useSessionStore((s) => s.activeSession);
   const activeSessionNodes = useSessionStore((s) => s.activeSessionNodes);
@@ -1496,7 +1499,9 @@ function QuickAddInput({
     groupIds?: string[],
   ) => Promise<void>;
 }) {
-  const { arcs, projects, groups } = usePlannerStore();
+  const { arcs: allArcs, projects, groups } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [pulseKey, setPulseKey] = useState(0);
@@ -2147,7 +2152,9 @@ function InSessionTaskRow({
   onEdit: () => void;
   onRemove: () => void;
 }) {
-  const { arcs, projects } = usePlannerStore();
+  const { arcs: allArcs, projects } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const [hov, setHov] = useState(false);
   const isActive = sessionNode.status === "in_progress";
   const arc  = node?.arc_id     ? arcs.find((a) => a.id === node.arc_id)         : null;
@@ -2299,7 +2306,9 @@ function TaskRow({
   sessionAction?: { onClick: () => void };
   onHover?: (id: string | null) => void;
 }) {
-  const { arcs, projects } = usePlannerStore();
+  const { arcs: allArcs, projects } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const [subtasksOpen, setSubtasksOpen] = useState(false);
   const [hov, setHov] = useState(false);
   const [exitAnim, setExitAnim] = useState<
@@ -2766,7 +2775,9 @@ function MiniCard({
   primaryAction?: { label: string; onClick: () => void; icon?: React.ReactNode };
   suggestion?: boolean;
 }) {
-  const { arcs, projects } = usePlannerStore();
+  const { arcs: allArcs, projects } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const [hovered, setHovered] = useState(false);
 
   const arc = node.arc_id ? arcs.find((a) => a.id === node.arc_id) : null;
@@ -3157,7 +3168,9 @@ function TaskCard({
   rescheduleTomorrow?: () => void;
   isDone?: boolean;
 }) {
-  const { arcs, projects } = usePlannerStore();
+  const { arcs: allArcs, projects } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const [hovered, setHovered] = useState(false);
   const [hoveredSubId, setHoveredSubId] = useState<string | null>(null);
   const [subAnchor, setSubAnchor] = useState({ x: 0, y: 0 });
@@ -3704,6 +3717,15 @@ function EventCalendarPanel({
   nodes: PlannerNode[];
   highlightNodeId?: string | null;
 }) {
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const isArcHidden = (n: PlannerNode): boolean => {
+    if (n.arc_id) return hiddenArcIds.includes(n.arc_id);
+    if (n.project_id) {
+      const proj = projects.find(p => p.id === n.project_id);
+      if (proj?.arc_id) return hiddenArcIds.includes(proj.arc_id);
+    }
+    return false;
+  };
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekDir, setWeekDir] = useState<1 | -1>(1);
   const [eventNodes, setEventNodes] = useState<PlannerNode[]>([]);
@@ -4183,7 +4205,8 @@ function EventCalendarPanel({
                       if (topPx < 0) return null;
                       const dur = n.estimated_duration_minutes ?? 30;
                       const heightPx = Math.max(6, (dur / 60) * hourH);
-                      const color = getArcColorCal(n, arcs, projects);
+                      const arcHidden = isArcHidden(n);
+                      const color = arcHidden ? "rgba(255,255,255,0.18)" : getArcColorCal(n, arcs, projects);
                       const normTime = calNormTime(timeStr);
                       const endTime = dur ? calAddMins(normTime, dur) : null;
                       const label = endTime
@@ -4205,19 +4228,19 @@ function EventCalendarPanel({
                       return (
                         <div
                           key={n.id}
-                          onMouseEnter={(e) =>
+                          onMouseEnter={arcHidden ? undefined : (e) =>
                             setTooltip({
                               title: `${n.title} · ${label}`,
                               x: e.clientX,
                               y: e.clientY,
                             })
                           }
-                          onMouseMove={(e) =>
+                          onMouseMove={arcHidden ? undefined : (e) =>
                             setTooltip((t) =>
                               t ? { ...t, x: e.clientX, y: e.clientY } : null,
                             )
                           }
-                          onMouseLeave={() => setTooltip(null)}
+                          onMouseLeave={arcHidden ? undefined : () => setTooltip(null)}
                           style={{
                             position: "absolute",
                             top: topPx + 1,

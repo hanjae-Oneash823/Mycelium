@@ -6,33 +6,22 @@ import {
 } from 'recharts';
 import {
   getAllArcs, getAllProjects, getAllProjectCounts, getAllArcNodeCounts,
-  getArcActivityHistory, getAllProjectActivity,
+  getArcActivityHistory, getAllProjectActivity, getArcDateRanges, getProjectDateRanges,
+  getArcNodeDates, getProjectNodeDates,
   createArc, updateArc, deleteArc, cascadeArcStatus,
   createProject, updateProject, deleteProject,
-  type Arc, type Project, type ProjectStatus, type ProjectCounts, type ArcDayCount, type ProjectActivity,
+  type Arc, type Project, type ProjectStatus, type ProjectCounts, type ArcDayCount, type ProjectActivity, type DateRange, type NodeDayCount,
 } from './lib/projectsDb';
+import { STATUS_COLOR, brightenHex } from './lib/colors';
+import GanttView from './components/GanttView';
 
 const VT = "'VT323', 'HBIOS-SYS', monospace";
 const ACC = '#00c4a7';
-
-const STATUS_COLOR: Record<ProjectStatus, string> = {
-  'active':   '#00c4a7',
-  'done':     '#4ade80',
-  'archived': 'rgba(255,255,255,0.25)',
-};
 
 const PALETTE = [
   '#00c4a7','#6366f1','#f59e0b','#e879f9','#f87171',
   '#34d399','#60a5fa','#fb923c','#a78bfa','#94a3b8',
 ];
-
-function brightenHex(hex: string, factor = 1.25): string {
-  const h = hex.replace('#', '');
-  const r = Math.min(255, Math.round(parseInt(h.slice(0, 2), 16) * factor));
-  const g = Math.min(255, Math.round(parseInt(h.slice(2, 4), 16) * factor));
-  const b = Math.min(255, Math.round(parseInt(h.slice(4, 6), 16) * factor));
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
 
 function fmtDate(d: string | null): string {
   if (!d) return '';
@@ -539,10 +528,20 @@ export default function ProjectsPlugin() {
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [activity, setActivity] = useState<Map<string, ProjectActivity>>(new Map());
+  const [tab, setTab] = useState<'arcs' | 'gantt'>('arcs');
+  const [arcRanges, setArcRanges] = useState<Map<string, DateRange>>(new Map());
+  const [projectRanges, setProjectRanges] = useState<Map<string, DateRange>>(new Map());
+  const [arcNodeDates, setArcNodeDates] = useState<Map<string, NodeDayCount[]>>(new Map());
+  const [projectNodeDates, setProjectNodeDates] = useState<Map<string, NodeDayCount[]>>(new Map());
 
   const load = useCallback(async () => {
-    const [a, p, c, anc, h, act] = await Promise.all([getAllArcs(), getAllProjects(), getAllProjectCounts(), getAllArcNodeCounts(), getArcActivityHistory(), getAllProjectActivity()]);
-    setArcs(a); setProjects(p); setCounts(c); setArcNodeCounts(anc); setHistory(h); setActivity(act); setLoading(false);
+    const [a, p, c, anc, h, act, ar, pr, and, pnd] = await Promise.all([
+      getAllArcs(), getAllProjects(), getAllProjectCounts(), getAllArcNodeCounts(),
+      getArcActivityHistory(), getAllProjectActivity(), getArcDateRanges(), getProjectDateRanges(),
+      getArcNodeDates(), getProjectNodeDates(),
+    ]);
+    setArcs(a); setProjects(p); setCounts(c); setArcNodeCounts(anc); setHistory(h); setActivity(act);
+    setArcRanges(ar); setProjectRanges(pr); setArcNodeDates(and); setProjectNodeDates(pnd); setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, []);
@@ -623,30 +622,77 @@ export default function ProjectsPlugin() {
 
       {/* ── Top bar ── */}
       <div style={{ padding: '112px 160px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 48 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginBottom: 24 }}>
           <span style={{ fontFamily: VT, fontSize: '2rem', letterSpacing: 5, color: ACC, textTransform: 'uppercase', lineHeight: 1 }}>arcs & projects</span>
           <div style={{ flex: 1 }} />
-          <button onClick={() => setShowNewArc(true)}
-            style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', fontFamily: VT, fontSize: '0.88rem', letterSpacing: 2, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 18px', transition: 'all 0.1s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>
-            + new arc
-          </button>
+          {tab === 'arcs' && (
+            <button onClick={() => setShowNewArc(true)}
+              style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', fontFamily: VT, fontSize: '0.88rem', letterSpacing: 2, color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '4px 18px', transition: 'all 0.1s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>
+              + new arc
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2.4rem', paddingBottom: '0.7rem' }}>
+          {(['arcs', 'gantt'] as const).map((t, i) => {
+            const active = tab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  background:    'none',
+                  border:        'none',
+                  padding:       0,
+                  cursor:        'pointer',
+                  fontFamily:    VT,
+                  letterSpacing: active ? '3px' : '1.5px',
+                  lineHeight:    1,
+                  display:       'flex',
+                  alignItems:    'center',
+                  gap:           '0.4rem',
+                  transition:    'all 0.12s ease',
+                }}
+              >
+                <span style={{ fontSize: '1.1rem', color: active ? ACC : 'rgba(255,255,255,0.22)', transition: 'color 0.12s ease' }}>
+                  {i + 1}
+                </span>
+                <span style={{
+                  fontSize:      active ? '2.6rem' : '1.45rem',
+                  color:         active ? '#fff' : 'rgba(255,255,255,0.28)',
+                  textTransform: active ? 'uppercase' : 'lowercase',
+                  transition:    'font-size 0.12s ease, color 0.12s ease',
+                }}>
+                  {t}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {showNewArc && (
+      {tab === 'gantt' && (
+        <GanttView
+          arcs={arcs} projects={projects}
+          arcRanges={arcRanges} projectRanges={projectRanges}
+          arcNodeDates={arcNodeDates} projectNodeDates={projectNodeDates}
+        />
+      )}
+
+      {tab === 'arcs' && showNewArc && (
         <div style={{ padding: '0 160px', flexShrink: 0 }}>
           <NewArcForm onSave={handleCreateArc} onCancel={() => setShowNewArc(false)} />
         </div>
       )}
 
-      {arcs.length === 0 && !showNewArc && (
+      {tab === 'arcs' && arcs.length === 0 && !showNewArc && (
         <div style={{ padding: '0 160px', fontFamily: VT, fontSize: '0.9rem', color: 'rgba(255,255,255,0.1)', letterSpacing: 2 }}>no arcs yet — click + new arc to start</div>
       )}
 
       {/* ── Analytics ── */}
-      {sortedArcs.length > 0 && (
+      {tab === 'arcs' && sortedArcs.length > 0 && (
         <AnalyticsPanel
           arcs={sortedArcs}
           history={history}
@@ -655,7 +701,7 @@ export default function ProjectsPlugin() {
       )}
 
       {/* ── Dot indicators (outside carousel, always visible) ── */}
-      {sortedArcs.length > 0 && (
+      {tab === 'arcs' && sortedArcs.length > 0 && (
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', padding: '0 0 20px', flexShrink: 0 }}>
           {sortedArcs.map((a, i) => (
             <div key={a.id} onClick={() => { setDir(i > idx ? 1 : -1); setIdx(i); }}
@@ -665,7 +711,7 @@ export default function ProjectsPlugin() {
       )}
 
       {/* ── Carousel ── */}
-      {sortedArcs.length > 0 && currentArc && (
+      {tab === 'arcs' && sortedArcs.length > 0 && currentArc && (
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 20 }}>
 
           <button onClick={() => navigate(-1)}

@@ -14,6 +14,7 @@ const snapToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform })
   };
 };
 import { usePlannerStore } from '../store/usePlannerStore';
+import { useArcVisibilityStore } from '../../../store/useArcVisibilityStore';
 import { toDateString, isSameDay } from '../lib/logicEngine';
 import { getDensityRatio } from '../lib/densityCalc';
 import DotCell from '../components/DotCell';
@@ -55,7 +56,9 @@ interface ColDef {
 }
 
 export default function EisenhowerView() {
-  const { nodes, arcs, projects, capacity, rescheduleNode } = usePlannerStore();
+  const { nodes, arcs: allArcs, projects, capacity, rescheduleNode } = usePlannerStore();
+  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
+  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const now = new Date();
   const [activeDragNode, setActiveDragNode] = useState<PlannerNode | null>(null);
 
@@ -165,7 +168,7 @@ export default function EisenhowerView() {
     result.push({ id: 'ungrouped', label: 'no project', indent: 0, color: 'rgba(255,255,255,0.4)', hasChildren: false, nodes: [...ungrouped, ...orphaned] });
 
     return result;
-  }, [nodes, arcs, projects]);
+  }, [nodes, arcs, projects, hiddenArcIds]);
 
   const getEffectiveNodes = (row: GridRow): PlannerNode[] => {
     if (row.arcId && !row.projectId && collapsedArcs.has(row.arcId)) {
