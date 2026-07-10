@@ -56,9 +56,10 @@ import {
   type TodayDoneSummary,
   type CalendarDayData,
 } from "../lib/plannerDb";
-import { loadSessionsForWeek, loadSessionNodes } from "../lib/onTheClockDb";
-import type { WorkSession, SessionNodeWithNode } from "../lib/onTheClockDb";
+import { loadSessionsForWeek, loadSessionNodes, loadArcBreakdown } from "../lib/onTheClockDb";
+import type { WorkSession, SessionNodeWithNode, ArcBreakdown } from "../lib/onTheClockDb";
 import DotNode from "../components/DotNode";
+import QuickAddInput from "../components/QuickAddInput";
 import type { PlannerNode, Arc, Project } from "../types";
 
 const SUGGESTION_LIMIT = 3;
@@ -826,7 +827,7 @@ export default function TodayView() {
         >
           <MiniCalendarPanel />
           <TaskVelocityPanel nodes={nodes} />
-          <StreakPanel />
+          <SessionBreakdownPanel />
         </div>
       </div>
 
@@ -1347,788 +1348,6 @@ function SectionLabel({
         {label}
       </span>
       <div className={labelClassName} style={{ flex: 1, height: 1, background: color, opacity: 0.4 }} />
-    </div>
-  );
-}
-
-// ─── Quick add ────────────────────────────────────────────────────────────────
-
-const BADGE_VARIANTS: Variants = {
-  initial: { opacity: 0, scale: 0.6, y: 10 },
-  animate: {
-    opacity: 1,
-    scale: 1,
-    y: 0,
-    transition: { type: "spring" as const, stiffness: 460, damping: 28 },
-  },
-  exit: {
-    opacity: 0,
-    scale: 0.5,
-    y: -8,
-    transition: { duration: 0.15, ease: "easeIn" as const },
-  },
-};
-
-function QuickAddButton({
-  active,
-  onClick,
-}: {
-  active: boolean;
-  onClick: () => void;
-}) {
-  const [hov, setHov] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        all: "unset",
-        cursor: "pointer",
-        fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-        fontSize: "1rem",
-        letterSpacing: "2px",
-        color: active
-          ? "#00c4a7"
-          : hov
-            ? "rgba(255,255,255,0.7)"
-            : "rgba(255,255,255,0.3)",
-        transition: "color 0.12s",
-        flexShrink: 0,
-        paddingLeft: "0.75rem",
-      }}
-    >
-      {active ? "[ × ]" : "[ + ]"}
-    </button>
-  );
-}
-
-const QA_PLACEHOLDER = "enter quick task".split("");
-const QA_STAGGER = 0.045;
-const QA_CHAR_DUR = 0.22;
-const QA_STAGGER_TOTAL =
-  QA_PLACEHOLDER.length * QA_STAGGER + QA_CHAR_DUR + 0.05;
-
-function QAPlaceholder({ visible }: { visible: boolean }) {
-  const [waving, setWaving] = useState(false);
-  useEffect(() => {
-    if (!visible) {
-      setWaving(false);
-      return;
-    }
-    const t = setTimeout(() => setWaving(true), QA_STAGGER_TOTAL * 1000);
-    return () => clearTimeout(t);
-  }, [visible]);
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          exit={{ opacity: 0, transition: { duration: 0.15 } }}
-          style={{
-            position: "absolute",
-            left: 10,
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "flex",
-            pointerEvents: "none",
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-            fontSize: "1rem",
-            letterSpacing: 1,
-          }}
-        >
-          {QA_PLACEHOLDER.map((ch, i) => (
-            <motion.span
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={
-                waving
-                  ? {
-                      y: [0, -3, 0],
-                      opacity: ch === " " ? 0 : [0.5, 0.8, 0.5],
-                    }
-                  : {
-                      opacity: ch === " " ? 0 : 0.55,
-                      y: 0,
-                    }
-              }
-              transition={
-                waving
-                  ? {
-                      y: {
-                        duration: 1.4,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: i * 0.09,
-                        repeatDelay: 2,
-                      },
-                      opacity: {
-                        duration: 1.4,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: i * 0.09,
-                        repeatDelay: 2,
-                      },
-                    }
-                  : {
-                      delay: i * QA_STAGGER,
-                      duration: QA_CHAR_DUR,
-                      ease: "easeOut",
-                    }
-              }
-              style={{
-                display: "inline-block",
-                color: "rgba(255,255,255,0.55)",
-              }}
-            >
-              {ch === " " ? " " : ch}
-            </motion.span>
-          ))}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function QuickAddInput({
-  onCommit,
-}: {
-  onCommit: (
-    title: string,
-    arcId?: string,
-    projectId?: string,
-    groupIds?: string[],
-  ) => Promise<void>;
-}) {
-  const { arcs: allArcs, projects, groups } = usePlannerStore();
-  const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
-  const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
-  const [value, setValue] = useState("");
-  const [focused, setFocused] = useState(false);
-  const [pulseKey, setPulseKey] = useState(0);
-  const [launchItem, setLaunchItem] = useState<{
-    text: string;
-    x: number;
-    y: number;
-  } | null>(null);
-  const [selectedArcId, setSelectedArcId] = useState<string | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    null,
-  );
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [dropPos, setDropPos] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
-  const [badgePos, setBadgePos] = useState<{
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropListRef = useRef<HTMLDivElement>(null);
-  const squishCtrl = useAnimationControls();
-
-  useEffect(() => {
-    if (!dropListRef.current) return;
-    const item = dropListRef.current.children[activeIdx] as
-      | HTMLElement
-      | undefined;
-    item?.scrollIntoView({ block: "nearest" });
-  }, [activeIdx]);
-
-  // Options depend on what's already selected:
-  // - arcs: always shown (max 1)
-  // - projects: only shown when an arc is selected, filtered to that arc (max 1)
-  // - groups: always shown, multiple allowed
-  const slug = (s: string) => s.replace(/\s+/g, "_");
-
-  const allOptions = useMemo(() => {
-    const opts: {
-      id: string;
-      label: string;
-      display: string;
-      color: string;
-      type: "arc" | "project" | "group";
-    }[] = [];
-    arcs.forEach((a) =>
-      opts.push({
-        id: a.id,
-        label: `arc-${slug(a.name)}`,
-        display: a.name,
-        color: a.color_hex,
-        type: "arc",
-      }),
-    );
-    if (selectedArcId) {
-      projects
-        .filter((p) => p.arc_id === selectedArcId)
-        .forEach((p) =>
-          opts.push({
-            id: p.id,
-            label: `project-${slug(p.name)}`,
-            display: p.name,
-            color: "rgba(255,255,255,0.75)",
-            type: "project",
-          }),
-        );
-    }
-    groups
-      .filter((g) => !g.is_ungrouped)
-      .forEach((g) =>
-        opts.push({
-          id: g.id,
-          label: `group-${slug(g.name)}`,
-          display: g.name,
-          color: g.color_hex,
-          type: "group",
-        }),
-      );
-    return opts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arcs, projects, groups, selectedArcId]);
-
-  const filteredOptions = useMemo(() => {
-    if (mentionQuery === null) return [];
-    const q = mentionQuery.toLowerCase();
-    return allOptions.filter((o) => o.label.toLowerCase().includes(q));
-  }, [mentionQuery, allOptions]);
-
-  useEffect(() => {
-    if (mentionQuery !== null && boxRef.current) {
-      const rect = boxRef.current.getBoundingClientRect();
-      setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    } else {
-      setDropPos(null);
-    }
-  }, [mentionQuery]);
-
-  useEffect(() => {
-    if (!boxRef.current) return;
-    const rect = boxRef.current.getBoundingClientRect();
-    setBadgePos({ top: rect.top, left: rect.left, width: rect.width });
-  }, [selectedArcId, selectedProjectId, selectedGroupIds]);
-
-  useEffect(() => {
-    const update = () => {
-      if (!boxRef.current) return;
-      const rect = boxRef.current.getBoundingClientRect();
-      setBadgePos({ top: rect.top, left: rect.left, width: rect.width });
-    };
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  function detectMention(v: string, cursor: number) {
-    const before = v.slice(0, cursor);
-    const atIdx = before.lastIndexOf("@");
-    if (atIdx !== -1) {
-      const query = before.slice(atIdx + 1);
-      if (!query.includes(" ")) {
-        setMentionQuery(query);
-        setActiveIdx(0);
-        return;
-      }
-    }
-    setMentionQuery(null);
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = e.target.value;
-    setValue(v);
-    setPulseKey((k) => k + 1);
-    detectMention(v, e.target.selectionStart ?? v.length);
-  }
-
-  function selectOption(opt: (typeof allOptions)[0]) {
-    // Strip the @query from the input — selection is shown as a badge instead
-    const cursor = inputRef.current?.selectionStart ?? value.length;
-    const before = value.slice(0, cursor);
-    const after = value.slice(cursor);
-    const atIdx = before.lastIndexOf("@");
-    const newVal = (before.slice(0, atIdx) + after).trimStart();
-    setValue(newVal);
-
-    if (opt.type === "arc") {
-      setSelectedArcId(opt.id);
-      setSelectedProjectId(null);
-    } else if (opt.type === "project") {
-      setSelectedProjectId(opt.id);
-    } else {
-      setSelectedGroupIds((ids) =>
-        ids.includes(opt.id)
-          ? ids.filter((id) => id !== opt.id)
-          : [...ids, opt.id],
-      );
-    }
-
-    setMentionQuery(null);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  async function handleCommit() {
-    const title = value.trim();
-    if (!title) return;
-    const rect = boxRef.current?.getBoundingClientRect();
-    const lx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-    const ly = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
-    squishCtrl.start({
-      scaleY: [1, 0.78, 1.07, 1],
-      scaleX: [1, 1.05, 0.97, 1],
-      transition: {
-        duration: 0.42,
-        times: [0, 0.28, 0.65, 1],
-        ease: "easeOut",
-      },
-    });
-    setLaunchItem({ text: title, x: lx, y: ly });
-    setValue("");
-    setSelectedArcId(null);
-    setSelectedProjectId(null);
-    setSelectedGroupIds([]);
-    await onCommit(
-      title,
-      selectedArcId ?? undefined,
-      selectedProjectId ?? undefined,
-      selectedGroupIds.length > 0 ? selectedGroupIds : undefined,
-    );
-  }
-
-  return (
-    <div
-      style={{ width: "100%", fontFamily: "'VT323', 'HBIOS-SYS', monospace" }}
-    >
-      {launchItem &&
-        createPortal(
-          <motion.div
-            initial={{ opacity: 1, scale: 1, y: 0 }}
-            animate={{ opacity: 0, scale: 0.55, y: -200 }}
-            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-            onAnimationComplete={() => setLaunchItem(null)}
-            style={{
-              position: "fixed",
-              left: launchItem.x,
-              top: launchItem.y,
-              translateX: "-50%",
-              translateY: "-50%",
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              fontSize: "1.1rem",
-              letterSpacing: 1,
-              color: "#00c4a7",
-              textShadow: "0 0 18px rgba(0,196,167,0.7)",
-              pointerEvents: "none",
-              zIndex: 9999,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {launchItem.text}
-          </motion.div>,
-          document.body,
-        )}
-
-      <motion.div ref={boxRef} animate={squishCtrl} style={{ width: "100%" }}>
-        <motion.div
-          animate={{
-            borderColor: focused
-              ? "rgba(0,196,167,0.55)"
-              : "rgba(255,255,255,0.18)",
-            backgroundColor: focused
-              ? "rgba(0,12,10,0.96)"
-              : "rgba(0,0,0,0.88)",
-          }}
-          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          style={{
-            display: "flex",
-            alignItems: "stretch",
-            border: "1px solid rgba(255,255,255,0.18)",
-            overflow: "hidden",
-            width: "100%",
-            position: "relative",
-          }}
-        >
-          <AnimatePresence>
-            <motion.div
-              key={pulseKey}
-              initial={{ opacity: 1 }}
-              animate={{ opacity: 0 }}
-              transition={{ duration: 0.65, ease: "easeOut" }}
-              style={{
-                position: "absolute",
-                inset: -1,
-                border: "2px solid rgba(0,196,167,1)",
-                boxShadow:
-                  "0 0 14px rgba(0,196,167,0.5), inset 0 0 10px rgba(0,196,167,0.12)",
-                pointerEvents: "none",
-                zIndex: 10,
-              }}
-            />
-          </AnimatePresence>
-
-          <div
-            style={{
-              flex: 1,
-              position: "relative",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            <QAPlaceholder visible={!focused && !value} />
-            <input
-              ref={inputRef}
-              value={value}
-              onChange={handleChange}
-              onKeyDown={(e) => {
-                if (mentionQuery !== null && filteredOptions.length > 0) {
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setActiveIdx((i) =>
-                      Math.min(i + 1, filteredOptions.length - 1),
-                    );
-                    return;
-                  }
-                  if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    setActiveIdx((i) => Math.max(i - 1, 0));
-                    return;
-                  }
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    selectOption(filteredOptions[activeIdx]);
-                    return;
-                  }
-                  if (e.key === "Escape") {
-                    e.preventDefault();
-                    setMentionQuery(null);
-                    return;
-                  }
-                }
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleCommit();
-                }
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setValue("");
-                }
-              }}
-              onFocus={() => setFocused(true)}
-              onBlur={() => {
-                setFocused(false);
-                setTimeout(() => {
-                  setMentionQuery(null);
-                  setSelectedArcId(null);
-                  setSelectedProjectId(null);
-                  setSelectedGroupIds([]);
-                }, 150);
-              }}
-              placeholder=""
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                color: "rgba(255,255,255,0.82)",
-                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-                fontSize: "1rem",
-                padding: "6px 10px",
-                letterSpacing: 1,
-                outline: "none",
-                width: "100%",
-              }}
-            />
-            {dropPos &&
-              filteredOptions.length > 0 &&
-              createPortal(
-                <div
-                  ref={dropListRef}
-                  className="quick-add-dropdown"
-                  style={{
-                    position: "fixed",
-                    top: dropPos.top,
-                    left: dropPos.left,
-                    width: dropPos.width,
-                    background: "#0d0d0d",
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    zIndex: 99999,
-                    fontFamily: "'VT323','HBIOS-SYS',monospace",
-                    fontSize: "1rem",
-                    letterSpacing: "1px",
-                    maxHeight: Math.min(
-                      220,
-                      window.innerHeight - dropPos.top - 8,
-                    ),
-                    overflowY: "auto",
-                  }}
-                >
-                  {filteredOptions.map((opt, i) => {
-                    const isGroupSelected =
-                      opt.type === "group" && selectedGroupIds.includes(opt.id);
-                    return (
-                      <div
-                        key={opt.id}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectOption(opt);
-                        }}
-                        style={{
-                          padding: "5px 12px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          background:
-                            i === activeIdx
-                              ? "rgba(255,255,255,0.07)"
-                              : "transparent",
-                          color:
-                            i === activeIdx
-                              ? "#fff"
-                              : isGroupSelected
-                                ? "var(--teal)"
-                                : "rgba(255,255,255,0.55)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 7,
-                            height: 7,
-                            background: opt.color,
-                            flexShrink: 0,
-                            display: "inline-block",
-                          }}
-                        />
-                        <span
-                          style={{
-                            color: "rgba(255,255,255,0.25)",
-                            fontSize: "0.8rem",
-                            marginRight: 2,
-                          }}
-                        >
-                          {opt.type}
-                        </span>
-                        {opt.display}
-                        {isGroupSelected && (
-                          <span
-                            style={{
-                              marginLeft: "auto",
-                              color: "var(--teal)",
-                              fontSize: "0.8rem",
-                            }}
-                          >
-                            ✓
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>,
-                document.documentElement,
-              )}
-          </div>
-
-          <button
-            onClick={handleCommit}
-            style={{
-              background: "none",
-              border: "none",
-              borderLeft: "1px solid rgba(255,255,255,0.12)",
-              color: "rgba(255,255,255,0.35)",
-              padding: "0 12px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              transition: "color 0.12s",
-            }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color = "#fff")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLButtonElement).style.color =
-                "rgba(255,255,255,0.35)")
-            }
-          >
-            <motion.div
-              animate={{ y: [0, -3, 0] }}
-              transition={{
-                duration: 1.6,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              style={{ display: "flex", alignItems: "center" }}
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M8 13V3M3 8l5-5 5 5"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="square"
-                />
-              </svg>
-            </motion.div>
-          </button>
-        </motion.div>
-      </motion.div>
-
-      {/* Floating badges — portaled above the input box */}
-      {badgePos &&
-        createPortal(
-          <div
-            style={{
-              position: "fixed",
-              top: badgePos.top - 10,
-              left: badgePos.left,
-              width: badgePos.width,
-              transform: "translateY(-100%)",
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
-              zIndex: 99999,
-              pointerEvents: "auto",
-            }}
-          >
-            <AnimatePresence mode="popLayout">
-              {selectedArcId &&
-                (() => {
-                  const arc = arcs.find((a) => a.id === selectedArcId);
-                  return arc ? (
-                    <motion.span
-                      key={arc.id}
-                      layout
-                      variants={BADGE_VARIANTS}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      style={{ display: "inline-flex" }}
-                    >
-                      <motion.span
-                        animate={{ y: [0, -3, 0] }}
-                        transition={{
-                          duration: 2.6,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                        className="badge-idle-pulse"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setSelectedArcId(null);
-                          setSelectedProjectId(null);
-                        }}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "2px 8px",
-                          background: arc.color_hex,
-                          border: `1px solid ${arc.color_hex}`,
-                          color: "#000",
-                          fontFamily: "'VT323','HBIOS-SYS',monospace",
-                          fontSize: "0.85rem",
-                          letterSpacing: "1px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        arc · {arc.name}
-                      </motion.span>
-                    </motion.span>
-                  ) : null;
-                })()}
-              {selectedProjectId &&
-                (() => {
-                  const proj = projects.find((p) => p.id === selectedProjectId);
-                  return proj ? (
-                    <motion.span
-                      key={proj.id}
-                      layout
-                      variants={BADGE_VARIANTS}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      style={{ display: "inline-flex" }}
-                    >
-                      <motion.span
-                        animate={{ y: [0, -3, 0] }}
-                        transition={{
-                          duration: 3.0,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                          delay: 0.5,
-                        }}
-                        className="badge-idle-pulse"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setSelectedProjectId(null);
-                        }}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4,
-                          padding: "2px 8px",
-                          background: "#b0b0a8",
-                          border: "1px solid #b0b0a8",
-                          color: "#000",
-                          fontFamily: "'VT323','HBIOS-SYS',monospace",
-                          fontSize: "0.85rem",
-                          letterSpacing: "1px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        project · {proj.name}
-                      </motion.span>
-                    </motion.span>
-                  ) : null;
-                })()}
-              {selectedGroupIds.map((gid, gi) => {
-                const grp = groups.find((g) => g.id === gid);
-                return grp ? (
-                  <motion.span
-                    key={gid}
-                    layout
-                    variants={BADGE_VARIANTS}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    style={{ display: "inline-flex" }}
-                  >
-                    <motion.span
-                      animate={{ y: [0, -3, 0] }}
-                      transition={{
-                        duration: 2.4 + gi * 0.28,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: gi * 0.45,
-                      }}
-                      className="badge-idle-pulse"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setSelectedGroupIds((ids) =>
-                          ids.filter((id) => id !== gid),
-                        );
-                      }}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        padding: "2px 8px",
-                        background: grp.color_hex,
-                        border: `1px solid ${grp.color_hex}`,
-                        color: "#000",
-                        fontFamily: "'VT323','HBIOS-SYS',monospace",
-                        fontSize: "0.85rem",
-                        letterSpacing: "1px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      group · {grp.name}
-                    </motion.span>
-                  </motion.span>
-                ) : null;
-              })}
-            </AnimatePresence>
-          </div>,
-          document.documentElement,
-        )}
     </div>
   );
 }
@@ -4922,86 +4141,225 @@ function MiniCalendarPanel() {
   );
 }
 
-// Panel 3b — Completion Streak
+// Panel 3b — Session Breakdown (arc time share, htop-style)
 
-function StreakPanel() {
-  const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-  };
-  const [streak, setStreak] = useState(0);
-  const [longest, setLongest] = useState(0);
+const BREAKDOWN_BAR_COLS = 10;
 
+interface AnimRow {
+  arc_name:     string;
+  arc_color:    string;
+  animFill:     number;
+  targetFill:   number;
+  label:        string;
+  task_count:   number;
+  total_minutes: number;
+  nameVisible:  boolean;
+  prevName:     string | null;
+  prevColor:    string | null;
+  prevVisible:  boolean;
+}
+
+function localDateStr(daysAgo: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fmtShort(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function SessionBreakdownPanel() {
+  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const [animRows, setAnimRows] = useState<AnimRow[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const isFirst = useRef(true);
+
+  const to   = localDateStr(offset * 7);
+  const from = localDateStr(offset * 7 + 6);
+
+  // Flicker tick
   useEffect(() => {
-    const calc = async () => {
-      const now = new Date();
-      // Current streak
-      let s = 0;
-      let d = new Date(now);
-      while (true) {
-        const year = d.getFullYear();
-        const month = d.getMonth() + 1;
-        const days = await loadMonthCompletions(year, month);
-        const key = `${year}-${String(month).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        const entry = days.find((x) => x.date === key);
-        if (!entry || entry.count === 0) break;
-        s++;
-        d.setDate(d.getDate() - 1);
-        if (s > 365) break;
-      }
-      setStreak(s);
-
-      // Longest streak — scan last 365 days
-      let best = 0,
-        run = 0;
-      const scan = new Date(now);
-      for (let i = 0; i < 365; i++) {
-        const year = scan.getFullYear();
-        const month = scan.getMonth() + 1;
-        const days = await loadMonthCompletions(year, month);
-        const key = `${year}-${String(month).padStart(2, "0")}-${String(scan.getDate()).padStart(2, "0")}`;
-        const entry = days.find((x) => x.date === key);
-        if (entry && entry.count > 0) {
-          run++;
-          best = Math.max(best, run);
-        } else run = 0;
-        scan.setDate(scan.getDate() - 1);
-      }
-      setLongest(Math.max(best, s));
-    };
-    calc();
+    const id = setInterval(() => setTick(t => t + 1), 650);
+    return () => clearInterval(id);
   }, []);
 
-  const lineStyle: React.CSSProperties = {
-    ...mono,
-    fontSize: "1.1rem",
-    letterSpacing: "2px",
-    color: "rgba(255,255,255,0.45)",
-    paddingLeft: "2.2rem",
-    lineHeight: 1,
+  // Bar fill animation — steps animFill toward targetFill one char at a time
+  useEffect(() => {
+    const id = setInterval(() => {
+      setAnimRows(prev => {
+        if (prev.every(r => r.animFill === r.targetFill)) return prev;
+        return prev.map(r =>
+          r.animFill === r.targetFill ? r :
+          { ...r, animFill: r.animFill < r.targetFill ? r.animFill + 1 : r.animFill - 1 },
+        );
+      });
+    }, 100);
+    return () => clearInterval(id);
+  }, []);
+
+  // Data fetch — diff against current slots and animate
+  useEffect(() => {
+    loadArcBreakdown(from, to).then(data => {
+      const total = data.reduce((s, r) => s + r.total_minutes, 0);
+      const newSlots = Array.from({ length: 4 }, (_, i) => {
+        const r = data[i];
+        if (!r) return null;
+        return {
+          arc_name: r.arc_name, arc_color: r.arc_color,
+          label: total > 0 ? (r.total_minutes / total * 100).toFixed(1) + '%' : '0.0%',
+          task_count: r.task_count, total_minutes: r.total_minutes,
+          targetFill: total > 0 ? Math.round((r.total_minutes / total) * BREAKDOWN_BAR_COLS) : 0,
+        };
+      });
+
+      if (isFirst.current) {
+        isFirst.current = false;
+        const initial = newSlots.map(s => s ? ({
+          ...s, animFill: 0, nameVisible: false, prevName: null, prevColor: null, prevVisible: false,
+        }) : null).filter(Boolean) as AnimRow[];
+        setAnimRows(initial);
+        setInitialLoading(false);
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          setAnimRows(prev => prev.map(r => ({ ...r, nameVisible: true })));
+        }));
+        return;
+      }
+
+      // Diff each slot by position
+      setAnimRows(prev => {
+        return newSlots.map((n, i) => {
+          const o = prev[i];
+          if (!n) {
+            // slot going empty — animate bar out
+            return o ? { ...o, targetFill: 0, label: '' } : null;
+          }
+          if (!o || o.arc_name !== n.arc_name) {
+            // new arc in this slot — crossfade name, bar restarts from current
+            return {
+              ...n, animFill: o?.animFill ?? 0,
+              nameVisible: false,
+              prevName: o?.arc_name ?? null, prevColor: o?.arc_color ?? null, prevVisible: !!(o?.arc_name),
+            };
+          }
+          // same arc — just update target
+          return { ...o, ...n, animFill: o.animFill };
+        }).filter(Boolean) as AnimRow[];
+      });
+
+      // Fade new names in, then clear prev names after transition
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        setAnimRows(prev => prev.map(r => ({ ...r, nameVisible: true, prevVisible: false })));
+        setTimeout(() => {
+          setAnimRows(prev => prev.map(r => ({ ...r, prevName: null, prevColor: null })));
+        }, 420);
+      }));
+    });
+  }, [from, to]);
+
+  const navBtn: React.CSSProperties = {
+    ...mono, fontSize: '1rem', background: 'none',
+    border: 'none', color: 'rgba(255,255,255,0.45)',
+    cursor: 'pointer', padding: '0 2px', lineHeight: 1,
   };
 
+  const titleRight = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <button style={navBtn} onClick={() => setOffset(o => o + 1)}><ChevronLeft width={9} height={9} /></button>
+      <span style={{ ...mono, fontSize: '0.8rem', letterSpacing: 1, color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap' }}>
+        {fmtShort(from)}–{fmtShort(to)}
+      </span>
+      <button style={{ ...navBtn, opacity: offset === 0 ? 0.2 : 1, cursor: offset === 0 ? 'default' : 'pointer' }}
+        onClick={() => { if (offset > 0) setOffset(o => o - 1); }}><ChevronRight width={9} height={9} /></button>
+    </div>
+  );
+
+  const hasContent = animRows.some(r => r.arc_name !== '' || r.animFill > 0);
+
   return (
-    <SidebarPanel title="streak" icon={Wind}>
-      <div style={{ ...lineStyle, gap: "0.3rem", flexWrap: "nowrap" }}>
-        <span>current:</span>
-        <span
-          style={{
-            color: streak > 0 ? "var(--teal)" : "rgba(255,255,255,0.2)",
-          }}
-        >
-          {streak}d
+    <SidebarPanel title="session htop" icon={Wind} titleRight={titleRight}>
+      {initialLoading ? (
+        <span style={{ ...mono, fontSize: '0.9rem', letterSpacing: 2, color: 'rgba(255,255,255,0.18)' }}>
+          loading...
         </span>
-        <span style={{ opacity: 0.35 }}>/</span>
-        <span>longest:</span>
-        <span
-          style={{
-            color:
-              longest > 0 ? "rgba(0,196,167,0.5)" : "rgba(255,255,255,0.2)",
-          }}
-        >
-          {longest}d
+      ) : !hasContent ? (
+        <span style={{ ...mono, fontSize: '0.9rem', letterSpacing: 2, color: 'rgba(255,255,255,0.18)' }}>
+          no session data
         </span>
-      </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', paddingLeft: '1.8rem' }}>
+          {animRows.map((row, i) => {
+            const fill    = row.animFill;
+            const atRest  = fill === row.targetFill;
+            const flicker = atRest && fill > 0 ? 1 + (i % 2) : 0;
+            const stable  = Math.max(0, fill - flicker);
+            const flickOn = (tick + i) % 2 === 0;
+            const empty   = BREAKDOWN_BAR_COLS - fill;
+            return (
+              <div key={i} style={{ minWidth: 0, position: 'relative' }}
+                onMouseEnter={() => setHoveredIdx(i)}
+                onMouseLeave={() => setHoveredIdx(null)}
+              >
+                {/* Tooltip */}
+                {hoveredIdx === i && row.arc_name && (
+                  <div style={{
+                    position: 'absolute', bottom: 'calc(100% + 6px)', left: 0,
+                    background: 'rgba(6,6,6,0.97)', border: `1px solid ${row.arc_color}55`,
+                    padding: '5px 10px', zIndex: 50, whiteSpace: 'nowrap', pointerEvents: 'none',
+                  }}>
+                    <div style={{ ...mono, fontSize: '0.95rem', letterSpacing: 1, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                      tasks <span style={{ color: '#fff' }}>{row.task_count}</span>
+                    </div>
+                    <div style={{ ...mono, fontSize: '0.95rem', letterSpacing: 1, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                      time{'  '}<span style={{ color: '#fff' }}>{`${Math.floor(row.total_minutes / 60)}h ${String(Math.round(row.total_minutes % 60)).padStart(2, '0')}m`}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Arc name — crossfade between prev and current */}
+                <div style={{ position: 'relative', lineHeight: 1, marginBottom: -2, overflow: 'hidden' }}>
+                  {row.prevName && (
+                    <div style={{
+                      ...mono, fontSize: '0.95rem', letterSpacing: 1,
+                      color: row.prevColor ?? '#888',
+                      position: 'absolute', inset: 0,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      opacity: row.prevVisible ? 1 : 0,
+                      transition: 'opacity 0.4s',
+                      pointerEvents: 'none',
+                    }}>
+                      {row.prevName}
+                    </div>
+                  )}
+                  <div style={{
+                    ...mono, fontSize: '0.95rem', letterSpacing: 1,
+                    color: row.arc_color,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    opacity: row.nameVisible ? 1 : 0,
+                    transition: 'opacity 0.4s',
+                  }}>
+                    {row.arc_name}
+                  </div>
+                </div>
+
+                {/* Bar — brackets always visible */}
+                <div style={{ ...mono, fontSize: '0.95rem', letterSpacing: 1, whiteSpace: 'pre', display: 'flex', alignItems: 'baseline' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.9)' }}>[</span>
+                  <span style={{ color: row.arc_color }}>{'|'.repeat(stable)}</span>
+                  <span style={{ color: flickOn ? row.arc_color : 'transparent' }}>{'|'.repeat(flicker)}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.07)' }}>{' '.repeat(empty)}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.9)' }}>]</span>
+                  <span style={{ color: 'rgba(255,255,255,0.9)', marginLeft: '0.4ch' }}>{row.label}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </SidebarPanel>
   );
 }

@@ -456,6 +456,34 @@ export async function markAllNodesDone(sessionId: string): Promise<void> {
   }
 }
 
+// ── Arc time breakdown ────────────────────────────────────────────────────────
+
+export interface ArcBreakdown {
+  arc_name:      string;
+  arc_color:     string;
+  total_minutes: number;
+  task_count:    number;
+}
+
+export async function loadArcBreakdown(from: string, to: string): Promise<ArcBreakdown[]> {
+  return getDb().select<ArcBreakdown[]>(
+    `SELECT
+       COALESCE(a.name, 'untracked')    AS arc_name,
+       COALESCE(a.color_hex, '#666666') AS arc_color,
+       SUM(sn.total_minutes)            AS total_minutes,
+       COUNT(DISTINCT sn.node_id)       AS task_count
+     FROM session_nodes sn
+     JOIN nodes n            ON n.id  = sn.node_id
+     LEFT JOIN arcs a        ON a.id  = n.arc_id
+     JOIN work_sessions ws   ON ws.id = sn.session_id
+     WHERE sn.total_minutes > 0
+       AND ws.planned_date >= ? AND ws.planned_date <= ?
+     GROUP BY a.id, a.name, a.color_hex
+     ORDER BY total_minutes DESC`,
+    [from, to],
+  );
+}
+
 // ── Node browser ──────────────────────────────────────────────────────────────
 
 export async function loadBrowsableNodes(excludeNodeIds: string[] = []): Promise<BrowsableNode[]> {

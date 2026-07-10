@@ -528,7 +528,7 @@ export default function ProjectsPlugin() {
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
   const [activity, setActivity] = useState<Map<string, ProjectActivity>>(new Map());
-  const [tab, setTab] = useState<'arcs' | 'gantt'>('arcs');
+  const [tab, setTab] = useState<'arcs' | 'gantt' | 'storage'>('arcs');
   const [arcRanges, setArcRanges] = useState<Map<string, DateRange>>(new Map());
   const [projectRanges, setProjectRanges] = useState<Map<string, DateRange>>(new Map());
   const [arcNodeDates, setArcNodeDates] = useState<Map<string, NodeDayCount[]>>(new Map());
@@ -588,10 +588,20 @@ export default function ProjectsPlugin() {
     setConfirm(null);
   };
 
+  const sortedArcs = [...arcs].sort((a, b) => {
+    const score = (arc: Arc) => {
+      const ps = projects.filter(p => p.arc_id === arc.id);
+      return ps.length + (arcNodeCounts.get(arc.id) ?? 0) + ps.reduce((n, p) => n + (counts.get(p.id)?.noteCount ?? 0), 0);
+    };
+    return score(b) - score(a);
+  });
+  const activeArcs = sortedArcs.filter(a => a.status === 'active');
+  const storedArcs = sortedArcs.filter(a => a.status !== 'active');
+
   const navigate = useCallback((d: 1 | -1) => {
     setDir(d);
-    setIdx(i => (i + d + arcs.length) % arcs.length);
-  }, [arcs.length]);
+    setIdx(i => activeArcs.length > 0 ? (i + d + activeArcs.length) % activeArcs.length : 0);
+  }, [activeArcs.length]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -607,14 +617,7 @@ export default function ProjectsPlugin() {
     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', fontFamily: VT, color: 'rgba(255,255,255,0.2)', fontSize: '1rem', letterSpacing: 2 }}>loading...</div>
   );
 
-  const sortedArcs = [...arcs].sort((a, b) => {
-    const score = (arc: Arc) => {
-      const ps = projects.filter(p => p.arc_id === arc.id);
-      return ps.length + (arcNodeCounts.get(arc.id) ?? 0) + ps.reduce((n, p) => n + (counts.get(p.id)?.noteCount ?? 0), 0);
-    };
-    return score(b) - score(a);
-  });
-  const currentArc = sortedArcs[idx] ?? null;
+  const currentArc = activeArcs[idx] ?? null;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#000', overflow: 'hidden' }}>
@@ -636,8 +639,9 @@ export default function ProjectsPlugin() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '2.4rem', paddingBottom: '0.7rem' }}>
-          {(['arcs', 'gantt'] as const).map((t, i) => {
+          {(['arcs', 'gantt', 'storage'] as const).map((t, i) => {
             const active = tab === t;
+            const label = t === 'storage' ? 'storage box' : t;
             return (
               <button
                 key={t}
@@ -665,7 +669,7 @@ export default function ProjectsPlugin() {
                   textTransform: active ? 'uppercase' : 'lowercase',
                   transition:    'font-size 0.12s ease, color 0.12s ease',
                 }}>
-                  {t}
+                  {label}
                 </span>
               </button>
             );
@@ -687,23 +691,23 @@ export default function ProjectsPlugin() {
         </div>
       )}
 
-      {tab === 'arcs' && arcs.length === 0 && !showNewArc && (
-        <div style={{ padding: '0 160px', fontFamily: VT, fontSize: '0.9rem', color: 'rgba(255,255,255,0.1)', letterSpacing: 2 }}>no arcs yet — click + new arc to start</div>
+      {tab === 'arcs' && activeArcs.length === 0 && !showNewArc && (
+        <div style={{ padding: '0 160px', fontFamily: VT, fontSize: '0.9rem', color: 'rgba(255,255,255,0.1)', letterSpacing: 2 }}>no active arcs — click + new arc to start</div>
       )}
 
       {/* ── Analytics ── */}
-      {tab === 'arcs' && sortedArcs.length > 0 && (
+      {tab === 'arcs' && activeArcs.length > 0 && (
         <AnalyticsPanel
-          arcs={sortedArcs}
+          arcs={activeArcs}
           history={history}
-          currentArcId={currentArc!.id}
+          currentArcId={currentArc?.id ?? ''}
         />
       )}
 
       {/* ── Dot indicators (outside carousel, always visible) ── */}
-      {tab === 'arcs' && sortedArcs.length > 0 && (
+      {tab === 'arcs' && activeArcs.length > 0 && (
         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', padding: '0 0 20px', flexShrink: 0 }}>
-          {sortedArcs.map((a, i) => (
+          {activeArcs.map((a, i) => (
             <div key={a.id} onClick={() => { setDir(i > idx ? 1 : -1); setIdx(i); }}
               style={{ width: i === idx ? 18 : 6, height: 6, background: i === idx ? currentArc!.color_hex : 'rgba(255,255,255,0.15)', cursor: 'pointer', transition: 'width 0.2s ease, background 0.2s ease' }} />
           ))}
@@ -711,7 +715,7 @@ export default function ProjectsPlugin() {
       )}
 
       {/* ── Carousel ── */}
-      {tab === 'arcs' && sortedArcs.length > 0 && currentArc && (
+      {tab === 'arcs' && activeArcs.length > 0 && currentArc && (
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 20 }}>
 
           <button onClick={() => navigate(-1)}
@@ -753,6 +757,44 @@ export default function ProjectsPlugin() {
             onMouseEnter={e => { e.currentTarget.style.color = '#fff'; }}
             onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}>›</button>
 
+        </div>
+      )}
+
+      {/* ── Storage Box ── */}
+      {tab === 'storage' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 160px 80px', scrollbarWidth: 'none' }}>
+          {storedArcs.length === 0 ? (
+            <div style={{ fontFamily: VT, fontSize: '0.9rem', color: 'rgba(255,255,255,0.1)', letterSpacing: 2 }}>storage box is empty</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {storedArcs.map(arc => {
+                const arcProjects = projects.filter(p => p.arc_id === arc.id);
+                const totalNodes = arcNodeCounts.get(arc.id) ?? 0;
+                return (
+                  <div key={arc.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '12px 16px',
+                    borderLeft: `3px solid ${arc.color_hex}44`,
+                    background: 'rgba(255,255,255,0.015)',
+                    opacity: arc.status === 'archived' ? 0.45 : 0.7,
+                  }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: arc.color_hex, flexShrink: 0 }} />
+                    <span style={{
+                      fontFamily: VT, fontSize: '1.3rem', letterSpacing: 2,
+                      color: 'rgba(255,255,255,0.7)', flex: 1,
+                      textDecoration: arc.status === 'done' ? 'line-through' : 'none',
+                    }}>
+                      {arc.name}
+                    </span>
+                    <span style={{ fontFamily: VT, fontSize: '0.9rem', letterSpacing: 1, color: 'rgba(255,255,255,0.2)' }}>
+                      {arcProjects.length}p · {totalNodes}t
+                    </span>
+                    <StatusBadge status={arc.status} onChange={s => handleUpdateArc(arc.id, { status: s })} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

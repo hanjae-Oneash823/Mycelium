@@ -18,6 +18,7 @@ export interface Arc {
   id: string;
   name: string;
   color_hex: string;
+  status?: string;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ export interface Project {
   id: string;
   arc_id?: string | null;
   name: string;
+  status?: string;
   created_at: string;
 }
 

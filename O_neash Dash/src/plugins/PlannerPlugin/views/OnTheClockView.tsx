@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import '../PlannerPlugin.css';
 import { useSessionStore } from '../store/useSessionStore';
 import { Feather } from 'pixelarticons/react/Feather';
@@ -831,7 +831,35 @@ function WorkSparkline({ sessions, activeSession }: { sessions: WorkSession[]; a
 
 // ── Location rank ─────────────────────────────────────────────────────────────
 
+const LOC_COLORS = [ACC, TEAL, '#e879f9', '#60a5fa', '#34d399'];
+
 function LocationRank({ sessions }: { sessions: WorkSession[] }) {
+  const [tick, setTick] = useState(0);
+  const [barCols, setBarCols] = useState(16);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const charRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 650);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const measure = () => {
+      if (!wrapRef.current || !charRef.current) return;
+      const charW = charRef.current.getBoundingClientRect().width / 20;
+      if (charW < 1) return;
+      const totalW = wrapRef.current.getBoundingClientRect().width;
+      // fixed chars: name col (11) + gap (0.5) + '[' (1) + ']' (1) + time gap (0.4) + max time label (8)
+      const fixedChs = 11 + 0.5 + 1 + 1 + 0.4 + 8;
+      setBarCols(Math.max(4, Math.floor((totalW - fixedChs * charW) / charW)));
+    };
+    const ro = new ResizeObserver(measure);
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    measure();
+    return () => ro.disconnect();
+  }, []);
+
   const ranked = useMemo(() => {
     const map = new Map<string, number>();
     for (const s of sessions) {
@@ -859,20 +887,38 @@ function LocationRank({ sessions }: { sessions: WorkSession[] }) {
   };
 
   return (
-    <div>
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      {/* Hidden span to measure exact char pixel width at this font/size/spacing */}
+      <span ref={charRef} aria-hidden style={{
+        position: 'absolute', visibility: 'hidden', pointerEvents: 'none',
+        fontFamily: VT, fontSize: '0.95rem', letterSpacing: 1, whiteSpace: 'pre',
+      }}>{'|'.repeat(20)}</span>
+
       <div style={{ fontFamily: VT, fontSize: '0.7rem', letterSpacing: 3, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: 10 }}>by location</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {ranked.map((loc, i) => (
-          <div key={i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-              <span style={{ fontFamily: VT, fontSize: '0.85rem', letterSpacing: 1, color: 'rgba(255,255,255,0.6)' }}>{loc.name}</span>
-              <span style={{ fontFamily: VT, fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', letterSpacing: 1 }}>{fmtH(loc.hours)}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {ranked.map((loc, i) => {
+          const color   = LOC_COLORS[i % LOC_COLORS.length];
+          const fill    = Math.round((loc.hours / maxH) * barCols);
+          const flicker = fill > 0 ? 1 + (i % 2) : 0;
+          const stable  = Math.max(0, fill - flicker);
+          const flickOn = (tick + i) % 2 === 0;
+          const empty   = barCols - fill;
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'baseline', fontFamily: VT, fontSize: '0.95rem', letterSpacing: 1 }}>
+              <span style={{ display: 'inline-block', width: '11ch', textAlign: 'right', overflow: 'hidden', whiteSpace: 'nowrap', color, flexShrink: 0, marginRight: '0.5ch' }}>
+                {loc.name}
+              </span>
+              <span style={{ whiteSpace: 'pre', display: 'flex', alignItems: 'baseline' }}>
+                <span style={{ color: 'rgba(255,255,255,0.9)' }}>[</span>
+                <span style={{ color }}>{'|'.repeat(stable)}</span>
+                <span style={{ color: flickOn ? color : 'transparent' }}>{'|'.repeat(flicker)}</span>
+                <span style={{ color: 'rgba(255,255,255,0.07)' }}>{' '.repeat(empty)}</span>
+                <span style={{ color: 'rgba(255,255,255,0.9)' }}>]</span>
+                <span style={{ color: 'rgba(255,255,255,0.9)', marginLeft: '0.4ch' }}>{fmtH(loc.hours)}</span>
+              </span>
             </div>
-            <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', position: 'relative' }}>
-              <div style={{ position: 'absolute', inset: 0, right: `${(1 - loc.hours / maxH) * 100}%`, background: i === 0 ? ACC : TEAL, opacity: 0.7 + i * -0.1 }} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
