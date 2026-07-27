@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import type { SleepEntry } from '../lib/sleepDb';
 
-const VT  = "'VT323', 'HBIOS-SYS', monospace";
+const VT  = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#6366f1';
 
 // ── Time bar: 22:00 → 12:00 (14 hours) ───────────────────────────────────────
@@ -347,10 +347,11 @@ interface Props {
   existingEntries: SleepEntry[];
   onSubmit: (entry: SubmitPayload) => void;
   onClose:  () => void;
+  initialDate?: Date;
 }
 
-export default function LogEntryModal({ existingEntries, onSubmit, onClose }: Props) {
-  const [date,      setDate]      = useState<Date | undefined>(new Date());
+export default function LogEntryModal({ existingEntries, onSubmit, onClose, initialDate }: Props) {
+  const [date,      setDate]      = useState<Date | undefined>(initialDate ?? new Date());
   const [sleepHHMM, setSleepHHMM] = useState<string | null>(null);
   const [wakeHHMM,  setWakeHHMM]  = useState<string | null>(null);
   const [notes,     setNotes]     = useState('');

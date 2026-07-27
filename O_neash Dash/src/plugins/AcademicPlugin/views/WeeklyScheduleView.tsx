@@ -1,7 +1,7 @@
 import type { Project, Arc } from '../../ProjectsPlugin/lib/projectsDb';
 import type { Routine, RoutineRule } from '../../PlannerPlugin/types';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#f59e0b';
 
 // Time range: 07:00 – 23:00 (16 hours = 960 minutes)

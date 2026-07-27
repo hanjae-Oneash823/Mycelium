@@ -1,7 +1,7 @@
 import { usePlannerStore } from '../../PlannerPlugin/store/usePlannerStore';
 import { useArcVisibilityStore } from '../../../store/useArcVisibilityStore';
 
-const FONT = "'VT323', monospace";
+const FONT = "var(--font-main), var(--font-kr), monospace";
 
 export function ArcVisibility() {
   const arcs        = usePlannerStore(s => s.arcs);

@@ -15,7 +15,7 @@ const ARC_RADIUS = 520;
 const R          = CARD_H / 2 + ARC_RADIUS;
 const ANGLE_STEP = 11;
 const WINDOW     = 3;
-const FONT       = "'VT323', 'HBIOS-SYS', monospace";
+const FONT       = "var(--font-main), var(--font-kr), monospace";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const d2r = (d: number) => (d * Math.PI) / 180;

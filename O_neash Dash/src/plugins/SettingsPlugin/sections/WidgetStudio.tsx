@@ -4,7 +4,7 @@ import useWidgetStore from '../../../widgets/store/useWidgetStore';
 import { CATEGORY_LABELS, SIZE_SPANS } from '../../../widgets/types';
 import type { WidgetCategory, WidgetSize } from '../../../widgets/types';
 
-const FONT = "'VT323', monospace";
+const FONT = "var(--font-main), var(--font-kr), monospace";
 
 export function WidgetStudio() {
   const [tab, setTab] = useState<'active' | 'browse'>('active');

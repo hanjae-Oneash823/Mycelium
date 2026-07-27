@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { WidgetStudio } from './sections/WidgetStudio';
 import { ArcVisibility } from './sections/ArcVisibility';
+import { Appearance } from './sections/Appearance';
 
 type Section = 'widgets' | 'general' | 'appearance';
 
@@ -33,7 +34,7 @@ function SettingsPlugin() {
   return (
     <div style={{
       height: '100%', display: 'flex', flexDirection: 'column',
-      fontFamily: "'VT323', monospace", boxSizing: 'border-box',
+      fontFamily: "var(--font-main), var(--font-kr), monospace", boxSizing: 'border-box',
       padding: '8vh 15vw',
     }}>
 
@@ -81,21 +82,9 @@ function SettingsPlugin() {
       <div style={{ flex: 1, minHeight: 0, marginTop: '2rem', overflow: 'hidden' }}>
         {active === 'widgets'    && <WidgetStudio />}
         {active === 'general'    && <ArcVisibility />}
-        {active === 'appearance' && <PlaceholderSection label="APPEARANCE" />}
+        {active === 'appearance' && <Appearance />}
       </div>
 
-    </div>
-  );
-}
-
-function PlaceholderSection({ label }: { label: string }) {
-  return (
-    <div style={{
-      height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'VT323', monospace",
-      color: 'rgba(255,255,255,0.1)', fontSize: '0.85rem', letterSpacing: '2px',
-    }}>
-      {label} — coming soon
     </div>
   );
 }

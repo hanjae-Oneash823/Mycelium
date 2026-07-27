@@ -108,7 +108,7 @@
 
 /* ── Section labels ────────────────────────────────────────────────────────── */
 .aot-menu-section-label {
-  font-family: "VT323", "HBIOS-SYS", monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.35);
   letter-spacing: 1px;
@@ -124,7 +124,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: "VT323", "HBIOS-SYS", monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 1.05rem;
   letter-spacing: 2px;
   padding: 4px 6px;

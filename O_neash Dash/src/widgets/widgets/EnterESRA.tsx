@@ -2,7 +2,7 @@ import { useState } from 'react';
 import usePluginStore from '../../store/usePluginStore';
 import type { WidgetProps } from '../types';
 
-const FONT  = "'VT323', monospace";
+const FONT  = "var(--font-main), var(--font-kr), monospace";
 const OD    = "'Odibee Sans', monospace";
 const AMBER = '#f59e0b';
 

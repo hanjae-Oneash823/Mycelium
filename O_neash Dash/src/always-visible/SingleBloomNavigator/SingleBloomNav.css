@@ -82,7 +82,7 @@
   padding: 0.4rem 0.8rem;
   
   font-style: normal;
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 1.0rem;
   font-weight: 400;
   letter-spacing: 2px;
@@ -145,7 +145,7 @@
 }
 
 .bloom-section-label {
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 0.72rem;
   letter-spacing: 3px;
   text-transform: uppercase;

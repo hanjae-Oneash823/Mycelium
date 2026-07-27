@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { CommentRow } from '../lib/notesDb';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const PT = "'SUSE', 'KOTRAGothic', monospace";
 
 interface Props {

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarRange } from 'pixelarticons/react';
 import type { SleepEntry, SleepTarget } from '../lib/sleepDb';
+import { useFontStack } from '../../../lib/useFontStack';
 
-const VT     = "'VT323', 'HBIOS-SYS', monospace";
+const VT     = "var(--font-main), var(--font-kr), monospace";
 const YELLOW = '#f5c842';
 
 // Y-axis: 22:00 → 13:00 next day (900 min total)
@@ -149,6 +150,7 @@ export default function SleepChart({ sessions, target, hideTitle = false, compac
   const barsRef    = useRef<BarHit[]>([]);
   const [tooltip, setTooltip]         = useState<TooltipState | null>(null);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const fontStack = useFontStack();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -191,7 +193,7 @@ export default function SleepChart({ sessions, target, hideTitle = false, compac
       ctx.stroke();
 
       if (!compact) {
-        ctx.font      = '28px VT323, monospace';
+        ctx.font      = `28px ${fontStack}`;
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
         ctx.textAlign = 'right';
         ctx.fillText(g.label, ML - 10, y + 9);
@@ -211,7 +213,7 @@ export default function SleepChart({ sessions, target, hideTitle = false, compac
       ctx.stroke();
 
       if (!compact) {
-        ctx.font      = '28px VT323, monospace';
+        ctx.font      = `28px ${fontStack}`;
         ctx.fillStyle = '#4f72f5';
         ctx.textAlign = 'left';
         ctx.fillText(lbl, ML + CW + 10, gy + 9);
@@ -236,7 +238,7 @@ export default function SleepChart({ sessions, target, hideTitle = false, compac
       ctx.setLineDash([]);
 
       if (!compact) {
-        ctx.font      = '28px VT323, monospace';
+        ctx.font      = `28px ${fontStack}`;
         ctx.fillStyle = '#4ade80';
         ctx.textAlign = 'left';
         ctx.fillText(wakeLbl, ML + CW + 10, wy + 9);
@@ -318,13 +320,13 @@ export default function SleepChart({ sessions, target, hideTitle = false, compac
       const isToday = date === new Date().toISOString().slice(0, 10);
       const color   = isToday ? 'rgba(99,102,241,0.8)' : 'rgba(255,255,255,0.25)';
 
-      ctx.font      = compact ? '44px VT323, monospace' : '26px VT323, monospace';
+      ctx.font      = compact ? `44px ${fontStack}` : `26px ${fontStack}`;
       ctx.fillStyle = color;
       ctx.textAlign = 'center';
       ctx.fillText(DAYS[dObj.getDay()], cx, H - MB + 38);
 
       if (!compact) {
-        ctx.font      = '22px VT323, monospace';
+        ctx.font      = `22px ${fontStack}`;
         ctx.fillStyle = isToday ? 'rgba(99,102,241,0.55)' : 'rgba(255,255,255,0.18)';
         ctx.fillText(`${MONTHS[dObj.getMonth()]} ${dObj.getDate()}`, cx, H - MB + 60);
       }
@@ -353,7 +355,7 @@ export default function SleepChart({ sessions, target, hideTitle = false, compac
     });
 
     barsRef.current = newBars;
-  }, [sessions, target, compact, hoveredDate]);
+  }, [sessions, target, compact, hoveredDate, fontStack]);
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

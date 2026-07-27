@@ -1,0 +1,5 @@
+# Claude
+.claude/
+.claude.json
+.claude.json.backup
+CLAUDE.md

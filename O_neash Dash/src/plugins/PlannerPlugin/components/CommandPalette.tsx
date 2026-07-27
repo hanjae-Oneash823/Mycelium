@@ -169,7 +169,7 @@ export default function CommandPalette() {
           boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
-          fontFamily: "'VT323', monospace",
+          fontFamily: "var(--font-main), var(--font-kr), monospace",
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -188,7 +188,7 @@ export default function CommandPalette() {
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               color: '#fff', fontSize: '1.1rem', letterSpacing: '1px',
               padding: '14px 0',
-              fontFamily: "'VT323', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
             }}
           />
           <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', letterSpacing: '1px' }}>ESC</span>

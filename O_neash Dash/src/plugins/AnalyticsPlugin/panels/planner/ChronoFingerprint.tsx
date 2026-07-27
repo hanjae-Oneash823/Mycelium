@@ -12,7 +12,7 @@ import type { ChronoResult, ChronoPoint } from "./chronoMath";
 import ChronoPolarChart from "./ChronoPolarChart";
 import ScatterKdeChart from "./ScatterKdeChart";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 type ViewMode = "main" | "arcs" | "session";
 

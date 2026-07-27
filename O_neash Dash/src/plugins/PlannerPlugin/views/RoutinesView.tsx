@@ -131,14 +131,14 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.85rem', letterSpacing: 1,
+            fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.85rem', letterSpacing: 1,
             color: routine.node_type === 'event' ? 'rgba(192,132,252,0.7)' : 'rgba(0,196,167,0.6)',
           }}>
             {routine.node_type.toUpperCase()}
           </span>
           <div
             className={nextDate === today ? 'routine-today-blink' : undefined}
-            style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem', color: statusColor, letterSpacing: 1 }}
+            style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem', color: statusColor, letterSpacing: 1 }}
           >
             {statusLabel ? `[ ${statusLabel} ]` : ''}
           </div>
@@ -146,14 +146,14 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={onEdit} className="routine-edit-btn" style={{
             background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 10px',
-            color: 'rgba(255,255,255,0.4)', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            color: 'rgba(255,255,255,0.4)', fontFamily: "var(--font-main), var(--font-kr), monospace",
             fontSize: '1rem', cursor: 'pointer', letterSpacing: 1,
             transition: 'border-color 0.15s, color 0.15s',
           }}>[ edit ]</button>
           <div style={{ position: 'relative' }}>
             <button onClick={() => setMenuOpen(p => !p)} style={{
               background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 8px',
-              color: 'rgba(255,255,255,0.28)', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              color: 'rgba(255,255,255,0.28)', fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: '1rem', cursor: 'pointer',
             }}>▼</button>
             {menuOpen && (
@@ -163,7 +163,7 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
               }}>
                 <button onClick={() => { setMenuOpen(false); onDelete(); }} style={{
                   display: 'block', width: '100%', background: 'none', border: 'none',
-                  color: 'var(--cr)', fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  color: 'var(--cr)', fontFamily: "var(--font-main), var(--font-kr), monospace",
                   fontSize: '1rem', padding: '5px 10px', cursor: 'pointer', textAlign: 'left',
                 }}>delete</button>
               </div>
@@ -174,7 +174,7 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
 
       {/* Title */}
       <div style={{
-        fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.3rem', letterSpacing: 1,
+        fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1.3rem', letterSpacing: 1,
         color: routine.importance_level ? 'var(--yellow)' : '#fff',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
@@ -182,13 +182,13 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
       </div>
 
       {/* Recurrence + time */}
-      <div style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.95rem', color: 'rgba(255,255,255,0.32)', letterSpacing: 0.5 }}>
+      <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.95rem', color: 'rgba(255,255,255,0.32)', letterSpacing: 0.5 }}>
         {infoLine || recurrenceLabel(routine)}
       </div>
 
       {/* Arc / project */}
       {contextLine && (
-        <div style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.95rem', letterSpacing: 0.5 }}>
+        <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.95rem', letterSpacing: 0.5 }}>
           {arcName && <span style={{ color: arcColor ?? 'rgba(255,255,255,0.35)' }}>{arcName}</span>}
           {arcName && projectName && <span style={{ color: 'rgba(255,255,255,0.2)' }}> › </span>}
           {projectName && <span style={{ color: arcColor ? `${arcColor}99` : 'rgba(255,255,255,0.25)' }}>{projectName}</span>}
@@ -200,7 +200,7 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
         <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
           {cardGroups.map(g => (
             <span key={g.id} style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.82rem', letterSpacing: '0.5px',
+              fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.82rem', letterSpacing: '0.5px',
               padding: '0.1rem 0.45rem', background: g.color_hex, color: '#fff',
             }}>
               {g.name}
@@ -225,7 +225,7 @@ function RoutineCard({ routine, nodes, done, arcName, arcColor, projectName, gro
           }} />
         </div>
         <span style={{
-          fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.05rem',
+          fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1.05rem',
           color: 'rgba(255,255,255,0.65)', flexShrink: 0,
         }}>
           {done}/{total}
@@ -325,7 +325,7 @@ function WeekTimeView({ weekOffset, setOffset, nodes, hoveredRoutineId, onHoverR
             background: weekOffset === 0 ? 'rgba(0,196,167,0.12)' : 'none',
             border: `1px solid ${weekOffset === 0 ? 'rgba(0,196,167,0.4)' : 'rgba(255,255,255,0.12)'}`,
             color: weekOffset === 0 ? 'var(--teal)' : 'rgba(255,255,255,0.4)',
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem',
+            fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem',
             padding: '1px 10px', cursor: 'pointer', letterSpacing: 1,
             transition: 'all 0.12s',
           }}
@@ -334,7 +334,7 @@ function WeekTimeView({ weekOffset, setOffset, nodes, hoveredRoutineId, onHoverR
           <button onClick={() => setOffset(weekOffset - 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 0 }}>
             <ChevronLeft size={18} />
           </button>
-          <span style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.1rem', color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>
+          <span style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1.1rem', color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>
             {MONTH_SHORT[mon.getMonth()]} {mon.getDate()} – {fmtDate(addDays(mon, 6))}
           </span>
           <button onClick={() => setOffset(weekOffset + 1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', padding: 0 }}>
@@ -350,10 +350,10 @@ function WeekTimeView({ weekOffset, setOffset, nodes, hoveredRoutineId, onHoverR
           const isToday = key === today;
           return (
             <div key={key} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.95rem', color: isToday ? 'var(--teal)' : 'rgba(255,255,255,0.35)', letterSpacing: 1 }}>
+              <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.95rem', color: isToday ? 'var(--teal)' : 'rgba(255,255,255,0.35)', letterSpacing: 1 }}>
                 {DAY_SHORT[d.getDay()].toUpperCase()}
               </div>
-              <div style={{ fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1.3rem', color: isToday ? '#fff' : 'rgba(255,255,255,0.55)' }}>
+              <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1.3rem', color: isToday ? '#fff' : 'rgba(255,255,255,0.55)' }}>
                 {d.getDate()}
               </div>
             </div>
@@ -373,7 +373,7 @@ function WeekTimeView({ weekOffset, setOffset, nodes, hoveredRoutineId, onHoverR
                 <div key={h} style={{
                   position: 'absolute', top: i * hourH - 7,
                   right: 5, fontSize: '0.9rem',
-                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  fontFamily: "var(--font-main), var(--font-kr), monospace",
                   color: 'rgba(255,255,255,0.35)',
                   lineHeight: 1, userSelect: 'none',
                 }}>
@@ -480,7 +480,7 @@ function WeekTimeView({ weekOffset, setOffset, nodes, hoveredRoutineId, onHoverR
           background: '#111',
           border: '1px solid rgba(255,255,255,0.15)',
           color: '#fff',
-          fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+          fontFamily: "var(--font-main), var(--font-kr), monospace",
           fontSize: '1rem',
           letterSpacing: '0.5px',
           padding: '2px 10px',
@@ -577,7 +577,7 @@ export default function RoutinesView() {
           className="routine-add-btn"
           style={{
             background: 'none', border: '1px solid rgba(0,196,167,0.4)',
-            color: 'var(--teal)', fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem',
+            color: 'var(--teal)', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem',
             padding: '2px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
             transition: 'border-color 0.15s, background 0.15s',
           }}
@@ -605,7 +605,7 @@ export default function RoutinesView() {
         {/* Right: arc-grouped sections */}
         <div className="routine-scroll" style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
           {routines.length === 0 && (
-            <div style={{ color: 'rgba(255,255,255,0.2)', fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem' }}>
+            <div style={{ color: 'rgba(255,255,255,0.2)', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem' }}>
               no routines yet — create one with [ new routine ]
             </div>
           )}
@@ -672,14 +672,14 @@ export default function RoutinesView() {
                   >
                     <span style={{ width: 8, height: 8, borderRadius: 0, background: color, flexShrink: 0, display: 'inline-block' }} />
                     <span style={{
-                      fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '1rem',
+                      fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem',
                       letterSpacing: 2, color, textTransform: 'uppercase',
                     }}>{label}</span>
                     <span style={{
-                      fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.82rem',
+                      fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.82rem',
                       color: 'rgba(255,255,255,0.22)', letterSpacing: 1,
                     }}>[{items.length}]</span>
-                    <span style={{ marginLeft: 'auto', fontFamily: "'VT323', 'HBIOS-SYS', monospace", fontSize: '0.9rem', color: 'rgba(255,255,255,0.28)' }}>
+                    <span style={{ marginLeft: 'auto', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.9rem', color: 'rgba(255,255,255,0.28)' }}>
                       {collapsed ? '▶' : '▼'}
                     </span>
                   </button>

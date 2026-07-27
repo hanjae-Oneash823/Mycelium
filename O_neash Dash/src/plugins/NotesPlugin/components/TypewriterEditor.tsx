@@ -61,7 +61,7 @@ const BlockCursorExtension = Extension.create({
 });
 
 const lowlight = createLowlight(common);
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const PT = "'SUSE', 'KOTRAGothic', monospace";
 
 // ── Migrate legacy inlineMath/blockMath nodes → plain $...$ text ──────────────

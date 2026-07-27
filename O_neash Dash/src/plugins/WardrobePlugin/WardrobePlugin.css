@@ -1,0 +1,29 @@
+/* Root layout — mirrors PlannerPlugin.css .planner-plugin dimensions */
+
+/* Tamzen @font-face is declared globally in App.css. */
+
+.wardrobe-plugin {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-main), var(--font-kr), monospace;
+  font-size: 18px;
+  overflow: hidden;
+  padding: 100px 100px 70px 100px;
+}
+
+.wardrobe-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Scrollbars */
+.wardrobe-plugin *::-webkit-scrollbar             { width: 5px; height: 5px; }
+.wardrobe-plugin *::-webkit-scrollbar-track       { background: transparent; }
+.wardrobe-plugin *::-webkit-scrollbar-thumb       { background: rgba(255,255,255,0.14); }
+.wardrobe-plugin *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+.wardrobe-plugin * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }

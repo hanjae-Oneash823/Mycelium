@@ -12,8 +12,29 @@ import { RecentDocs }         from './widgets/RecentDocs';
 import { SleepLastNight }     from './widgets/SleepLastNight';
 import { SleepWeeklyReview }  from './widgets/SleepWeeklyReview';
 import { EnterESRA }          from './widgets/EnterESRA';
+import { HackerNews }         from './widgets/HackerNews';
+import { ResearchFeed }       from './widgets/ResearchFeed';
 
 export const WIDGET_REGISTRY: WidgetDef[] = [
+  // ── Feeds ────────────────────────────────────────────────────────────────────
+  {
+    id:           'hacker-news',
+    label:        'Hacker News / World / Korea',
+    description:  'Tabbed feed of Hacker News, BBC World, and Yonhap Korea headlines, sampled daily.',
+    category:     'feeds',
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    HackerNews,
+  },
+  {
+    id:           'research-feed',
+    label:        'Nature / Cell',
+    description:  'Latest articles from Nature and Cell, sampled daily.',
+    category:     'feeds',
+    defaultSize:  '2x2',
+    allowedSizes: ['2x2', '4x2'],
+    component:    ResearchFeed,
+  },
   // ── Notes ────────────────────────────────────────────────────────────────────
   {
     id:           'speak-your-mind',

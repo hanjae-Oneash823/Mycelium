@@ -247,7 +247,7 @@ export default function ChronoPolarChart({ result, arcColors, arcNames, showArcs
                 : <rect x={x - 8.5} y={y - 6} width={17} height={12} fill="rgba(245,200,66,0.5)" />}
               <text x={x} y={y}
                 textAnchor="middle" dominantBaseline="central"
-                fontSize={h % 6 === 0 ? 14 : 12} fontFamily="'VT323','HBIOS-SYS',monospace"
+                fontSize={h % 6 === 0 ? 14 : 12} fontFamily="var(--font-main), var(--font-kr), monospace"
                 fill="black" letterSpacing={1}>
                 {h === 0 ? "00" : String(h).padStart(2, "0")}
               </text>
@@ -263,7 +263,7 @@ export default function ChronoPolarChart({ result, arcColors, arcNames, showArcs
         return (
           <text key={arcId} x={x} y={y}
             textAnchor="middle" dominantBaseline="central"
-            fontSize={8} fontFamily="'VT323','HBIOS-SYS',monospace"
+            fontSize={8} fontFamily="var(--font-main), var(--font-kr), monospace"
             fill={arcColors.get(arcId) ?? "#888"} opacity={0.7} letterSpacing={0.5}
             style={anim("cf-fade", 300, 1000)}>
             {(arcNames.get(arcId) ?? arcId.slice(0, 5)).toUpperCase()}

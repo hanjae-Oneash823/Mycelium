@@ -2,7 +2,7 @@ import { invoke }  from '@tauri-apps/api/core';
 import { save }    from '@tauri-apps/plugin-dialog';
 
 const PT = "'Inconsolata', 'IBM Plex Mono KR', monospace";
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 function fmtDate(ts: string): string {
   const d = new Date(ts);

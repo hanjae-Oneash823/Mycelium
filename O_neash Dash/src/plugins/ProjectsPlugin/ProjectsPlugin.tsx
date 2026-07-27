@@ -15,7 +15,7 @@ import {
 import { STATUS_COLOR, brightenHex } from './lib/colors';
 import GanttView from './components/GanttView';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#00c4a7';
 
 const PALETTE = [

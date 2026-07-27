@@ -5,7 +5,7 @@ import RecurrencePlot from "./RecurrencePlot";
 import { computeClusters, CLUSTER_COLORS } from "./clusterMath";
 import type { ClusterResult } from "./clusterMath";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 const K_OPTIONS = [2, 3, 4, 5, 6, 7] as const;
 type KOption = typeof K_OPTIONS[number];

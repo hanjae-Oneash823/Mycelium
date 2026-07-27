@@ -6,7 +6,7 @@ import { addEntry, getEntries } from "../../plugins/SleepTrackerPlugin/lib/sleep
 import type { Habit } from "../../plugins/HabitsPlugin/types";
 import "./SingleBloomNav.css";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 type Tab = "task" | "habits" | "sleep";
 

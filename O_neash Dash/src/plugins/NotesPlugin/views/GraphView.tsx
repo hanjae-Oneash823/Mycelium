@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { loadNotes, loadAllLinks } from '../lib/notesDb';
 import type { NoteRow } from '../lib/notesDb';
 import { usePlannerStore } from '../../PlannerPlugin/store/usePlannerStore';
+import { useFontStack } from '../../../lib/useFontStack';
 
-const FONT           = "'VT323', 'HBIOS-SYS', monospace";
+const FONT           = "var(--font-main), var(--font-kr), monospace";
 const DAMPING        = 0.80;
 const REPULSION      = 5500;
 const SPRING_WIKI    = 0.04;
@@ -95,6 +96,7 @@ function draw(
   w: number, h: number,
   hoverId: string | null,
   scale: number, offX: number, offY: number,
+  fontStack: string,
 ) {
   ctx.clearRect(0, 0, w, h);
   ctx.save();
@@ -151,7 +153,7 @@ function draw(
     if (hov || isProj) {
       const txt  = nd.label.length > 26 ? nd.label.slice(0, 25) + '…' : nd.label;
       const size = isProj ? 15 : 13;
-      ctx.font      = `${size}px VT323, monospace`;
+      ctx.font      = `${size}px ${fontStack}`;
       ctx.fillStyle = hov ? '#fff' : `${nd.color}cc`;
       ctx.fillText(txt, nd.x + r + 5, nd.y + 5);
     }
@@ -196,6 +198,9 @@ export default function GraphView({ onOpenDoc }: GraphViewProps) {
   const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null);
   const scaleRef        = useRef(1);
   const offRef          = useRef({ x: 0, y: 0 });
+  const fontStack       = useFontStack();
+  const fontStackRef    = useRef(fontStack);
+  fontStackRef.current  = fontStack;
   const sizeRef         = useRef({ w: 800, h: 600 });
 
   const [hoverLabel, setHoverLabel] = useState<{ x: number; y: number; label: string } | null>(null);
@@ -309,7 +314,8 @@ export default function GraphView({ onOpenDoc }: GraphViewProps) {
         tick(nodesRef.current, edgesRef.current, w, h);
       }
       draw(ctx, nodesRef.current, edgesRef.current, w, h,
-           hoverRef.current, scaleRef.current, offRef.current.x, offRef.current.y);
+           hoverRef.current, scaleRef.current, offRef.current.x, offRef.current.y,
+           fontStackRef.current);
       rafRef.current = requestAnimationFrame(loop);
     };
 

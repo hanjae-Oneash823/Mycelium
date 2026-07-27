@@ -10,7 +10,7 @@ import PixelIcon from '../components/PixelIcon';
 import { DocPreview, extractPreviewLines, Tile } from '../components/FileSystemView';
 import { ArcProjectModal } from '../components/ArcProjectModal';
 
-const FONT      = "'VT323', 'HBIOS-SYS', monospace";
+const FONT      = "var(--font-main), var(--font-kr), monospace";
 const YELLOW    = '#f5c842';
 const MAX_MEMOS = 50;
 

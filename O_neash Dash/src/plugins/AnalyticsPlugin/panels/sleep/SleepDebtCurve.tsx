@@ -3,7 +3,7 @@ import { getEntries } from "../../../SleepTrackerPlugin/lib/sleepDb";
 import { computeDebt, buildDebtInsights, findNeutralTarget } from "./sleepDebtMath";
 import type { DebtResult } from "./sleepDebtMath";
 
-const VT   = "'VT323', 'HBIOS-SYS', monospace";
+const VT   = "var(--font-main), var(--font-kr), monospace";
 const BLUE = "#60a5fa";
 const AMBR = "#f0b030";
 const RED  = "#f87171";

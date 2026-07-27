@@ -4,7 +4,7 @@ import { useArcVisibilityStore } from "../../../../store/useArcVisibilityStore";
 import { computeArcStreams, buildStreamInsights } from "./arcStreamMath";
 import type { StreamResult } from "./arcStreamMath";
 
-const VT     = "'VT323', 'HBIOS-SYS', monospace";
+const VT     = "var(--font-main), var(--font-kr), monospace";
 const PAD_X   = 0.08;
 const PAD_TOP = 0.06;
 const PAD_BOT = 0.16;

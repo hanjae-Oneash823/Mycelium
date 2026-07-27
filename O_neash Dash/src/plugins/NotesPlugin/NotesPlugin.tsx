@@ -75,7 +75,7 @@ export default function NotesPlugin() {
 
       {/* Tab bar */}
       <div style={{ padding: '112px 160px 0', background: '#000', flexShrink: 0 }}>
-        <div style={{ fontFamily: "'VT323', monospace", fontSize: '2rem', letterSpacing: 5, color: '#00c4a7', textTransform: 'uppercase', lineHeight: 1, marginBottom: 20 }}>
+        <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '2rem', letterSpacing: 5, color: '#00c4a7', textTransform: 'uppercase', lineHeight: 1, marginBottom: 20 }}>
           notes
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2.4rem', paddingBottom: '0.7rem' }}>
@@ -91,7 +91,7 @@ export default function NotesPlugin() {
                 border:        'none',
                 padding:       0,
                 cursor:        'pointer',
-                fontFamily:    "'VT323', monospace",
+                fontFamily:    "var(--font-main), var(--font-kr), monospace",
                 letterSpacing: active ? '3px' : '1.5px',
                 lineHeight:    1,
                 display:       'flex',

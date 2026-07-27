@@ -89,10 +89,10 @@ export function ConwaysLife({ }: WidgetProps) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
         <Blocks width={18} height={18} style={{ color: GOLD }} />
-        <span style={{ flex: 1, fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1, fontFamily: "'VT323', monospace" }}>
+        <span style={{ flex: 1, fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1, fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
           CONWAY'S-G/O/L
         </span>
-        <span style={{ fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.45)', fontFamily: "'VT323', monospace" }}>
+        <span style={{ fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.45)', fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
           {steps}
         </span>
       </div>

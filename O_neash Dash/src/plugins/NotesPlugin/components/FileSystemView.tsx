@@ -7,7 +7,7 @@ import type { NoteRow } from '../lib/notesDb';
 import PixelIcon from './PixelIcon';
 import type { IconType } from './PixelIcon';
 
-const FONT     = "'VT323', 'HBIOS-SYS', monospace";
+const FONT     = "var(--font-main), var(--font-kr), monospace";
 const PT       = "'Inconsolata', 'IBM Plex Mono KR', monospace";
 const ICON_SIZE = 80;
 

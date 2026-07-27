@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import type { ClusterResult } from "./clusterMath";
 import { CLUSTER_COLORS, ROLLING_WINDOW } from "./clusterMath";
 
-const VT         = "'VT323', 'HBIOS-SYS', monospace";
+const VT         = "var(--font-main), var(--font-kr), monospace";
 const SPLIT      = 0.63;
 const MONTH_ABBR = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"] as const;
 const WIGGLE_AMP   = 1.6;

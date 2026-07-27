@@ -8,7 +8,7 @@ import { usePlannerStore } from '../../plugins/PlannerPlugin/store/usePlannerSto
 import usePluginStore from '../../store/usePluginStore';
 import type { WidgetProps } from '../types';
 
-const FONT   = "'VT323', monospace";
+const FONT   = "var(--font-main), var(--font-kr), monospace";
 const YELLOW = '#f5c842';
 
 // ── Doc tile ───────────────────────────────────────────────────────────────────

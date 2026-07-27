@@ -32,7 +32,7 @@ export default function DotTooltip({ node, anchorX, anchorY }: DotTooltipProps) 
         padding:       '5px 10px 6px',
         zIndex:        9000,
         pointerEvents: 'none',
-        fontFamily:    "'VT323', 'IBM Plex Mono', monospace",
+        fontFamily:    "var(--font-main), var(--font-kr), monospace",
         boxShadow:     '0 4px 20px rgba(0,0,0,0.85)',
       }}
     >

@@ -216,7 +216,7 @@ export function WidgetPanel() {
                 background: 'none',
                 border: `1px solid ${filterCat === cat ? 'rgba(0,196,167,0.6)' : 'rgba(255,255,255,0.1)'}`,
                 color: filterCat === cat ? '#00c4a7' : 'rgba(255,255,255,0.4)',
-                fontFamily: "'VT323', monospace", fontSize: '0.75rem', letterSpacing: '1px',
+                fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.75rem', letterSpacing: '1px',
                 padding: '0 8px', cursor: 'pointer', lineHeight: '1.6rem',
               }}>
                 {cat === 'all' ? 'ALL' : CATEGORY_LABELS[cat]}
@@ -230,12 +230,12 @@ export function WidgetPanel() {
                 padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
               }}>
                 <div>
-                  <div style={{ fontFamily: "'VT323', monospace", fontSize: '1rem', color: 'rgba(255,255,255,0.75)', letterSpacing: '1px' }}>{def.label}</div>
-                  <div style={{ fontFamily: "'VT323', monospace", fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.5px' }}>{def.description}</div>
+                  <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem', color: 'rgba(255,255,255,0.75)', letterSpacing: '1px' }}>{def.label}</div>
+                  <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.5px' }}>{def.description}</div>
                 </div>
                 <button onClick={() => { addWidget(def.id); setAddOpen(false); }} style={{
                   background: 'none', border: '1px solid rgba(0,196,167,0.4)', color: '#00c4a7',
-                  fontFamily: "'VT323', monospace", fontSize: '0.85rem', letterSpacing: '1px',
+                  fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.85rem', letterSpacing: '1px',
                   padding: '0 10px', cursor: 'pointer', lineHeight: '1.6rem', flexShrink: 0,
                 }}>ADD</button>
               </div>
@@ -309,7 +309,7 @@ export function WidgetPanel() {
             <div style={{
               gridColumn: `span ${gridCols}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: "'VT323', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               color: 'rgba(255,255,255,0.1)', fontSize: '0.85rem', letterSpacing: '2px',
             }}>
               no widgets — click + ADD
@@ -326,7 +326,7 @@ function toolbarBtn(active: boolean): React.CSSProperties {
     background: 'none',
     border:     `1px solid ${active ? 'rgba(0,196,167,0.5)' : 'rgba(255,255,255,0.1)'}`,
     color:      active ? '#00c4a7' : 'rgba(255,255,255,0.3)',
-    fontFamily: "'VT323', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
     fontSize:   '0.75rem', letterSpacing: '2px',
     padding:    '0 10px', cursor: 'pointer', lineHeight: '1.6rem',
   };

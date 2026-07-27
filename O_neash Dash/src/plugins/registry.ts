@@ -8,6 +8,7 @@ import JournalPlugin from "./JournalPlugin/JournalPlugin";
 import ProjectsPlugin from "./ProjectsPlugin/ProjectsPlugin";
 import AcademicPlugin from "./AcademicPlugin/AcademicPlugin";
 import AnalyticsPlugin from "./AnalyticsPlugin/AnalyticsPlugin";
+import WardrobePlugin from "./WardrobePlugin/WardrobePlugin";
 import type { PluginItem } from "@/types";
 
 export const plugins: PluginItem[] = [
@@ -19,6 +20,7 @@ export const plugins: PluginItem[] = [
   { id: "habits",       name: "Habits",          component: HabitsPlugin,        section: "the clinic"},
   { id: "journal",      name: "Journal",         component: JournalPlugin        },
   { id: "projects",     name: "Arcs & Projects", component: ProjectsPlugin       },
-  { id: "academic",     name: "Academic Planner",component: AcademicPlugin,      section: "the lab"   },
+  { id: "academic",     name: "Deep Planner",    component: AcademicPlugin,      section: "the lab"   },
   { id: "analytics",   name: "Analytics",       component: AnalyticsPlugin                           },
+  { id: "wardrobe",    name: "Wardrobe",        component: WardrobePlugin,      section: "the studio" },
 ];

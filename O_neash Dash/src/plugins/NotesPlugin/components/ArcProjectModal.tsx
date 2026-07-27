@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePlannerStore } from '../../PlannerPlugin/store/usePlannerStore';
 
-const FONT = "'VT323', 'HBIOS-SYS', monospace";
+const FONT = "var(--font-main), var(--font-kr), monospace";
 
 export function Chip({ label, active, color, onClick }: { label: string; active: boolean; color: string; onClick: () => void }) {
   return (

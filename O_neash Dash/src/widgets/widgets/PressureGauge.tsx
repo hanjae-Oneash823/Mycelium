@@ -98,7 +98,7 @@ export function PressureGauge({ }: WidgetProps) {
     <div style={{
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
-      fontFamily: "'VT323', monospace",
+      fontFamily: "var(--font-main), var(--font-kr), monospace",
       padding: '10px 12px',
       boxSizing: 'border-box',
       gap: 6,
@@ -136,7 +136,7 @@ export function PressureGauge({ }: WidgetProps) {
               x={x} y={y}
               textAnchor={anchor}
               fontSize="9"
-              fontFamily="'VT323', monospace"
+              fontFamily="var(--font-main), var(--font-kr), monospace"
               letterSpacing="1"
               fill={ll === level ? LEVEL_COLOR[ll] : 'rgba(255,255,255,0.25)'}
             >

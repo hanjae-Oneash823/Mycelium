@@ -1,7 +1,7 @@
 import type { SleepTarget } from '../lib/sleepDb';
 import { formatDuration } from '../lib/sleepDb';
 
-const VT  = "'VT323', 'HBIOS-SYS', monospace";
+const VT  = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#6366f1';
 
 interface Props {

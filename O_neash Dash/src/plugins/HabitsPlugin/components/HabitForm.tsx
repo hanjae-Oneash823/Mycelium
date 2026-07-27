@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Habit, HabitValueType, GoalType, BooleanGoalType, NumericGoalType } from "../types";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 const PRESET_COLORS = [
   "#e05555", // red

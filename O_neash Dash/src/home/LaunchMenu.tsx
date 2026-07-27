@@ -23,6 +23,7 @@ import {
   ImageSharp,
   Zap,
   ToolCase,
+  Shirt,
 } from "pixelarticons/react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -115,7 +116,7 @@ export const CATEGORIES: Category[] = [
       },
       {
         id: "academic",
-        label: "Academic Planner",
+        label: "Deep Planner",
         icon: <BookOpen size={14} />,
         desc: "study goals & assignments",
         pluginId: "academic",
@@ -158,6 +159,13 @@ export const CATEGORIES: Category[] = [
         label: "CANVAS",
         icon: <Grid2x22 size={14} />,
         desc: "open moodboard",
+      },
+      {
+        id: "wardrobe",
+        label: "Wardrobe",
+        icon: <Shirt size={14} />,
+        desc: "fashion wiki: genres, brands, creators",
+        pluginId: "wardrobe",
       },
     ],
   },
@@ -248,7 +256,7 @@ export function LaunchMenu() {
   }, [activeCat, activeApp, setActivePlugin, floatingOpen]);
 
   return (
-    <div style={{ fontFamily: "'VT323', monospace", width: "100%" }}>
+    <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", width: "100%" }}>
       <style>{`
         @keyframes icon-blink {
           0%, 100% { opacity: 1; }

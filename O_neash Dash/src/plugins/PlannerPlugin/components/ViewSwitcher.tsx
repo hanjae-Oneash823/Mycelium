@@ -36,9 +36,6 @@ export default function ViewSwitcher() {
 
   return (
     <div style={{ padding: '0 2rem 0', background: '#000', flexShrink: 0 }}>
-      <div style={{ fontFamily: "'VT323', monospace", fontSize: '2rem', letterSpacing: 5, color: 'var(--teal)', textTransform: 'uppercase', lineHeight: 1, marginBottom: 20 }}>
-        planner
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '2.4rem', paddingBottom: '0.7rem' }}>
       {VIEWS.map((v, i) => {
         const active = activeView === v.id;
@@ -51,7 +48,7 @@ export default function ViewSwitcher() {
               border:        'none',
               padding:       0,
               cursor:        'pointer',
-              fontFamily:    "'VT323', monospace",
+              fontFamily:    "var(--font-main), var(--font-kr), monospace",
               letterSpacing: active ? '3px' : '1.5px',
               lineHeight:    1,
               display:       'flex',

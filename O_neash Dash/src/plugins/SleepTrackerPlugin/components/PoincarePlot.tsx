@@ -2,8 +2,9 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { CalendarRange } from 'pixelarticons/react';
 import type { SleepEntry } from '../lib/sleepDb';
+import { useFontStack } from '../../../lib/useFontStack';
 
-const VT     = "'VT323', 'HBIOS-SYS', monospace";
+const VT     = "var(--font-main), var(--font-kr), monospace";
 const ACC    = '#6366f1';
 const YELLOW = '#f5c842';
 
@@ -45,6 +46,7 @@ export default function PoincarePlot({ entries }: Props) {
   const hitsRef   = useRef<PointHit[]>([]);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [hovIdx,  setHovIdx]  = useState<number | null>(null);
+  const fontStack = useFontStack();
 
   const { pairs, durations, sd1, sd2, mu } = useMemo(() => {
     const sorted    = [...entries].sort((a, b) => a.sleep_start.localeCompare(b.sleep_start));
@@ -98,7 +100,7 @@ export default function PoincarePlot({ entries }: Props) {
       ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 0.8; ctx.stroke();
       ctx.beginPath(); ctx.moveTo(ML, gy); ctx.lineTo(ML + CW, gy); ctx.stroke();
 
-      ctx.font = '28px VT323, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.32)';
+      ctx.font = `28px ${fontStack}`; ctx.fillStyle = 'rgba(255,255,255,0.32)';
       ctx.textAlign = 'center';
       ctx.fillText(`${h}h`, gx, MT + CH + 42);
       ctx.textAlign = 'right';
@@ -143,7 +145,7 @@ export default function PoincarePlot({ entries }: Props) {
       ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
 
       // Axis labels
-      ctx.font = '24px VT323, monospace'; ctx.fillStyle = `${YELLOW}bb`; ctx.textAlign = 'center';
+      ctx.font = `24px ${fontStack}`; ctx.fillStyle = `${YELLOW}bb`; ctx.textAlign = 'center';
       ctx.fillText('SD1', toX(mu - sd1 / S - 0.12), toY(mu + sd1 / S + 0.12) + 9);
       ctx.fillText('SD2', toX(mu + sd2 / S + 0.12), toY(mu + sd2 / S) - 6);
     }
@@ -184,7 +186,7 @@ export default function PoincarePlot({ entries }: Props) {
     ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1; ctx.stroke();
 
     // ── Axis titles ──────────────────────────────────────────────────────────
-    ctx.font = '26px VT323, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.font = `26px ${fontStack}`; ctx.fillStyle = 'rgba(255,255,255,0.22)';
     ctx.textAlign = 'center';
     ctx.fillText('Sleep(n)  duration', ML + CW / 2, MT + CH + 56);
 
@@ -194,7 +196,7 @@ export default function PoincarePlot({ entries }: Props) {
     ctx.fillText('Sleep(n+1)', 0, 0);
     ctx.restore();
 
-  }, [pairs, durations, sd1, sd2, mu, hasData, hovIdx]);
+  }, [pairs, durations, sd1, sd2, mu, hasData, hovIdx, fontStack]);
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

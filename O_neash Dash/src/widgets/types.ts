@@ -26,7 +26,8 @@ export type WidgetCategory =
   | 'analytics-cross'
   | 'utility'
   | 'fun'
-  | 'personal';
+  | 'personal'
+  | 'feeds';
 
 export const CATEGORY_LABELS: Record<WidgetCategory, string> = {
   'analytics-planner': 'Analytics — Planner',
@@ -34,6 +35,7 @@ export const CATEGORY_LABELS: Record<WidgetCategory, string> = {
   'utility':           'Utility',
   'fun':               'Fun',
   'personal':          'Personal',
+  'feeds':             'Feeds',
 };
 
 // ── Widget definition (static, from registry) ──────────────────────────────────

@@ -117,7 +117,7 @@ function nextPickerPrompt(): string {
 }
 
 // ── Shared style constant ─────────────────────────────────────────────────────
-const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+const mono: React.CSSProperties = { fontFamily: "var(--font-main), var(--font-kr), monospace" };
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
@@ -384,7 +384,7 @@ function EqCol({ symbol, label, labelColor }: { symbol: React.ReactNode; label?:
         <span style={{
           position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
           whiteSpace: "nowrap",
-          fontFamily: "'VT323','HBIOS-SYS',monospace", fontSize: "0.55rem",
+          fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: "0.55rem",
           letterSpacing: "3px", textTransform: "uppercase",
           color: labelColor ?? "rgba(255,255,255,0.3)", userSelect: "none",
         }}>
@@ -403,7 +403,7 @@ function PriorityStep({ mode, isImportant, setIsImportant, dueAt, setDueAt, urge
   const isAssignment = mode === "assignment";
   const urgColor     = URG_COLORS[urgency];
   // shared style for all bracket/operator characters — identical size = perfect vertical alignment
-  const eqChar: React.CSSProperties = { fontFamily: "'VT323','HBIOS-SYS',monospace", fontSize: EQ_SIZE, lineHeight: 1, userSelect: "none" };
+  const eqChar: React.CSSProperties = { fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: EQ_SIZE, lineHeight: 1, userSelect: "none" };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName;

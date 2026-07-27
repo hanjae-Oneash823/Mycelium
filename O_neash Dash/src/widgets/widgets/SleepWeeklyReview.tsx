@@ -7,7 +7,7 @@ import type { SleepEntry, SleepTarget } from '../../plugins/SleepTrackerPlugin/l
 import SleepChart from '../../plugins/SleepTrackerPlugin/components/SleepChart';
 import type { WidgetProps } from '../types';
 
-const FONT   = "'VT323', monospace";
+const FONT   = "var(--font-main), var(--font-kr), monospace";
 const YELLOW = '#f5c842';
 
 export function SleepWeeklyReview({ }: WidgetProps) {

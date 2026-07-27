@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAllEntries, getOrCreateEntry, updateEntry, deleteEntry, getStreak, type JournalEntry } from './lib/journalDb';
 import { saveJournalImage, toDisplaySrc, extFromMime } from './lib/journalImageLib';
 
-const VT = "'VT323', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const PT = "'Gowun Dodum', sans-serif";
 const TEAL = '#00c4a7';
 

@@ -204,7 +204,7 @@ export default function EisenhowerView() {
 
   const navBtn: React.CSSProperties = {
     background: 'none', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.6)',
-    fontFamily: "'VT323', monospace", fontSize: '1.1rem', letterSpacing: '1px',
+    fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1.1rem', letterSpacing: '1px',
     padding: '0.1rem 0.6rem', cursor: 'pointer', lineHeight: 1,
   };
 
@@ -217,7 +217,7 @@ export default function EisenhowerView() {
           <button style={{ ...navBtn, opacity: futureOffset === 0 ? 0.25 : 1 }} disabled={futureOffset === 0} onClick={() => setFutureOffset(o => Math.max(0, o - 5))}>
             ‹ prev
           </button>
-          <span style={{ fontFamily: "'VT323', monospace", fontSize: '1rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', minWidth: 72, textAlign: 'center' }}>
+          <span style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', minWidth: 72, textAlign: 'center' }}>
             {futureOffset === 0 ? 'next 5 days' : `+${futureOffset + 1} – +${futureOffset + 5}`}
           </span>
           <button style={navBtn} onClick={() => setFutureOffset(o => o + 5)}>
@@ -249,7 +249,7 @@ export default function EisenhowerView() {
                   <div style={{
                     fontSize: '1.1rem', letterSpacing: '1.5px',
                     color: 'rgba(255,255,255,0.4)',
-                    marginBottom: '0px', fontFamily: "'VT323', monospace",
+                    marginBottom: '0px', fontFamily: "var(--font-main), var(--font-kr), monospace",
                   }}>
                     {col.monthDay}
                   </div>
@@ -258,7 +258,7 @@ export default function EisenhowerView() {
                   fontSize: col.isOverdue || col.isToday ? '1.7rem' : '1.6rem',
                   letterSpacing: col.isOverdue || col.isToday ? '4px' : '2px',
                   color: col.dayColor,
-                  fontFamily: "'VT323', monospace",
+                  fontFamily: "var(--font-main), var(--font-kr), monospace",
                   lineHeight: 1,
                 }}>
                   {col.isOverdue || col.isToday ? `[ ${col.dayName} ]` : col.dayName}
@@ -269,7 +269,7 @@ export default function EisenhowerView() {
                     <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
                       <DensityBar ratio={getDensityRatio(nodes, col.key, capacityMinutes)} />
                       {mins > 0 && (
-                        <span style={{ fontFamily: "'VT323', monospace", fontSize: '0.82rem', letterSpacing: '0.5px', padding: '0.1rem 0.45rem', background: 'rgba(255,255,255,0.18)', color: '#fff' }}>
+                        <span style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.82rem', letterSpacing: '0.5px', padding: '0.1rem 0.45rem', background: 'rgba(255,255,255,0.18)', color: '#fff' }}>
                           {(mins / 60).toFixed(1)}h
                         </span>
                       )}

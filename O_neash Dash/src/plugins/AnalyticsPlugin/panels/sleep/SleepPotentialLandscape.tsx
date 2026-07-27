@@ -8,7 +8,7 @@ import {
 } from "./sleepPotentialMath";
 import type { PotentialResult } from "./sleepPotentialMath";
 
-const VT   = "'VT323', 'HBIOS-SYS', monospace";
+const VT   = "var(--font-main), var(--font-kr), monospace";
 const BLUE = "#60a5fa";
 
 function hexAlpha(a: number): string {

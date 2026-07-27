@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { SleepEntry, SleepTarget } from '../lib/sleepDb';
 import { durationHours, formatDuration } from '../lib/sleepDb';
 
-const VT  = "'VT323', 'HBIOS-SYS', monospace";
+const VT  = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#6366f1';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

@@ -11,7 +11,7 @@ export function Toaster() {
           background: '#0a0a0a',
           border: '1px solid rgba(255,255,255,0.15)',
           color: '#fff',
-          fontFamily: "'VT323', monospace",
+          fontFamily: "var(--font-main), var(--font-kr), monospace",
           fontSize: '1rem',
           letterSpacing: '1px',
           borderRadius: 0,

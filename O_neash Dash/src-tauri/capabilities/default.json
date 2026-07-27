@@ -13,6 +13,8 @@
     "core:window:allow-start-dragging",
     "core:webview:allow-print",
     "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:allow-read-file",
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "$DOCUMENT/**" }]
@@ -26,16 +28,24 @@
       "allow": [{ "path": "$DOCUMENT/**" }]
     },
     {
-      "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "$DOCUMENT/**" }]
-    },
-    {
       "identifier": "fs:allow-read-dir",
       "allow": [{ "path": "$DOCUMENT/**" }]
     },
     {
       "identifier": "fs:allow-remove",
       "allow": [{ "path": "$DOCUMENT/**" }]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://hn.algolia.com/*" },
+        { "url": "https://www.nature.com/*" },
+        { "url": "https://www.cell.com/*" },
+        { "url": "https://feeds.bbci.co.uk/*" },
+        { "url": "https://www.yna.co.kr/*" },
+        { "url": "https://geocoding-api.open-meteo.com/*" },
+        { "url": "https://api.open-meteo.com/*" }
+      ]
     }
   ]
 }

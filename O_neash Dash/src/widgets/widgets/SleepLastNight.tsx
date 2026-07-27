@@ -8,7 +8,7 @@ import {
 import type { SleepEntry, SleepTarget } from '../../plugins/SleepTrackerPlugin/lib/sleepDb';
 import type { WidgetProps } from '../types';
 
-const FONT   = "'VT323', monospace";
+const FONT   = "var(--font-main), var(--font-kr), monospace";
 const ACC    = '#6366f1';
 const YELLOW = '#f5c842';
 

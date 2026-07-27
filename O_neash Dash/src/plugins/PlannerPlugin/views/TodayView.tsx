@@ -278,6 +278,19 @@ export default function TodayView() {
               lineHeight: 1,
             }}
           >
+            {/* Plugin title */}
+            <span
+              style={{
+                fontFamily: "var(--font-main), var(--font-kr), monospace",
+                fontSize: "2rem",
+                letterSpacing: 5,
+                color: "var(--teal)",
+                textTransform: "uppercase",
+                lineHeight: 1,
+              }}
+            >
+              planner
+            </span>
             <ChevronRight
               width={22}
               height={22}
@@ -296,7 +309,7 @@ export default function TodayView() {
                 fontSize: "2.1rem",
                 letterSpacing: "4px",
                 lineHeight: 1,
-                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                fontFamily: "var(--font-main), var(--font-kr), monospace",
               }}
             >
               {targetDateStr}
@@ -310,11 +323,10 @@ export default function TodayView() {
               fontSize: "1.1rem",
               letterSpacing: "2px",
               color: "rgba(255,255,255,0.25)",
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
-              paddingLeft: "1.6rem",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
             }}
           >
-            [SYS_LOG --{sysDateStr} // CUR-TIME={clockStr}]
+            [{sysDateStr} // CUR-TIME={clockStr}]
           </span>
         </div>
 
@@ -356,7 +368,7 @@ export default function TodayView() {
             fontSize: "1.05rem",
             letterSpacing: "2px",
             cursor: "pointer",
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontFamily: "var(--font-main), var(--font-kr), monospace",
             display: "flex",
             alignItems: "center",
             gap: "0.4rem",
@@ -468,7 +480,7 @@ export default function TodayView() {
                       letterSpacing: "4px",
                       textTransform: "uppercase",
                       lineHeight: 1,
-                      fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                      fontFamily: "var(--font-main), var(--font-kr), monospace",
                     }}>
                       {`in session · ${visibleSessionNodes.length}`.split("").map((ch, i) => (
                         <span
@@ -486,7 +498,7 @@ export default function TodayView() {
                       display: "flex",
                       alignItems: "center",
                       gap: "0.75rem",
-                      fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                      fontFamily: "var(--font-main), var(--font-kr), monospace",
                       fontSize: "1.1rem",
                       letterSpacing: "1px",
                       opacity: 0.75,
@@ -544,7 +556,7 @@ export default function TodayView() {
                       letterSpacing: "4px",
                       textTransform: "uppercase",
                       lineHeight: 1,
-                      fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                      fontFamily: "var(--font-main), var(--font-kr), monospace",
                     }}
                   >
                     overdue · {overdue.length}
@@ -612,7 +624,7 @@ export default function TodayView() {
                     letterSpacing: "4px",
                     textTransform: "uppercase",
                     lineHeight: 1,
-                    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                    fontFamily: "var(--font-main), var(--font-kr), monospace",
                   }}>
                     {`events · ${todayEvents.length}`}
                   </span>
@@ -659,7 +671,7 @@ export default function TodayView() {
                   letterSpacing: "4px",
                   textTransform: "uppercase",
                   lineHeight: 1,
-                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  fontFamily: "var(--font-main), var(--font-kr), monospace",
                 }}>
                   {`today · ${todayNodes.length}`}
                 </span>
@@ -783,7 +795,7 @@ export default function TodayView() {
             >
               <span
                 style={{
-                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  fontFamily: "var(--font-main), var(--font-kr), monospace",
                   fontSize: "1rem",
                   letterSpacing: "2px",
                   color: "rgba(255,255,255,0.45)",
@@ -930,7 +942,7 @@ function DiceButton({ onClick }: { onClick: () => void }) {
         fontSize: "1.05rem",
         letterSpacing: "3px",
         cursor: "pointer",
-        fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+        fontFamily: "var(--font-main), var(--font-kr), monospace",
         color: "inherit",
       }}
     >
@@ -986,7 +998,7 @@ function SuggestionsToggle({
         fontSize: "1.05rem",
         letterSpacing: "2px",
         cursor: "pointer",
-        fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+        fontFamily: "var(--font-main), var(--font-kr), monospace",
         color: "inherit",
       }}
     >
@@ -1068,7 +1080,7 @@ function EventRow({
     return `${start} ~ ${end}`;
   })();
 
-  const VT = "'VT323', 'HBIOS-SYS', monospace";
+  const VT = "var(--font-main), var(--font-kr), monospace";
   const PURPLE = "rgba(192,132,252,1)";
 
   return (
@@ -1146,9 +1158,11 @@ function EventRow({
               transition: "color 0.3s",
               flex: "0 1 auto",
               minWidth: 0,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              wordBreak: "break-word",
             }}
           >
             {node.title}
@@ -1295,7 +1309,7 @@ function IconAction({
               padding: "2px 8px",
               zIndex: 9500,
               pointerEvents: "none",
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "0.95rem",
               letterSpacing: "1.5px",
               color: color,
@@ -1342,7 +1356,7 @@ function SectionLabel({
           letterSpacing: "4px",
           textTransform: "uppercase",
           lineHeight: 1,
-          fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+          fontFamily: "var(--font-main), var(--font-kr), monospace",
         }}
       >
         {label}
@@ -1408,7 +1422,7 @@ function InSessionTaskRow({
         border: `1px solid ${isActive ? "#f5c842" : hov ? "rgba(245,200,66,0.6)" : "rgba(245,200,66,0.32)"}`,
         background: "#000",
         transition: "background 0.1s, border-color 0.1s",
-        fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+        fontFamily: "var(--font-main), var(--font-kr), monospace",
         fontSize: "1.05rem",
         letterSpacing: "1px",
         minHeight: "2rem",
@@ -1434,7 +1448,11 @@ function InSessionTaskRow({
         <span style={{
           color: arc?.color_hex ?? "#fff",
           flex: 1, minWidth: 0,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          wordBreak: "break-word",
         }}>
           {sessionNode.title}
         </span>
@@ -1445,7 +1463,7 @@ function InSessionTaskRow({
           {isActive && sessionNode.time_started && (
             <span style={{
               background: "#f5c842", color: "#000",
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "1rem", letterSpacing: "1px",
               padding: "0 5px", lineHeight: 1.2, flexShrink: 0, marginRight: "0.35rem",
             }}>
@@ -1611,7 +1629,7 @@ function TaskRow({
           : `1px solid ${hov ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.16)"}`,
     opacity: variant === "suggestion" ? (hov ? 1 : 0.78) : 1,
     transition: "background 0.1s, border-color 0.1s, opacity 0.1s",
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
     fontSize: "1.05rem",
     letterSpacing: "1px",
     minHeight: "2rem",
@@ -1742,9 +1760,11 @@ function TaskRow({
                 transition: "color 0.3s",
                 flex: 1,
                 minWidth: 0,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
                 overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                wordBreak: "break-word",
               }}
             >
               {node.title}
@@ -1907,7 +1927,7 @@ function TaskRow({
                     all: "unset",
                     cursor: "pointer",
                     color: subtasksOpen ? "#fff" : "rgba(255,255,255,0.35)",
-                    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                    fontFamily: "var(--font-main), var(--font-kr), monospace",
                     fontSize: "0.85rem",
                     letterSpacing: "1px",
                     flexShrink: 0,
@@ -1942,7 +1962,7 @@ function TaskRow({
                   gap: "0.5rem",
                   padding: "0.2rem 0.5rem",
                   cursor: onToggleSubTask ? "pointer" : "default",
-                  fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                  fontFamily: "var(--font-main), var(--font-kr), monospace",
                   fontSize: "0.95rem",
                   letterSpacing: "1px",
                   color: s.is_completed
@@ -2044,7 +2064,7 @@ function MiniCard({
       {suggestion && (
         <span
           style={{
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontFamily: "var(--font-main), var(--font-kr), monospace",
             fontSize: "0.72rem",
             letterSpacing: "3px",
             color: "rgba(255,255,255,0.25)",
@@ -2059,7 +2079,7 @@ function MiniCard({
         <div style={{ display: "flex", alignItems: "center", gap: "0.55rem" }}>
           <span
             style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "0.72rem",
               letterSpacing: "3px",
               color: "rgba(192,132,252,0.75)",
@@ -2072,7 +2092,7 @@ function MiniCard({
           </span>
           <span
             style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "0.95rem",
               letterSpacing: "2px",
               color: "rgba(255,255,255,0.35)",
@@ -2100,7 +2120,7 @@ function MiniCard({
             lineHeight: 1.15,
             letterSpacing: "0.5px",
             color: isEvent ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.8)",
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontFamily: "var(--font-main), var(--font-kr), monospace",
             wordBreak: "break-word",
             flex: 1,
           }}
@@ -2114,7 +2134,7 @@ function MiniCard({
               letterSpacing: "1px",
               flexShrink: 0,
               color: `${badge.color}88`,
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               paddingTop: "0.1rem",
             }}
           >
@@ -2130,7 +2150,7 @@ function MiniCard({
             fontSize: "0.82rem",
             letterSpacing: "0.3px",
             color: "rgba(255,255,255,0.25)",
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontFamily: "var(--font-main), var(--font-kr), monospace",
           }}
         >
           {"> "}
@@ -2172,7 +2192,7 @@ function MiniCard({
               fontSize: "0.9rem",
               letterSpacing: "1px",
               cursor: "pointer",
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               marginRight: "0.15rem",
               display: "flex",
               alignItems: "center",
@@ -2234,7 +2254,7 @@ function DoneChip({
 }) {
   const [hovered, setHovered] = useState(false);
   const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
   };
   return (
     <div
@@ -2422,7 +2442,7 @@ function TaskCard({
   })();
 
   const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
   };
 
   // ── Mini card for completed tasks ──
@@ -2837,7 +2857,7 @@ function TaskCard({
                 padding: "3px 8px",
                 zIndex: 9500,
                 pointerEvents: "none",
-                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                fontFamily: "var(--font-main), var(--font-kr), monospace",
                 fontSize: "1rem",
                 letterSpacing: "0.5px",
                 color: "rgba(255,255,255,0.85)",
@@ -3023,7 +3043,7 @@ function EventCalendarPanel({
 
   const LABEL_W = 36;
   const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
   };
 
   return (
@@ -3060,9 +3080,12 @@ function EventCalendarPanel({
           style={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "center",
             gap: 6,
+            width: "100%",
             border: "1px solid rgba(255,255,255,0.18)",
             padding: "4px 10px",
+            boxSizing: "border-box",
           }}
         >
           <button
@@ -3545,7 +3568,7 @@ function EventCalendarPanel({
                             {sNodes.length === 0 && isActive && (
                               <div style={{
                                 position: "absolute", top: 2, left: 4,
-                                fontFamily: "'VT323','HBIOS-SYS',monospace",
+                                fontFamily: "var(--font-main), var(--font-kr), monospace",
                                 fontSize: 9, letterSpacing: 1,
                                 color: "rgba(245,158,11,0.5)",
                                 textTransform: "uppercase", pointerEvents: "none",
@@ -3651,7 +3674,7 @@ function SidebarPanel({
           <span
             onClick={onTitleClick}
             style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "1.05rem",
               letterSpacing: "3px",
               textTransform: "uppercase",
@@ -3706,7 +3729,7 @@ function HeaderProgressTracker({
         >
           <span
             style={{
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "1.3rem",
               lineHeight: 1,
               color: pct > 0 ? barColor : "rgba(255,255,255,0.2)",
@@ -3718,7 +3741,7 @@ function HeaderProgressTracker({
         </div>
         <span
           style={{
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontFamily: "var(--font-main), var(--font-kr), monospace",
             fontSize: "1rem",
             letterSpacing: "1.5px",
             whiteSpace: "nowrap",
@@ -3850,7 +3873,7 @@ function MiniCalendarPanel() {
   const isCurrentMonth =
     year === today.getFullYear() && month === today.getMonth();
 
-  const VT = "'VT323', 'HBIOS-SYS', monospace";
+  const VT = "var(--font-main), var(--font-kr), monospace";
   const TEAL = "#00c4a7";
   const monthKey = `${year}-${month}`;
 
@@ -4171,7 +4194,7 @@ function fmtShort(dateStr: string): string {
 }
 
 function SessionBreakdownPanel() {
-  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const mono: React.CSSProperties = { fontFamily: "var(--font-main), var(--font-kr), monospace" };
   const [animRows, setAnimRows] = useState<AnimRow[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const [tick, setTick] = useState(0);
@@ -4367,7 +4390,7 @@ function SessionBreakdownPanel() {
 // Panel 4 — Velocity expanded popup (6 weeks)
 
 function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
-  const mono: React.CSSProperties = { fontFamily: "'VT323', 'HBIOS-SYS', monospace" };
+  const mono: React.CSSProperties = { fontFamily: "var(--font-main), var(--font-kr), monospace" };
   const [pts, setPts] = useState<{ date: string; count: number; sessionMins: number; eventMins: number; label: string }[]>([]);
 
   useEffect(() => {
@@ -4466,7 +4489,7 @@ function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
                 if (!payload.value) return <g />;
                 return (
                   <g transform={`translate(${x},${y})`}>
-                    <text x={0} y={14} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={13} fontFamily="'VT323','HBIOS-SYS',monospace">
+                    <text x={0} y={14} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize={13} fontFamily="var(--font-main), var(--font-kr), monospace">
                       {payload.value}
                     </text>
                   </g>
@@ -4567,7 +4590,7 @@ function VelocityExpandedPopup({ onClose }: { onClose: () => void }) {
 
 function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
   const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
   };
   const [popupOpen, setPopupOpen] = useState(false);
   const [pts, setPts] = useState<
@@ -4678,7 +4701,7 @@ function TaskVelocityPanel({ nodes }: { nodes: PlannerNode[] }) {
                     textAnchor="middle"
                     fill={isToday ? "#000" : "rgba(255,255,255,0.75)"}
                     fontSize={17}
-                    fontFamily="'VT323','HBIOS-SYS',monospace"
+                    fontFamily="var(--font-main), var(--font-kr), monospace"
                   >
                     {payload.value}
                   </text>
@@ -4872,7 +4895,7 @@ function DiceModal({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const mono: React.CSSProperties = {
-    fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+    fontFamily: "var(--font-main), var(--font-kr), monospace",
   };
 
   const tasks = pool.filter((n) => n.node_type !== "event" && !n.is_completed);

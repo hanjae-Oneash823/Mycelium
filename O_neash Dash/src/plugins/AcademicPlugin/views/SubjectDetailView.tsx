@@ -11,7 +11,7 @@ import { loadCanvases, createCanvas } from '../lib/canvasDb';
 import type { AcademicCanvas } from '../lib/canvasDb';
 import CanvasView from './CanvasView';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#f59e0b';
 
 function fmtDue(dateStr: string | null | undefined): string {

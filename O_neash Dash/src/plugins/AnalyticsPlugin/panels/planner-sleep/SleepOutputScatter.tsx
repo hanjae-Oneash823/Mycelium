@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { computeScatter, buildScatterInsights } from "./sleepOutputMath";
 import type { ScatterResult, DayPoint } from "./sleepOutputMath";
 
-const VT   = "'VT323', 'HBIOS-SYS', monospace";
+const VT   = "var(--font-main), var(--font-kr), monospace";
 const TEAL = "#00c4a7";
 const RED  = "#f87171";
 const WIGGLE_AMP   = 1.5;

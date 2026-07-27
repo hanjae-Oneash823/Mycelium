@@ -82,7 +82,7 @@ export default function TaskDetailPanel({
         padding:    '12px 14px 10px',
         zIndex:     9001,
         boxShadow:  '0 8px 40px rgba(0,0,0,0.92)',
-        fontFamily: "'VT323', 'IBM Plex Mono', monospace",
+        fontFamily: "var(--font-main), var(--font-kr), monospace",
         color:      '#fff',
       }}
     >
@@ -159,7 +159,7 @@ export default function TaskDetailPanel({
           );
         })()}
         {node.is_routine ? (
-          <span style={{ fontSize: '0.78rem', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.22)', fontFamily: "'VT323', monospace" }}>
+          <span style={{ fontSize: '0.78rem', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.22)', fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
             edit in routines view
           </span>
         ) : (
@@ -186,7 +186,7 @@ function actionBtn(color: string): CSSProperties {
     border:        'none',
     color,
     cursor:        'pointer',
-    fontFamily:    "'VT323', monospace",
+    fontFamily:    "var(--font-main), var(--font-kr), monospace",
     fontSize:      '1.05rem',
     letterSpacing: '1px',
     padding:       0,

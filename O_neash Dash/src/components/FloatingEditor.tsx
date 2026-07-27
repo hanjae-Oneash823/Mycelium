@@ -6,7 +6,7 @@ import TypewriterEditor from '../plugins/NotesPlugin/components/TypewriterEditor
 import { getNoteById, updateNote } from '../plugins/NotesPlugin/lib/notesDb';
 import type { NoteRow } from '../plugins/NotesPlugin/lib/notesDb';
 
-const VT = "'VT323', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 // ── Note Pill (terminal line style) ──────────────────────────────────────────
 

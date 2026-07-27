@@ -12,11 +12,42 @@
   size-adjust: 78%;
 }
 
+/* Baekmuk Gulim — free, permissively-licensed Gulim lookalike. See public/fonts/Baekmuk-LICENSE.txt. */
+@font-face {
+  font-family: 'Gulim';
+  src: url('/fonts/Baekmuk-Gulim.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tamzen';
+  src: url('/fonts/Tamzen10x20r.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tamzen';
+  src: url('/fonts/Tamzen10x20b.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* App-wide font choice, set from Settings > Appearance (src/lib/fontSettings.ts). */
+  --font-main: 'VT323';
+  --font-kr: 'HBIOS-SYS';
+}
+
 body {
   margin: 0;
   background-color: #000000; /* Pure black background */
   color: #ffffff; /* White text for contrast */
-  font-family: "VT323", "HBIOS-SYS", monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-weight: 400;
   font-style: normal;
   font-size: 18px; /* Base size for VT323 */
@@ -63,7 +94,7 @@ body {
 
 @layer base {
   * {
-    font-family: 'VT323', 'HBIOS-SYS', 'Gowun Dodum', monospace;
+    font-family: var(--font-main), var(--font-kr), monospace;
   }
 
   :root {

@@ -5,7 +5,7 @@ import type { StateSpaceResult, ClusterFeatureLine } from "./behaviorMath";
 
 interface LabelBox { cluster: number; x: number; y: number; w: number; h: number }
 
-const VT        = "'VT323', 'HBIOS-SYS', monospace";
+const VT        = "var(--font-main), var(--font-kr), monospace";
 const PAD       = 0.11;
 const TSNE_FRAC = 0.80;  // scatter occupies top 80% of canvas
 const WIGGLE_AMP   = 1.8;

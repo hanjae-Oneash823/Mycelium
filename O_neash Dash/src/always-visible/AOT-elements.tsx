@@ -12,7 +12,7 @@ import { loadBrowsableNodes, endOpenPomoWorkBlock } from "../plugins/PlannerPlug
 import type { BrowsableNode } from "../plugins/PlannerPlugin/lib/onTheClockDb";
 import "./AOT-elements.css";
 
-const VT_OTC = "'VT323', 'HBIOS-SYS', monospace";
+const VT_OTC = "var(--font-main), var(--font-kr), monospace";
 const OTC_ACC = '#f59e0b';
 
 function fmtTimer(secs: number) {
@@ -693,7 +693,7 @@ const iconBtn: React.CSSProperties = {
   background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
 };
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 // Flatten all launchable apps from categories, keeping icon + accent color
 const ALL_APPS = CATEGORIES.flatMap((cat) =>

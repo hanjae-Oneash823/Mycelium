@@ -4,7 +4,7 @@ import type { Project, Arc } from '../../ProjectsPlugin/lib/projectsDb';
 import type { AcademicNode, CompletionPoint } from '../lib/academicDb';
 import SubjectDetailView from './SubjectDetailView';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#f59e0b';
 
 function fmtDue(dateStr: string | null | undefined): string {

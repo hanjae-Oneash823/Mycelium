@@ -8,7 +8,7 @@ import {
 } from '../lib/canvasDb';
 import type { AcademicCanvas, CanvasNode, CanvasEdge } from '../lib/canvasDb';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const DATE_COL_W = 92;
 const NODE_W     = 148;
 const NODE_H     = 52;

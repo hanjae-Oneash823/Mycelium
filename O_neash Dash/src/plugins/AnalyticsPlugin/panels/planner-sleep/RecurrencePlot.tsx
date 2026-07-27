@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { ClusterResult } from "./clusterMath";
 import { CLUSTER_COLORS } from "./clusterMath";
+import { useFontStack } from "../../../../lib/useFontStack";
 
 interface Props {
   result: ClusterResult | null;
@@ -41,6 +42,7 @@ export default function RecurrencePlot({ result }: Props) {
   const cacheRef     = useRef<ImageData | null>(null); // base image without crosshair
 
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const fontStack = useFontStack();
 
   // Draws the static base: matrix + strips + labels + watermark. No crosshair.
   const drawBase = useCallback((ctx: CanvasRenderingContext2D, W: number, H: number) => {
@@ -76,7 +78,7 @@ export default function RecurrencePlot({ result }: Props) {
     // month labels — x-axis
     const fs = Math.round(W * 0.030);
     ctx.save();
-    ctx.font = `bold ${fs}px 'VT323', monospace`;
+    ctx.font = `bold ${fs}px ${fontStack}`;
     ctx.fillStyle = "rgba(255,255,255,0.50)";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
@@ -109,7 +111,7 @@ export default function RecurrencePlot({ result }: Props) {
     // cluster legend
     clusters.forEach((_cl, k) => {
       ctx.save();
-      ctx.font = `bold ${Math.round(W * 0.022)}px 'VT323', monospace`;
+      ctx.font = `bold ${Math.round(W * 0.022)}px ${fontStack}`;
       ctx.fillStyle = CLUSTER_COLORS[k];
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
@@ -120,7 +122,7 @@ export default function RecurrencePlot({ result }: Props) {
     // RECURRENCE watermark
     ctx.save();
     ctx.globalAlpha = 0.06;
-    ctx.font = `bold ${Math.round(W * 0.10)}px 'VT323', monospace`;
+    ctx.font = `bold ${Math.round(W * 0.10)}px ${fontStack}`;
     ctx.fillStyle = "#00c4a7";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -132,7 +134,7 @@ export default function RecurrencePlot({ result }: Props) {
       ctx.fillStyle = "rgba(8,8,16,0.65)";
       ctx.fillRect(matX0 + colMax * cellW, matY0, matW - colMax * cellW, matH);
     }
-  }, [result]);
+  }, [result, fontStack]);
 
   // Draws crosshair. Geometry is in physical canvas pixels (for sharp rendering).
   const drawCrosshair = useCallback((ctx: CanvasRenderingContext2D, W: number, H: number) => {
@@ -306,7 +308,7 @@ export default function RecurrencePlot({ result }: Props) {
 
 const TW = 230, TH = 155, TM = 10;
 function RecurrenceTooltip({ x, y, lines, canvasW }: TooltipState) {
-  const VT = "'VT323', 'HBIOS-SYS', monospace";
+  const VT = "var(--font-main), var(--font-kr), monospace";
   const tx = Math.max(TM, Math.min(canvasW - TW - TM, x - TW / 2));
   const ty = y > TH + TM ? y - TH - TM : y + TM;
   return (

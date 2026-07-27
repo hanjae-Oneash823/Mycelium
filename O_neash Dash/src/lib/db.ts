@@ -488,6 +488,88 @@ export async function setupDb(): Promise<Database> {
   CREATE INDEX IF NOT EXISTS idx_sn_session  ON session_nodes(session_id);
   CREATE INDEX IF NOT EXISTS idx_sp_session  ON session_pauses(session_id);
   CREATE INDEX IF NOT EXISTS idx_spb_session ON session_pomo_blocks(session_id);
+
+  -- ─────────────────── WARDROBE PLUGIN (wiki) ───────────────────────────────
+
+  CREATE TABLE IF NOT EXISTS wardrobe_wiki_entries (
+    id            TEXT PRIMARY KEY,
+    category      TEXT NOT NULL,
+    title         TEXT NOT NULL,
+    content_plain TEXT,
+    content_json  TEXT,
+    cover_image   TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TRIGGER IF NOT EXISTS wardrobe_wiki_ts AFTER UPDATE ON wardrobe_wiki_entries
+  BEGIN
+    UPDATE wardrobe_wiki_entries SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE INDEX IF NOT EXISTS idx_wardrobe_wiki_category ON wardrobe_wiki_entries(category);
+
+  CREATE TABLE IF NOT EXISTS wardrobe_wiki_links (
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    PRIMARY KEY (source_id, target_id),
+    FOREIGN KEY (source_id) REFERENCES wardrobe_wiki_entries(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_id) REFERENCES wardrobe_wiki_entries(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_wardrobe_wiki_links_target ON wardrobe_wiki_links(target_id);
+
+  CREATE TABLE IF NOT EXISTS wardrobe_wiki_gallery_images (
+    id          TEXT PRIMARY KEY,
+    entry_id    TEXT NOT NULL,
+    image_path  TEXT NOT NULL,
+    note        TEXT,
+    sort_order  INTEGER DEFAULT 0,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (entry_id) REFERENCES wardrobe_wiki_entries(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_wardrobe_gallery_entry ON wardrobe_wiki_gallery_images(entry_id);
+
+  -- ─────────────────── WARDROBE PLUGIN (archive / OOTD) ─────────────────────
+
+  CREATE TABLE IF NOT EXISTS wardrobe_items (
+    id             TEXT PRIMARY KEY,
+    name           TEXT NOT NULL,
+    item_type      TEXT NOT NULL,
+    brand          TEXT,
+    purchase_date  TEXT,
+    image_path     TEXT,
+    sizing_json    TEXT,
+    status         TEXT NOT NULL DEFAULT 'active',
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TRIGGER IF NOT EXISTS wardrobe_items_ts AFTER UPDATE ON wardrobe_items
+  BEGIN
+    UPDATE wardrobe_items SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE INDEX IF NOT EXISTS idx_wardrobe_items_type   ON wardrobe_items(item_type);
+  CREATE INDEX IF NOT EXISTS idx_wardrobe_items_status ON wardrobe_items(status);
+
+  CREATE TABLE IF NOT EXISTS wardrobe_ootd_logs (
+    id          TEXT PRIMARY KEY,
+    date        TEXT NOT NULL UNIQUE,
+    item_ids    TEXT NOT NULL DEFAULT '[]',
+    note        TEXT,
+    photo_path  TEXT,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TRIGGER IF NOT EXISTS wardrobe_ootd_ts AFTER UPDATE ON wardrobe_ootd_logs
+  BEGIN
+    UPDATE wardrobe_ootd_logs SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE INDEX IF NOT EXISTS idx_wardrobe_ootd_date ON wardrobe_ootd_logs(date);
     `;
 
     // Apply the full schema every time
@@ -572,6 +654,52 @@ export async function setupDb(): Promise<Database> {
           );
       END
     `);
+
+    // Wardrobe wiki — relax category CHECK constraint to free text, and merge
+    // any pre-existing 'look' entries into 'genre' (SQLite can't ALTER a CHECK
+    // constraint in place, so this rebuilds the table only when the old
+    // constraint is still present).
+    try {
+      const wardrobeTable = await db.select<{ sql: string }[]>(
+        `SELECT sql FROM sqlite_master WHERE type='table' AND name='wardrobe_wiki_entries'`,
+      );
+      if (wardrobeTable[0]?.sql?.includes('CHECK(category')) {
+        await db.execute(`PRAGMA foreign_keys = OFF`);
+        await db.execute(`
+          CREATE TABLE wardrobe_wiki_entries_new (
+            id            TEXT PRIMARY KEY,
+            category      TEXT NOT NULL,
+            title         TEXT NOT NULL,
+            content_plain TEXT,
+            content_json  TEXT,
+            cover_image   TEXT,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        await db.execute(`
+          INSERT INTO wardrobe_wiki_entries_new
+          SELECT id, CASE WHEN category = 'look' THEN 'genre' ELSE category END,
+                 title, content_plain, content_json, cover_image, created_at, updated_at
+          FROM wardrobe_wiki_entries
+        `);
+        await db.execute(`DROP TABLE wardrobe_wiki_entries`);
+        await db.execute(`ALTER TABLE wardrobe_wiki_entries_new RENAME TO wardrobe_wiki_entries`);
+        await db.execute(`
+          CREATE TRIGGER IF NOT EXISTS wardrobe_wiki_ts AFTER UPDATE ON wardrobe_wiki_entries
+          BEGIN
+            UPDATE wardrobe_wiki_entries SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+          END
+        `);
+        await db.execute(`CREATE INDEX IF NOT EXISTS idx_wardrobe_wiki_category ON wardrobe_wiki_entries(category)`);
+        await db.execute(`PRAGMA foreign_keys = ON`);
+      }
+    } catch {
+      await db.execute(`PRAGMA foreign_keys = ON`).catch(() => {});
+    }
+
+    // Wardrobe wiki — 'creator' category dropped, merged into 'brand' (now "Brands/Designers")
+    await db.execute(`UPDATE wardrobe_wiki_entries SET category = 'brand' WHERE category = 'creator'`).catch(() => {});
 
     return db;
   } catch (error) {

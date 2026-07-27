@@ -61,7 +61,7 @@ export function WidgetShell({ instance, editMode, col, row, isDragging, onDragSt
       {editMode && !hovered && (
         <div style={{
           position: 'absolute', top: 6, right: 8,
-          fontFamily: "'VT323', monospace", fontSize: '0.75rem',
+          fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.75rem',
           color: 'rgba(0,196,167,0.35)', pointerEvents: 'none', lineHeight: 1,
         }}>⠿</div>
       )}
@@ -74,7 +74,7 @@ export function WidgetShell({ instance, editMode, col, row, isDragging, onDragSt
           alignItems: 'center', justifyContent: 'center', gap: 6,
           cursor: 'grab',
         }}>
-          <div style={{ fontFamily:"'VT323',monospace", fontSize:'0.75rem', letterSpacing:'2px', color:'rgba(255,255,255,0.45)', marginBottom:2 }}>
+          <div style={{ fontFamily:"var(--font-main), var(--font-kr), monospace", fontSize:'0.75rem', letterSpacing:'2px', color:'rgba(255,255,255,0.45)', marginBottom:2 }}>
             {def.label}
           </div>
           <div style={{ display:'flex', gap:6 }}>
@@ -82,7 +82,7 @@ export function WidgetShell({ instance, editMode, col, row, isDragging, onDragSt
             <ShellButton onClick={(e) => { e.stopPropagation(); reorderWidget(instance.instanceId, 'down'); }}>↓</ShellButton>
             <ShellButton onClick={(e) => { e.stopPropagation(); removeWidget(instance.instanceId); }} danger>✕</ShellButton>
           </div>
-          <div style={{ fontFamily:"'VT323',monospace", fontSize:'0.62rem', letterSpacing:'1px', color:'rgba(255,255,255,0.18)', marginTop:2 }}>
+          <div style={{ fontFamily:"var(--font-main), var(--font-kr), monospace", fontSize:'0.62rem', letterSpacing:'1px', color:'rgba(255,255,255,0.18)', marginTop:2 }}>
             drag to reposition
           </div>
         </div>
@@ -101,7 +101,7 @@ function ShellButton({ onClick, danger, children }: {
       background: 'none',
       border: `1px solid ${danger ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.2)'}`,
       color: danger ? '#ef4444' : 'rgba(255,255,255,0.7)',
-      fontFamily: "'VT323',monospace", fontSize: '1rem',
+      fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem',
       padding: '0 10px', cursor: 'pointer', lineHeight: '1.6rem',
     }}>
       {children}

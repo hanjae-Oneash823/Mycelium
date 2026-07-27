@@ -129,7 +129,7 @@ export default function DotNode({ node, scale = 1, noPopups = false, isToday = t
       {subTotal > 0 && hovered && !isDragging && (
         <div style={{
           position: 'absolute', bottom: -(diameter * 0.45), left: '50%', transform: 'translateX(-50%)',
-          fontFamily: "'VT323', monospace", fontSize: Math.max(9, diameter * 0.42),
+          fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: Math.max(9, diameter * 0.42),
           color: color, letterSpacing: '0.5px', lineHeight: 1, whiteSpace: 'nowrap',
           pointerEvents: 'none', zIndex: 20,
           textShadow: '0 1px 4px #000',

@@ -14,7 +14,7 @@ import {
 } from '../lib/onTheClockDb';
 import type { WorkSession, SessionNodeWithNode, BrowsableNode, SessionPause, SessionPomoBlock } from '../lib/onTheClockDb';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#f59e0b';
 const POMO = '#ef4444';
 

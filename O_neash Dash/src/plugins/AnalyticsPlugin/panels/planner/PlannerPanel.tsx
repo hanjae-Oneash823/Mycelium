@@ -3,7 +3,7 @@ import ChronoFingerprint from "./ChronoFingerprint";
 import BehavioralStateSpace from "./BehavioralStateSpace";
 import ArcCompositionStream from "./ArcCompositionStream";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 function ComingSoonCard({ title }: { title: string }) {
   return (

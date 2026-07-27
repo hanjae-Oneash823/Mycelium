@@ -8,7 +8,7 @@
 }
 
 .plugin-clock.bios-style {
-  font-family: 'VT323', 'IBM Plex Sans KR', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   text-transform: uppercase;
   letter-spacing: 2px;
   align-items: flex-start;

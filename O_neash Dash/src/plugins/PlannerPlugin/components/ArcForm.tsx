@@ -14,7 +14,7 @@ const TypedDialogContent = DialogContent as React.FC<any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TypedDialogTitle = DialogTitle as React.FC<any>;
 
-const VT = "'VT323', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 const SWATCH_COLORS = [
   '#00c4a7', '#64c8ff', '#4ade80', '#f5c842',

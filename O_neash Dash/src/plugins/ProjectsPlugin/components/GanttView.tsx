@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { brightenHex, STATUS_COLOR } from '../lib/colors';
 import type { Arc, Project, DateRange, NodeDayCount, ProjectStatus } from '../lib/projectsDb';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#00c4a7';
 const MIN_BAR_PCT = 1.2;
 const DAY_MS = 86400000;

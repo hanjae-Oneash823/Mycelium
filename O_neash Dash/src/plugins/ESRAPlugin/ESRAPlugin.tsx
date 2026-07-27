@@ -7,7 +7,7 @@ import { Bookmark } from "pixelarticons/react/Bookmark";
 import { BracesContent } from "pixelarticons/react/BracesContent";
 import { Algorithm } from "pixelarticons/react/Algorithm";
 
-const VT = "'VT323', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const OD = "'Odibee Sans', monospace";
 const ACC = "#f59e0b";
 const PX = "160px";

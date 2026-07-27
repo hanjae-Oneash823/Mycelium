@@ -14,7 +14,7 @@ import DashboardView from './views/DashboardView';
 import MultiCanvasView from './views/MultiCanvasView';
 import './AcademicPlugin.css';
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#f59e0b';
 
 export default function AcademicPlugin() {
@@ -101,7 +101,7 @@ export default function AcademicPlugin() {
       {/* ── Header ── */}
       <div style={{ padding: '60px 160px 0', background: '#000', flexShrink: 0 }}>
         <div style={{ fontFamily: VT, fontSize: '2rem', letterSpacing: 5, color: ACC, textTransform: 'uppercase', lineHeight: 1, marginBottom: 20 }}>
-          academic planner
+          deep planner
         </div>
       </div>
 

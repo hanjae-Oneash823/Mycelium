@@ -47,7 +47,7 @@ function QAPlaceholder({ visible }: { visible: boolean }) {
             transform: "translateY(-50%)",
             display: "flex",
             pointerEvents: "none",
-            fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+            fontFamily: "var(--font-main), var(--font-kr), monospace",
             fontSize: "1rem",
             letterSpacing: 1,
           }}
@@ -261,7 +261,7 @@ export default function QuickAddInput({
   }
 
   return (
-    <div style={{ width: "100%", fontFamily: "'VT323', 'HBIOS-SYS', monospace" }}>
+    <div style={{ width: "100%", fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
       {launchItem &&
         createPortal(
           <motion.div
@@ -275,7 +275,7 @@ export default function QuickAddInput({
               top: launchItem.y,
               translateX: "-50%",
               translateY: "-50%",
-              fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+              fontFamily: "var(--font-main), var(--font-kr), monospace",
               fontSize: "1.1rem",
               letterSpacing: 1,
               color: "#00c4a7",
@@ -377,7 +377,7 @@ export default function QuickAddInput({
                 background: "transparent",
                 border: "none",
                 color: "rgba(255,255,255,0.82)",
-                fontFamily: "'VT323', 'HBIOS-SYS', monospace",
+                fontFamily: "var(--font-main), var(--font-kr), monospace",
                 fontSize: "1rem",
                 padding: "6px 10px",
                 letterSpacing: 1,
@@ -399,7 +399,7 @@ export default function QuickAddInput({
                     background: "#0d0d0d",
                     border: "1px solid rgba(255,255,255,0.18)",
                     zIndex: 99999,
-                    fontFamily: "'VT323','HBIOS-SYS',monospace",
+                    fontFamily: "var(--font-main), var(--font-kr), monospace",
                     fontSize: "1rem",
                     letterSpacing: "1px",
                     maxHeight: Math.min(220, window.innerHeight - dropPos.top - 8),
@@ -523,7 +523,7 @@ export default function QuickAddInput({
                           background: arc.color_hex,
                           border: `1px solid ${arc.color_hex}`,
                           color: "#000",
-                          fontFamily: "'VT323','HBIOS-SYS',monospace",
+                          fontFamily: "var(--font-main), var(--font-kr), monospace",
                           fontSize: "0.85rem",
                           letterSpacing: "1px",
                           cursor: "pointer",
@@ -563,7 +563,7 @@ export default function QuickAddInput({
                           background: "#b0b0a8",
                           border: "1px solid #b0b0a8",
                           color: "#000",
-                          fontFamily: "'VT323','HBIOS-SYS',monospace",
+                          fontFamily: "var(--font-main), var(--font-kr), monospace",
                           fontSize: "0.85rem",
                           letterSpacing: "1px",
                           cursor: "pointer",
@@ -602,7 +602,7 @@ export default function QuickAddInput({
                         background: grp.color_hex,
                         border: `1px solid ${grp.color_hex}`,
                         color: "#000",
-                        fontFamily: "'VT323','HBIOS-SYS',monospace",
+                        fontFamily: "var(--font-main), var(--font-kr), monospace",
                         fontSize: "0.85rem",
                         letterSpacing: "1px",
                         cursor: "pointer",

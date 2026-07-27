@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import ClockPlugin from "../plugins/ClockPlugin/ClockPlugin";
 import { LaunchMenu } from "./LaunchMenu";
 import { WidgetPanel } from "../widgets/WidgetPanel";
+import { HackerNews } from "../widgets/widgets/HackerNews";
+import { ResearchFeed } from "../widgets/widgets/ResearchFeed";
 import { usePlannerStore } from "../plugins/PlannerPlugin/store/usePlannerStore";
+import { QuickActionButtons } from "./quick-actions/QuickActionButtons";
+import { WeatherPanel } from "./weather/WeatherPanel";
 
 // Eye positions calibrated to cyphel_grey_noeyes.png at 140×140px
 const EYES = [
@@ -64,9 +68,6 @@ function AvatarWithEyes() {
   );
 }
 
-const BORDER = "1px solid rgba(0,196,167,0.45)";
-const BG = "rgba(0,196,167,0.02)";
-
 function HomePage() {
   const loadAll = usePlannerStore((s) => s.loadAll);
 
@@ -82,51 +83,80 @@ function HomePage() {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: "8vw",
         boxSizing: "border-box",
         padding: "0 6vw",
       }}
     >
-      {/* ── Avatar + clock ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", flexShrink: 0 }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.6rem",
-            flexShrink: 0,
-            marginTop: 20,
-          }}
-        >
-          <AvatarWithEyes />
-          <div style={{ fontFamily: "'VT323', monospace" }}>
-            <div
-              style={{
-                fontSize: "0.9rem",
-                color: "rgba(255,255,255,0.35)",
-                letterSpacing: "2px",
-              }}
-            >
-              Welcome,
-            </div>
-            <div
-              style={{
-                fontSize: "1.7rem",
-                color: "#fff",
-                letterSpacing: "3px",
-                lineHeight: 1.1,
-              }}
-            >
-              HAN-JAE
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "auto auto",
+          columnGap: "4vw",
+          rowGap: 32,
+          alignItems: "start",
+          justifyContent: "center",
+        }}
+      >
+        {/* ── Avatar + clock ── */}
+        <div style={{ gridColumn: "1 / 3", gridRow: 1, display: "flex", alignItems: "flex-start" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.6rem",
+              flexShrink: 0,
+              marginTop: 20,
+            }}
+          >
+            <AvatarWithEyes />
+            <div style={{ fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
+              <div
+                style={{
+                  fontSize: "0.9rem",
+                  color: "rgba(255,255,255,0.35)",
+                  letterSpacing: "2px",
+                }}
+              >
+                Welcome,
+              </div>
+              <div
+                style={{
+                  fontSize: "1.7rem",
+                  color: "#fff",
+                  letterSpacing: "3px",
+                  lineHeight: 1.1,
+                }}
+              >
+                HAN-JAE
+              </div>
             </div>
           </div>
-        </div>
-        <ClockPlugin />
-      </div>
 
-      {/* ── App selector ── */}
-      <div style={{ flexShrink: 0 }}>
-        <LaunchMenu />
+          <ClockPlugin />
+
+          <div style={{ marginLeft: "auto", marginTop: 20 }}>
+            <WeatherPanel />
+          </div>
+
+          <div style={{ marginLeft: 32, alignSelf: "stretch", paddingTop: 20, boxSizing: "border-box" }}>
+            <QuickActionButtons />
+          </div>
+        </div>
+
+        {/* ── News / research feeds ── */}
+        <div style={{ gridColumn: 1, gridRow: 2, display: "flex", flexDirection: "column", gap: 10, width: 580 }}>
+          <div style={{ position: "relative" }}>
+            <HackerNews size="2x2" instanceId="home-hn" />
+          </div>
+          <div style={{ position: "relative" }}>
+            <ResearchFeed size="2x2" instanceId="home-research" />
+          </div>
+        </div>
+
+        {/* ── App selector — top-aligned with the news feeds ── */}
+        <div style={{ gridColumn: 2, gridRow: 2, flexShrink: 0 }}>
+          <LaunchMenu />
+        </div>
       </div>
 
       {/* ── Widget panel — hidden, code preserved ── */}

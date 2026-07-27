@@ -5,8 +5,9 @@ import type { SleepEntry, SleepTarget } from '../lib/sleepDb';
 import {
   getEntriesForMonth, avgDuration, avgStartTime, formatDuration,
 } from '../lib/sleepDb';
+import { useFontStack } from '../../../lib/useFontStack';
 
-const VT      = "'VT323', 'HBIOS-SYS', monospace";
+const VT      = "var(--font-main), var(--font-kr), monospace";
 const YELLOW  = '#f5c842';
 const ACC     = '#6366f1';
 const Y_RANGE = 900;
@@ -126,6 +127,7 @@ export default function MonthlyChart({ target }: Props) {
   const [entries,     setEntries]     = useState<SleepEntry[]>([]);
   const [tooltip,     setTooltip]     = useState<TooltipState | null>(null);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const fontStack = useFontStack();
 
   const { year, month } = useMemo(() => {
     const d = new Date();
@@ -186,7 +188,7 @@ export default function MonthlyChart({ target }: Props) {
       const y = yFor(g.min);
       ctx.beginPath(); ctx.moveTo(ML, y); ctx.lineTo(ML + CW, y);
       ctx.strokeStyle = 'rgba(255,255,255,0.32)'; ctx.lineWidth = 0.8; ctx.stroke();
-      ctx.font = '28px VT323, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = `28px ${fontStack}`; ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.textAlign = 'right';
       ctx.fillText(g.label, ML - 10, y + 9);
     }
@@ -196,7 +198,7 @@ export default function MonthlyChart({ target }: Props) {
       const gy = yFor(goalMin);
       ctx.beginPath(); ctx.moveTo(ML, gy); ctx.lineTo(ML + CW, gy);
       ctx.strokeStyle = '#4f72f5'; ctx.lineWidth = 1.8; ctx.stroke();
-      ctx.font = '28px VT323, monospace'; ctx.fillStyle = '#4f72f5'; ctx.textAlign = 'left';
+      ctx.font = `28px ${fontStack}`; ctx.fillStyle = '#4f72f5'; ctx.textAlign = 'left';
       ctx.fillText(`GOAL: ${toLabel(target.target_sleep_start)}`, ML + CW + 10, gy + 9);
     }
 
@@ -209,7 +211,7 @@ export default function MonthlyChart({ target }: Props) {
       ctx.beginPath(); ctx.setLineDash([6, 4]);
       ctx.moveTo(ML, wy); ctx.lineTo(ML + CW, wy);
       ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
-      ctx.font = '28px VT323, monospace'; ctx.fillStyle = '#4ade80'; ctx.textAlign = 'left';
+      ctx.font = `28px ${fontStack}`; ctx.fillStyle = '#4ade80'; ctx.textAlign = 'left';
       ctx.fillText(`WAKE: ${wakeH.toString().padStart(2,'0')}${wakeMin.toString().padStart(2,'0')}`, ML + CW + 10, wy + 9);
     }
 
@@ -257,7 +259,7 @@ export default function MonthlyChart({ target }: Props) {
     for (let d = 1; d <= numDays; d++) {
       const cx      = ML + (d - 0.5) * colW;
       const isToday = isCurrentMonth && d === todayDay;
-      ctx.font      = '22px VT323, monospace';
+      ctx.font      = `22px ${fontStack}`;
       ctx.fillStyle = isToday ? 'rgba(99,102,241,0.8)' : 'rgba(255,255,255,0.25)';
       ctx.textAlign = 'center';
       ctx.fillText(d.toString(), cx, H - MB + 34);
@@ -285,7 +287,7 @@ export default function MonthlyChart({ target }: Props) {
     }
 
     barsRef.current = newBars;
-  }, [entries, target, hoveredDate, numDays, isCurrentMonth, todayDay]);
+  }, [entries, target, hoveredDate, numDays, isCurrentMonth, todayDay, fontStack]);
 
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;

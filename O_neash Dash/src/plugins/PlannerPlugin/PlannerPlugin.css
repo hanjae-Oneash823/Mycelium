@@ -41,10 +41,10 @@
   flex-direction: column;
   background: #000;
   color: #fff;
-  font-family: 'VT323', 'IBM Plex Mono', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 18px;
   overflow: hidden;
-  padding: 65px 100px 100px 100px;
+  padding: 100px 100px 70px 100px;
   box-sizing: border-box;
 }
 
@@ -348,7 +348,7 @@
 .planner-plugin input,
 .planner-plugin textarea,
 .planner-plugin button {
-  font-family: 'VT323', 'IBM Plex Mono', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
 }
 
 .planner-plugin input:focus,

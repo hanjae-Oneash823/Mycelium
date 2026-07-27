@@ -21,7 +21,7 @@ const TypedDialogContent = DialogContent as React.FC<any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TypedDialogTitle = DialogTitle as React.FC<any>;
 
-const VT = "'VT323', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 function Block({ label, icon: Icon, children }: { label: string; icon: React.ElementType; children: React.ReactNode }) {
   return (

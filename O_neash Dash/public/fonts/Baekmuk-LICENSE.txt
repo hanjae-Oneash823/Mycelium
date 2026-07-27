@@ -1,0 +1,18 @@
+Baekmuk-Gulim.ttf — Baekmuk Gulim, bundled as the "Gulim" option in Settings > Appearance.
+
+Copyright (c) 1986-2002 Kim Jeong-Hwan
+All rights reserved.
+
+Permission to use, copy, modify and distribute this font is
+hereby granted, provided that both the copyright notice and
+this permission notice appear in all copies of the font,
+derivative works or modified versions, and that the following
+acknowledgement appear in supporting documentation:
+    Baekmuk Batang, Baekmuk Dotum, Baekmuk Gulim, and
+    Baekmuk Headline are registered trademarks owned by
+    Kim Jeong-Hwan.
+
+Source: TeX Live (texmf-dist/fonts/truetype/public/baekmuk/gulim.ttf).
+This is a free, permissively-licensed font that visually approximates
+Microsoft's proprietary "Gulim" — Microsoft's own font file is not
+redistributable and is not used here.

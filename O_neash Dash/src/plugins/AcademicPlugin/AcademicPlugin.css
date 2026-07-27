@@ -31,7 +31,7 @@
   align-items: baseline;
   gap: 10px;
   padding: 3px 0;
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 1rem;
   letter-spacing: 0.5px;
   color: rgba(255,255,255,0.65);
@@ -57,7 +57,7 @@
 }
 
 .timetable-header {
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 1.1rem;
   letter-spacing: 2px;
   color: rgba(255,255,255,0.45);
@@ -84,7 +84,7 @@
   border-left: 3px solid;
   padding: 3px 6px;
   overflow: hidden;
-  font-family: 'VT323', 'HBIOS-SYS', monospace;
+  font-family: var(--font-main), var(--font-kr), monospace;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
   line-height: 1.3;

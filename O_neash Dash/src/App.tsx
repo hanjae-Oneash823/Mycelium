@@ -5,6 +5,9 @@ import { Toaster } from "./components/ui/sonner";
 import { FloatingEditor } from "./components/FloatingEditor";
 import React, { useEffect, useState } from "react";
 import { setupDb } from "./lib/db";
+import { initFontSettings } from "./lib/fontSettings";
+
+initFontSettings();
 
 function AppContent() {
   return (

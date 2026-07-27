@@ -4,7 +4,7 @@ import { getEntries } from "../../../SleepTrackerPlugin/lib/sleepDb";
 import { computeHmm, buildHmmInsights } from "./sleepHmmMath";
 import type { HmmResult } from "./sleepHmmMath";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 function hexAlpha(a: number): string {
   return Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, "0");

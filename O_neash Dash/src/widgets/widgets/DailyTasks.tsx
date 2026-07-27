@@ -38,7 +38,7 @@ export function DailyTasks({ }: WidgetProps) {
       width: '100%', height: '100%',
       display: 'flex', flexDirection: 'column',
       justifyContent: 'center',
-      fontFamily: "'VT323', monospace",
+      fontFamily: "var(--font-main), var(--font-kr), monospace",
       padding: '32px 14px 10px',
       boxSizing: 'border-box',
     }}>

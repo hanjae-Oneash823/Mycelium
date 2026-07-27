@@ -173,7 +173,7 @@ export default function TemporalRingsChart({ result }: Props) {
         return (
           <text key={i} x={x} y={y}
             textAnchor="middle" dominantBaseline="central"
-            fontSize={7.5} fontFamily="'VT323','HBIOS-SYS',monospace"
+            fontSize={7.5} fontFamily="var(--font-main), var(--font-kr), monospace"
             fill={i === 0 ? "rgba(0,196,167,0.65)" : "rgba(255,255,255,0.2)"}
             letterSpacing={0.5}
             style={anim("cf-fade", 300, 850 + i * 60)}>
@@ -193,7 +193,7 @@ export default function TemporalRingsChart({ result }: Props) {
                 : <rect x={x - 8.5} y={y - 6} width={17} height={12} fill="rgba(245,200,66,0.5)" />}
               <text x={x} y={y}
                 textAnchor="middle" dominantBaseline="central"
-                fontSize={h % 6 === 0 ? 14 : 12} fontFamily="'VT323','HBIOS-SYS',monospace"
+                fontSize={h % 6 === 0 ? 14 : 12} fontFamily="var(--font-main), var(--font-kr), monospace"
                 fill="black" letterSpacing={1}>
                 {h === 0 ? "00" : String(h).padStart(2, "0")}
               </text>

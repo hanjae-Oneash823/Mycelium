@@ -4,7 +4,7 @@ import { loadIrfTaskData } from "../../../PlannerPlugin/lib/plannerDb";
 import { computeIrf, buildIrfInsights } from "./impulseResponseMath";
 import type { IrfResult } from "./impulseResponseMath";
 
-const VT   = "'VT323', 'HBIOS-SYS', monospace";
+const VT   = "var(--font-main), var(--font-kr), monospace";
 const TEAL = "#00c4a7";
 const RED  = "#f87171";
 const GRN  = "#4ade80";

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { loadNotes, loadAllLinks } from '../lib/notesDb';
 import { usePlannerStore } from '../../PlannerPlugin/store/usePlannerStore';
+import { useFontStack } from '../../../lib/useFontStack';
 
 // ── canvas / sim dimensions ───────────────────────────────────────────────────
 const CW      = 480;   // circle diameter (px)
@@ -89,6 +90,7 @@ function paintMinimap(
   toId:   string,
   offX:   number,
   offY:   number,
+  fontStack: string,
 ) {
   ctx.clearRect(0, 0, CW, CH);
 
@@ -149,7 +151,7 @@ function paintMinimap(
     // label for origin / destination only
     if (isFrom || isTo) {
       const txt = n.label.length > 20 ? n.label.slice(0, 19) + '…' : n.label;
-      ctx.font        = '14px VT323, monospace';
+      ctx.font        = `14px ${fontStack}`;
       ctx.fillStyle   = isTo ? '#00c4a7' : '#ffffff';
       ctx.globalAlpha = 0.88;
       ctx.fillText(txt, n.x + r + 6, n.y + 5);
@@ -189,6 +191,9 @@ export default function LinkTransition({ fromDocId, toDocId, onComplete }: Props
   const rafRef      = useRef<number>(0);
 
   const offRef      = useRef({ x: 0, y: 0 });
+  const fontStack      = useFontStack();
+  const fontStackRef   = useRef(fontStack);
+  fontStackRef.current = fontStack;
   const fromOffRef  = useRef({ x: 0, y: 0 });
   const toOffRef    = useRef({ x: 0, y: 0 });
   const panningRef  = useRef(false);
@@ -335,6 +340,7 @@ export default function LinkTransition({ fromDocId, toDocId, onComplete }: Props
           ctx, nodesRef.current, edgesRef.current,
           fromDocId, toDocId,
           offRef.current.x, offRef.current.y,
+          fontStackRef.current,
         );
       }
 

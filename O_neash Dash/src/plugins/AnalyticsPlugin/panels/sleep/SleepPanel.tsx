@@ -3,7 +3,7 @@ import SleepPotentialLandscape from "./SleepPotentialLandscape";
 import SleepHmmTimeline from "./SleepHmmTimeline";
 import SleepDebtCurve from "./SleepDebtCurve";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 function ComingSoonCard() {
   return (

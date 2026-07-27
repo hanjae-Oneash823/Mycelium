@@ -86,10 +86,10 @@ export function LangtonsAnt({ }: WidgetProps) {
       {/* Header */}
       <div style={{ position: 'absolute', top: 8, left: 10, right: 10, display: 'flex', alignItems: 'center', gap: 7, zIndex: 1, pointerEvents: 'none' }}>
         <Debug width={18} height={18} style={{ color: GOLD }} />
-        <span style={{ flex: 1, fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1, fontFamily: "'VT323', monospace" }}>
+        <span style={{ flex: 1, fontSize: '1.05rem', letterSpacing: '2px', color: GOLD, lineHeight: 1, fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
           LANGTON'S ANT
         </span>
-        <span style={{ fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.45)', fontFamily: "'VT323', monospace" }}>
+        <span style={{ fontSize: '1rem', letterSpacing: '2px', color: 'rgba(255,255,255,0.45)', fontFamily: "var(--font-main), var(--font-kr), monospace" }}>
           {steps}
         </span>
       </div>

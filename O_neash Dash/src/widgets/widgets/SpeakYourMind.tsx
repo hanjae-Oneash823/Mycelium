@@ -6,7 +6,7 @@ import { createNote } from '../../plugins/NotesPlugin/lib/notesDb';
 import type { WidgetProps } from '../types';
 
 const ACC  = '#f5c842';
-const FONT = "'VT323', monospace";
+const FONT = "var(--font-main), var(--font-kr), monospace";
 
 // ── Animated placeholder (exact copy from MemoPool) ───────────────────────────
 

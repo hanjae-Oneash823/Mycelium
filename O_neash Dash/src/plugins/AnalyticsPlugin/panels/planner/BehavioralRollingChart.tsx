@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import type { StateSpaceResult } from "./behaviorMath";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 interface Props {
   result: StateSpaceResult | null;

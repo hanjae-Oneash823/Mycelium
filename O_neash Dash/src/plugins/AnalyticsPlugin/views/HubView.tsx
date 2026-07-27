@@ -3,7 +3,7 @@ import PlannerPanel from "../panels/planner/PlannerPanel";
 import SleepPanel from "../panels/sleep/SleepPanel";
 import PlannerSleepPanel from "../panels/planner-sleep/PlannerSleepPanel";
 
-const VT = "'VT323', 'HBIOS-SYS', monospace";
+const VT = "var(--font-main), var(--font-kr), monospace";
 
 interface PluginDef {
   id: string;
@@ -13,7 +13,7 @@ interface PluginDef {
 
 const PLUGINS: PluginDef[] = [
   { id: "planner",  label: "Planner",          color: "#00c4a7" },
-  { id: "academic", label: "Academic Planner",  color: "#818cf8" },
+  { id: "academic", label: "Deep Planner",       color: "#818cf8" },
   { id: "sleep",    label: "Sleep Tracker",     color: "#60a5fa" },
   { id: "journal",  label: "Journal",           color: "#f472b6" },
   { id: "habits",   label: "Habits",            color: "#4ade80" },
