@@ -7,7 +7,8 @@
 
 Mycelium is a native desktop application built on Tauri and React. It replaces the scattered constellation of productivity apps, note-taking tools, trackers, and planners with a single, unified environment that lives entirely on your machine. No subscriptions. No sync accounts. No cloud. One SQLite file.
 <div align="center">
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/e5e21150-d640-49b3-8cf6-e6ee16b6dec2" />
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/30873263-1a3a-42b4-8ab2-efbf7f7a0353" />
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/e5e21150-d640-49b3-8cf6-e6ee16b6dec2" />
 </div>
 
 ---
