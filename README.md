@@ -9,6 +9,8 @@ Mycelium is a native desktop application built on Tauri and React. It replaces t
 <div align="center">
   <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/30873263-1a3a-42b4-8ab2-efbf7f7a0353" />
   <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/e5e21150-d640-49b3-8cf6-e6ee16b6dec2" />
+  <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/cefad80a-d667-4899-9022-75a9610918a2" />
+
 </div>
 
 ---
