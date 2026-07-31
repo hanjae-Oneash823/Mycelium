@@ -570,6 +570,90 @@ export async function setupDb(): Promise<Database> {
   END;
 
   CREATE INDEX IF NOT EXISTS idx_wardrobe_ootd_date ON wardrobe_ootd_logs(date);
+
+  -- ─────────────────── FILM NEG LAB (photo archive) ─────────────────────────
+
+  CREATE TABLE IF NOT EXISTS filmneg_photos (
+    id            TEXT PRIMARY KEY,
+    title         TEXT,
+    image_path    TEXT NOT NULL,
+    notes         TEXT,
+    taken_at      TEXT,
+    camera        TEXT,
+    film_stock    TEXT,
+    lat           REAL,
+    lng           REAL,
+    location_name TEXT,
+    is_favorite   BOOLEAN NOT NULL DEFAULT 0,
+    rating        INTEGER,
+    width         INTEGER,
+    height        INTEGER,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TRIGGER IF NOT EXISTS filmneg_photos_ts AFTER UPDATE ON filmneg_photos
+  BEGIN
+    UPDATE filmneg_photos SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE INDEX IF NOT EXISTS idx_filmneg_photos_taken    ON filmneg_photos(taken_at);
+  CREATE INDEX IF NOT EXISTS idx_filmneg_photos_favorite ON filmneg_photos(is_favorite);
+  CREATE INDEX IF NOT EXISTS idx_filmneg_photos_geo      ON filmneg_photos(lat, lng);
+
+  CREATE TABLE IF NOT EXISTS filmneg_tags (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    color       TEXT NOT NULL DEFAULT '#64c8ff',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS filmneg_photo_tags (
+    photo_id  TEXT NOT NULL,
+    tag_id    TEXT NOT NULL,
+    PRIMARY KEY (photo_id, tag_id),
+    FOREIGN KEY (photo_id) REFERENCES filmneg_photos(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id)   REFERENCES filmneg_tags(id)   ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_filmneg_pt_photo ON filmneg_photo_tags(photo_id);
+  CREATE INDEX IF NOT EXISTS idx_filmneg_pt_tag   ON filmneg_photo_tags(tag_id);
+
+  CREATE TABLE IF NOT EXISTS filmneg_trails (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    description TEXT,
+    color       TEXT NOT NULL DEFAULT '#e8a94f',
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TRIGGER IF NOT EXISTS filmneg_trails_ts AFTER UPDATE ON filmneg_trails
+  BEGIN
+    UPDATE filmneg_trails SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE TABLE IF NOT EXISTS filmneg_trail_photos (
+    trail_id    TEXT NOT NULL,
+    photo_id    TEXT NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (trail_id, photo_id),
+    FOREIGN KEY (trail_id) REFERENCES filmneg_trails(id) ON DELETE CASCADE,
+    FOREIGN KEY (photo_id) REFERENCES filmneg_photos(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_filmneg_tp_trail ON filmneg_trail_photos(trail_id, sort_order);
+  CREATE INDEX IF NOT EXISTS idx_filmneg_tp_photo ON filmneg_trail_photos(photo_id);
+
+  CREATE TABLE IF NOT EXISTS filmneg_cameras (
+    id          TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL DEFAULT 'digital'
+                    CHECK(type IN('digital','film')),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_filmneg_cameras_type ON filmneg_cameras(type);
     `;
 
     // Apply the full schema every time
@@ -601,6 +685,8 @@ export async function setupDb(): Promise<Database> {
       `ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`,
       `ALTER TABLE projects ADD COLUMN start_date TEXT`,
       `ALTER TABLE projects ADD COLUMN end_date TEXT`,
+      // film neg lab — link photos to a camera catalog entry
+      `ALTER TABLE filmneg_photos ADD COLUMN camera_id TEXT`,
     ];
     for (const sql of columnMigrations) {
       try {
@@ -630,6 +716,7 @@ export async function setupDb(): Promise<Database> {
     const indexMigrations = [
       `CREATE INDEX IF NOT EXISTS idx_nodes_routine_id ON nodes(routine_id)`,
       `CREATE INDEX IF NOT EXISTS idx_nodes_is_routine ON nodes(is_routine)`,
+      `CREATE INDEX IF NOT EXISTS idx_filmneg_photos_camera ON filmneg_photos(camera_id)`,
     ];
     for (const sql of indexMigrations) {
       try {
