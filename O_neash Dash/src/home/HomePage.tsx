@@ -7,6 +7,7 @@ import { ResearchFeed } from "../widgets/widgets/ResearchFeed";
 import { usePlannerStore } from "../plugins/PlannerPlugin/store/usePlannerStore";
 import { QuickActionButtons } from "./quick-actions/QuickActionButtons";
 import { WeatherPanel } from "./weather/WeatherPanel";
+import { QuotePanel } from "./quote/QuotePanel";
 
 // Eye positions calibrated to cyphel_grey_noeyes.png at 140×140px
 const EYES = [
@@ -78,6 +79,7 @@ function HomePage() {
   return (
     <div
       style={{
+        position: "relative",
         height: "100%",
         display: "flex",
         flexDirection: "row",
@@ -157,6 +159,19 @@ function HomePage() {
         <div style={{ gridColumn: 2, gridRow: 2, flexShrink: 0 }}>
           <LaunchMenu />
         </div>
+      </div>
+
+      {/* ── Quote of the day — bottom center ── */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 28,
+          left: "50%",
+          transform: "translateX(-50%)",
+          textAlign: "center",
+        }}
+      >
+        <QuotePanel />
       </div>
 
       {/* ── Widget panel — hidden, code preserved ── */}

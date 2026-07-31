@@ -24,6 +24,15 @@ import {
   Zap,
   ToolCase,
   Shirt,
+  Icons,
+  Search,
+  Directions,
+  Grid3x3,
+  Wall,
+  Target,
+  Moon,
+  Fire,
+  Ship,
 } from "pixelarticons/react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -103,7 +112,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: "lab",
-    label: "the LAB",
+    label: "LAB",
     icon: <CoffeeSharp size={18} />,
     accent: "#f59e0b",
     apps: [
@@ -137,7 +146,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: "studio",
-    label: "the STUDIO",
+    label: "STUDIO",
     icon: <Camera size={18} />,
     accent: "#e879f9",
     apps: [
@@ -153,6 +162,7 @@ export const CATEGORIES: Category[] = [
         label: "Film Neg Lab",
         icon: <ImageSharp size={14} />,
         desc: "photo archive",
+        pluginId: "filmneg",
       },
       {
         id: "canvas",
@@ -171,7 +181,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: "clinic",
-    label: "the CLINIC",
+    label: "CLINIC",
     icon: <Human size={18} />,
     accent: "#6366f1",
     apps: [
@@ -194,6 +204,70 @@ export const CATEGORIES: Category[] = [
         label: "Diet Log",
         icon: <Fish size={14} />,
         desc: "meal prep & diet planner",
+      },
+    ],
+  },
+  {
+    id: "arcade",
+    label: "ARCADE",
+    icon: <Icons size={18} />,
+    accent: "#39ff14",
+    apps: [
+      {
+        id: "snake",
+        label: "Snake",
+        icon: <Directions size={14} />,
+        desc: "retro pixel snake",
+        pluginId: "snake",
+      },
+      {
+        id: "2048",
+        label: "2048",
+        icon: <Grid3x3 size={14} />,
+        desc: "sliding tile merge puzzle",
+        pluginId: "2048",
+      },
+      {
+        id: "pong",
+        label: "Pong",
+        icon: <Search size={14} />,
+        desc: "paddle & ball vs CPU",
+        pluginId: "pong",
+      },
+      {
+        id: "breakout",
+        label: "Breakout",
+        icon: <Wall size={14} />,
+        desc: "smash bricks, don't drop the ball",
+        pluginId: "breakout",
+      },
+      {
+        id: "asteroids",
+        label: "Asteroids",
+        icon: <Target size={14} />,
+        desc: "rotate, thrust, blast rocks into rubble",
+        pluginId: "asteroids",
+      },
+      {
+        id: "lunar-lander",
+        label: "Lunar Lander",
+        icon: <Moon size={14} />,
+        desc: "manage fuel and thrust to touch down softly",
+        pluginId: "lunar-lander",
+      },
+      {
+        id: "artillery-duel",
+        label: "Artillery Duel",
+        icon: <Fire size={14} />,
+        desc: "angle, power, wind — outlast the enemy tank",
+        pluginId: "artillery-duel",
+      },
+      {
+        id: "battleship",
+        label: "Battleship",
+        icon: <Ship size={14} />,
+        desc: "hunt and sink the hidden enemy fleet",
+        pluginId: "battleship",
       },
     ],
   },

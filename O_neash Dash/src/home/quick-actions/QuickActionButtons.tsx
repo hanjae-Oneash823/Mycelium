@@ -28,6 +28,11 @@ function yesterdayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const DAYS = last7Dates();
 
 async function fetchRunLogs(): Promise<{ habitId: string | null; logs: HabitLog[] }> {
@@ -65,6 +70,7 @@ export function QuickActionButtons() {
   }, [loadSessions]);
 
   const yesterdayLogged = sleepEntries.some((e) => e.date === yesterdayStr());
+  const todayRunLogged  = runLogs.some((l) => l.date === todayStr());
   const sessionActive   = activeSession !== null;
 
   const sleepDayValues   = sleepHoursByDay(sleepEntries, DAYS);
@@ -93,7 +99,12 @@ export function QuickActionButtons() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%" }}>
-          <CircleButton color={RUN_ACC} onClick={() => setOpenPopup("run")} title="log today's run">
+          <CircleButton
+            color={RUN_ACC}
+            disabled={todayRunLogged}
+            onClick={() => setOpenPopup("run")}
+            title={todayRunLogged ? "today's run (already logged)" : "log today's run"}
+          >
             <HumanArmsUp width={20} height={20} />
           </CircleButton>
           <DayOrbs values={runDayValues} color={RUN_ACC} max={RUN_MAX_KM} formatValue={(v) => `${v.toFixed(1)} km`} />

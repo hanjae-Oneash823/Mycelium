@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { getWeatherLocation, setWeatherLocation, type WeatherLocation } from "./weatherLocation";
 import { geocodeCity, fetchCurrentWeather, describeWeatherCode, type CurrentWeather } from "./weatherApi";
 import { WeeklyTempChart, HIGH_COLOR, LOW_COLOR } from "./WeeklyTempChart";
@@ -146,20 +147,36 @@ export function WeatherPanel() {
         <div style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.45)" }}>loading…</div>
       ) : weather ? (
         <>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ display: "flex", alignItems: "flex-start", gap: 8 }}
+          >
             <div style={{ fontSize: "2.2rem", color: ACC, lineHeight: 1 }}>
               {Math.round(weather.tempC)}°C
             </div>
             <div style={{ fontSize: "0.9rem", letterSpacing: 1, color: "rgba(255,255,255,0.75)" }}>
               {describeWeatherCode(weather.code)}
             </div>
-          </div>
-          <div style={{ fontSize: "1.15rem", letterSpacing: 1, marginBottom: 6 }}>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut", delay: 0.08 }}
+            style={{ fontSize: "1.15rem", letterSpacing: 1, marginBottom: 6 }}
+          >
             <span style={{ color: HIGH_COLOR }}>H {Math.round(weather.highC)}°C</span>
             {" / "}
             <span style={{ color: LOW_COLOR }}>L {Math.round(weather.lowC)}°C</span>
-          </div>
-          <WeeklyTempChart dates={weather.dailyDates} highs={weather.dailyHigh} lows={weather.dailyLow} />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut", delay: 0.16 }}
+          >
+            <WeeklyTempChart dates={weather.dailyDates} highs={weather.dailyHigh} lows={weather.dailyLow} />
+          </motion.div>
         </>
       ) : (
         <div style={{ fontSize: "0.85rem", color: "#f87171" }}>couldn't reach weather service</div>

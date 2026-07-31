@@ -10,6 +10,12 @@ const FONT   = "var(--font-main), var(--font-kr), monospace";
 const PURPLE = '#a78bfa';
 const PAGE_SIZE = 4;
 const ROW_HEIGHT = 22;
+const FETCH_RETRY_ATTEMPTS = 3;
+const FETCH_RETRY_BASE_DELAY_MS = 300;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /** Black or white, whichever contrasts better against a given fill color (YIQ perceptual brightness). */
 function textColorFor(hex: string): string {
@@ -89,21 +95,32 @@ function parseRss(xml: string, source: JournalSource): JournalEntry[] {
     .map(({ section: _section, ...entry }) => entry);
 }
 
+/** Nature's RSS endpoint intermittently routes through a cookie-gated redirect chain that a fresh request usually avoids, so retry before giving up. */
 async function fetchJournal(url: string, source: JournalSource): Promise<JournalEntry[]> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return parseRss(await res.text(), source);
-  } catch {
-    return [];
+  for (let attempt = 0; attempt < FETCH_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        // A 200 can still be a cookie-gate/redirect page instead of the real feed,
+        // which parses to zero entries — treat that as a retryable failure too.
+        const entries = parseRss(await res.text(), source);
+        if (entries.length > 0) return entries;
+      }
+    } catch {
+      // fall through to retry
+    }
+    if (attempt < FETCH_RETRY_ATTEMPTS - 1) {
+      await sleep(FETCH_RETRY_BASE_DELAY_MS * (attempt + 1));
+    }
   }
+  return [];
 }
 
 export function ResearchFeed({ instanceId }: WidgetProps) {
   const [pool, setPool]         = useState<JournalEntry[]>([]);
   const [page, setPage]         = useState(0);
   const [error, setError]       = useState(false);
-  const [selected, setSelected] = useState<JournalSource | null>('Nature');
+  const [selected, setSelected] = useState<JournalSource | null>('Cell');
 
   useEffect(() => {
     let cancelled = false;
@@ -216,7 +233,7 @@ export function ResearchFeed({ instanceId }: WidgetProps) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden' }}>
-            <AnimatePresence mode="popLayout" initial={false}>
+            <AnimatePresence mode="popLayout">
               {visible.map((entry, i) => (
                 <motion.button
                   key={entry.id}

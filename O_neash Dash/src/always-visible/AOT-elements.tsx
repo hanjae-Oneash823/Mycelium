@@ -8,8 +8,6 @@ import { useFloatingEditorStore } from "../store/useFloatingEditorStore";
 import { loadNotes } from "../plugins/NotesPlugin/lib/notesDb";
 import type { NoteRow } from "../plugins/NotesPlugin/lib/notesDb";
 import { useSessionStore } from "../plugins/PlannerPlugin/store/useSessionStore";
-import { loadBrowsableNodes, endOpenPomoWorkBlock } from "../plugins/PlannerPlugin/lib/onTheClockDb";
-import type { BrowsableNode } from "../plugins/PlannerPlugin/lib/onTheClockDb";
 import "./AOT-elements.css";
 
 const VT_OTC = "var(--font-main), var(--font-kr), monospace";
@@ -29,47 +27,16 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
 
   // Timer state
   const [sessionElapsed, setSessionElapsed] = useState(0);
-  const [pomoSecondsLeft, setPomoSecondsLeft] = useState(25 * 60);
-  const [pomoRunning, setPomoRunning] = useState(false);
-  const pomoRunningRef = useRef(false);
-  const pomoElapsedRef = useRef(0);
-  const pomoPhaseRef = useRef<'work' | 'short_break' | 'long_break'>('work');
-  const pomoDurationRef = useRef(25 * 60);
-  const pomoWorkCountRef = useRef(0);
-  const [pomoPhase, setPomoPhase] = useState<'work' | 'short_break' | 'long_break'>('work');
-  const [pomoWorkCount, setPomoWorkCount] = useState(0);
-  const activePauseIdRef = useRef<string | null>(null);
-  const activePomoBlockIdRef = useRef<string | null>(null);
 
   // UI state
   const [forceStopOpen, setForceStopOpen] = useState(false);
-  const [longBreakPrompt, setLongBreakPrompt] = useState(false);
-  const [longBreakMins, setLongBreakMins] = useState(20);
   const [startingUnplanned, setStartingUnplanned] = useState(false);
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [nodeBrowserOpen, setNodeBrowserOpen] = useState(false);
-  const [browsable, setBrowsable] = useState<BrowsableNode[]>([]);
   const [confirmAllDone, setConfirmAllDone] = useState(false);
   const [moveTarget, setMoveTarget] = useState<string | null | 'orphan'>('orphan');
   const [showMovePanel, setShowMovePanel] = useState(false);
 
   useEffect(() => { if (isOpen) store.load(); }, [isOpen]);
-
-  // Reset pomo when a new session starts and close any zombie DB blocks
-  useEffect(() => {
-    if (activeSession?.status === 'active') {
-      pomoElapsedRef.current = 0;
-      pomoPhaseRef.current = 'work';
-      pomoDurationRef.current = 25 * 60;
-      pomoWorkCountRef.current = 0;
-      pomoRunningRef.current = false;
-      setPomoPhase('work');
-      setPomoWorkCount(0);
-      setPomoSecondsLeft(25 * 60);
-      setPomoRunning(false);
-      endOpenPomoWorkBlock(activeSession.id).catch(() => {});
-    }
-  }, [activeSession?.id]);
 
   // Compute session elapsed from actual_start + pauses
   const computeSessionElapsed = useCallback(() => {
@@ -86,79 +53,12 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
 
   // Timer tick — only when active
   const isActive = activeSession?.status === 'active';
-  const handlePomoEnd = useCallback(async () => {
-    pomoRunningRef.current = false;
-    setPomoRunning(false);
-    const phase = pomoPhaseRef.current;
-    const wc = pomoWorkCountRef.current;
-    if (phase === 'work') {
-      const newCount = wc + 1;
-      if (newCount >= 4) {
-        const result = await store.startPomoBreak('pomo_long');
-        activePauseIdRef.current = result.pauseId;
-        activePomoBlockIdRef.current = result.pomoBlockId;
-        pomoWorkCountRef.current = 4;
-        setPomoWorkCount(4);
-        setLongBreakPrompt(true);
-      } else {
-        const result = await store.startPomoBreak('pomo_short');
-        activePauseIdRef.current = result.pauseId;
-        activePomoBlockIdRef.current = result.pomoBlockId;
-        pomoPhaseRef.current = 'short_break';
-        pomoDurationRef.current = 5 * 60;
-        pomoElapsedRef.current = 0;
-        pomoWorkCountRef.current = newCount;
-        setPomoPhase('short_break');
-        setPomoDuration(5 * 60);
-        setPomoWorkCount(newCount);
-      }
-    } else {
-      // Break ended → auto-resume
-      if (activePauseIdRef.current && activePomoBlockIdRef.current) {
-        await store.endPomoBreak(activePauseIdRef.current, activePomoBlockIdRef.current);
-        activePauseIdRef.current = null;
-        activePomoBlockIdRef.current = null;
-      }
-      const newCount = phase === 'long_break' ? 0 : pomoWorkCountRef.current;
-      pomoPhaseRef.current = 'work';
-      pomoDurationRef.current = 25 * 60;
-      pomoElapsedRef.current = 0;
-      pomoWorkCountRef.current = newCount;
-      setPomoPhase('work');
-      setPomoDuration(25 * 60);
-      setPomoWorkCount(newCount);
-    }
-  }, [store]);
-
-  // setPomoDuration helper (keeps ref in sync)
-  const [, setPomoDuration] = useState(25 * 60);
 
   useEffect(() => {
     if (!isActive) return;
-    const id = setInterval(() => {
-      setSessionElapsed(computeSessionElapsed());
-      if (pomoRunningRef.current) {
-        pomoElapsedRef.current += 1;
-        const left = pomoDurationRef.current - pomoElapsedRef.current;
-        setPomoSecondsLeft(Math.max(0, left));
-        if (left <= 0) handlePomoEnd();
-      }
-    }, 1000);
+    const id = setInterval(() => setSessionElapsed(computeSessionElapsed()), 1000);
     return () => clearInterval(id);
-  }, [isActive, computeSessionElapsed, handlePomoEnd]);
-
-  // Node browser
-  const openNodeBrowser = async () => {
-    const currentIds = activeSessionNodes.map(n => n.node_id);
-    const nodes = await loadBrowsableNodes(currentIds);
-    setBrowsable(nodes);
-    setNodeBrowserOpen(true);
-  };
-
-  const addNodeFromBrowser = async (nodeId: string) => {
-    await store.addNodes([nodeId]);
-    setBrowsable(prev => prev.filter(n => n.id !== nodeId));
-  };
+  }, [isActive, computeSessionElapsed]);
 
   const isPaused = activeSession?.status === 'paused';
   const currentPause = activePauses.find(p => !p.resumed_at);
@@ -171,62 +71,11 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
 
   const handleResume = async () => {
     if (!currentPause) return;
-    if (activePauseIdRef.current === currentPause.id && activePomoBlockIdRef.current) {
-      // Pomo break resume — reset pomo to work phase, user starts next pomo manually
-      await store.endPomoBreak(currentPause.id, activePomoBlockIdRef.current);
-      activePauseIdRef.current = null;
-      activePomoBlockIdRef.current = null;
-      const newCount = pomoPhaseRef.current === 'long_break' ? 0 : pomoWorkCountRef.current;
-      pomoPhaseRef.current = 'work';
-      pomoDurationRef.current = 25 * 60;
-      pomoElapsedRef.current = 0;
-      pomoWorkCountRef.current = newCount;
-      pomoRunningRef.current = false;
-      setPomoPhase('work');
-      setPomoDuration(25 * 60);
-      setPomoWorkCount(newCount);
-      setPomoSecondsLeft(25 * 60);
-      setPomoRunning(false);
-      setLongBreakPrompt(false);
-    } else {
-      // Manual resume (or pomo resume after panel remount)
-      await store.resume(currentPause.id);
-    }
-  };
-
-  const handleStartPomo = () => {
-    pomoElapsedRef.current = 0;
-    pomoRunningRef.current = true;
-    setPomoSecondsLeft(pomoDurationRef.current);
-    setPomoRunning(true);
-  };
-
-  const handleCancelPomo = () => {
-    pomoRunningRef.current = false;
-    pomoElapsedRef.current = 0;
-    pomoPhaseRef.current = 'work';
-    pomoDurationRef.current = 25 * 60;
-    pomoWorkCountRef.current = 0;
-    setPomoRunning(false);
-    setPomoPhase('work');
-    setPomoWorkCount(0);
-    setPomoSecondsLeft(25 * 60);
+    await store.resume(currentPause.id);
   };
 
   const handleManualPause = async () => {
-    const pauseId = await store.pauseManual();
-    activePauseIdRef.current = pauseId;
-  };
-
-  const handleConfirmLongBreak = async (mins: number) => {
-    setLongBreakMins(mins);
-    pomoPhaseRef.current = 'long_break';
-    pomoDurationRef.current = mins * 60;
-    pomoElapsedRef.current = 0;
-    setPomoDuration(mins * 60);
-    setPomoPhase('long_break');
-    setPomoSecondsLeft(mins * 60);
-    setLongBreakPrompt(false);
+    await store.pauseManual();
   };
 
   // ── Idle view ──
@@ -237,37 +86,7 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
           [on the clock]
         </div>
 
-        {/* Today's planned sessions */}
-        {todaySessions.filter(s => s.status === 'planned').map(s => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: VT_OTC, fontSize: '0.88rem', letterSpacing: 1, color: 'rgba(255,255,255,0.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {s.title}
-              </div>
-              <div style={{ fontFamily: VT_OTC, fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)', letterSpacing: 1 }}>
-                {s.location_name ?? '—'}
-              </div>
-            </div>
-            <button
-              onClick={() => store.startPlanned(s.id)}
-              style={{
-                fontFamily: VT_OTC, fontSize: '0.85rem', letterSpacing: 1,
-                background: `${OTC_ACC}18`, border: `1px solid ${OTC_ACC}55`,
-                color: OTC_ACC, padding: '3px 10px', cursor: 'pointer', flexShrink: 0,
-              }}
-            >
-              start
-            </button>
-          </div>
-        ))}
-
-        {todaySessions.filter(s => s.status === 'planned').length === 0 && (
-          <div style={{ fontFamily: VT_OTC, fontSize: '0.78rem', color: 'rgba(255,255,255,0.15)', letterSpacing: 1, marginBottom: 8 }}>
-            no sessions planned today
-          </div>
-        )}
-
-        {/* Start unplanned */}
+        {/* Start session */}
         {startingUnplanned ? (
           <div style={{ marginTop: 8 }}>
             <div style={{ fontFamily: VT_OTC, fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', letterSpacing: 2, marginBottom: 6 }}>
@@ -333,7 +152,7 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
             onMouseEnter={e => { e.currentTarget.style.color = OTC_ACC; e.currentTarget.style.borderColor = `${OTC_ACC}44`; }}
             onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
           >
-            + start unplanned session
+            + start session
           </button>
         )}
       </div>
@@ -449,50 +268,6 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
         </div>
       )}
 
-      {/* Long break prompt */}
-      {longBreakPrompt && (
-        <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.95)',
-          zIndex: 20, padding: 14, display: 'flex', flexDirection: 'column', gap: 10,
-        }}>
-          <div style={{ fontFamily: VT_OTC, fontSize: '1rem', letterSpacing: 2, color: OTC_ACC }}>long break</div>
-          <div style={{ fontFamily: VT_OTC, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', letterSpacing: 1 }}>
-            4 pomodoros done. how long?
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[15, 20, 25, 30].map(m => (
-              <button key={m} onClick={() => setLongBreakMins(m)} style={{
-                fontFamily: VT_OTC, fontSize: '0.95rem', letterSpacing: 1, flex: 1,
-                background: longBreakMins === m ? `${OTC_ACC}22` : 'none',
-                border: `1px solid ${longBreakMins === m ? OTC_ACC : 'rgba(255,255,255,0.15)'}`,
-                color: longBreakMins === m ? OTC_ACC : 'rgba(255,255,255,0.45)',
-                padding: '4px 0', cursor: 'pointer',
-              }}>{m}m</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => handleConfirmLongBreak(longBreakMins)} style={{
-              fontFamily: VT_OTC, fontSize: '0.9rem', letterSpacing: 1, flex: 1,
-              background: `${OTC_ACC}22`, border: `1px solid ${OTC_ACC}`,
-              color: OTC_ACC, padding: '5px 0', cursor: 'pointer',
-            }}>start break</button>
-            <button onClick={() => {
-              // Skip long break
-              store.endPomoBreak(activePauseIdRef.current!, activePomoBlockIdRef.current!);
-              activePauseIdRef.current = null; activePomoBlockIdRef.current = null;
-              pomoPhaseRef.current = 'work'; pomoDurationRef.current = 25 * 60;
-              pomoElapsedRef.current = 0; pomoWorkCountRef.current = 0;
-              setPomoPhase('work'); setPomoWorkCount(0); setPomoSecondsLeft(25 * 60);
-              setLongBreakPrompt(false);
-            }} style={{
-              fontFamily: VT_OTC, fontSize: '0.85rem', letterSpacing: 1,
-              background: 'none', border: '1px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.35)', padding: '5px 12px', cursor: 'pointer',
-            }}>skip</button>
-          </div>
-        </div>
-      )}
-
       {/* Session header */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
         <span style={{ fontFamily: VT_OTC, fontSize: '0.72rem', letterSpacing: 3, color: OTC_ACC, textTransform: 'uppercase' }}>
@@ -503,46 +278,13 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
         </span>
       </div>
 
-      {/* Timers */}
+      {/* Timer */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-        {/* Session timer */}
         <div style={{ flex: 1, border: '1px solid rgba(255,255,255,0.1)', padding: '6px 10px' }}>
           <div style={{ fontFamily: VT_OTC, fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', letterSpacing: 2, marginBottom: 2 }}>SESSION</div>
           <div style={{ fontFamily: VT_OTC, fontSize: '1.6rem', color: '#fff', letterSpacing: 3, lineHeight: 1 }}>
             {fmtTimer(sessionElapsed)}
           </div>
-        </div>
-        {/* Pomo timer */}
-        <div style={{ flex: 1, border: `1px solid ${isPaused ? 'rgba(96,165,250,0.3)' : pomoRunning ? `${OTC_ACC}88` : 'rgba(255,255,255,0.1)'}`, padding: '6px 10px' }}>
-          <div style={{ fontFamily: VT_OTC, fontSize: '0.65rem', color: pomoRunning ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.15)', letterSpacing: 2, marginBottom: 2 }}>
-            {pomoPhase === 'work' ? 'POMO' : pomoPhase === 'short_break' ? 'BREAK' : 'LONG BRK'}
-          </div>
-          <div style={{ fontFamily: VT_OTC, fontSize: '1.6rem', color: isPaused ? '#60a5fa' : pomoRunning ? OTC_ACC : 'rgba(255,255,255,0.25)', letterSpacing: 3, lineHeight: 1 }}>
-            {fmtTimer(pomoSecondsLeft)}
-          </div>
-          {/* Work block dots */}
-          <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-            {[0, 1, 2, 3].map(i => (
-              <div key={i} style={{
-                width: 6, height: 6,
-                background: i < (pomoWorkCount >= 4 ? 4 : pomoWorkCount) ? OTC_ACC : 'rgba(255,255,255,0.12)',
-              }} />
-            ))}
-          </div>
-          {/* Start / cancel pomo — only when session is active (not paused) */}
-          {isActive && !isPaused && (
-            <button
-              onClick={pomoRunning ? handleCancelPomo : handleStartPomo}
-              style={{
-                marginTop: 6, width: '100%',
-                fontFamily: VT_OTC, fontSize: '0.72rem', letterSpacing: 1,
-                background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
-                color: pomoRunning ? 'rgba(248,113,113,0.6)' : `${OTC_ACC}88`,
-              }}
-            >
-              {pomoRunning ? '✕ cancel' : '▶ start'}
-            </button>
-          )}
         </div>
       </div>
 
@@ -592,51 +334,10 @@ function OnTheClockSection({ isOpen }: { isOpen: boolean }) {
         )}
         {activeSessionNodes.length === 0 && (
           <div style={{ fontFamily: VT_OTC, fontSize: '0.78rem', color: 'rgba(255,255,255,0.15)', letterSpacing: 1 }}>
-            no nodes — add some below
+            no nodes — add some from the today page
           </div>
         )}
       </div>
-
-      {/* Add node */}
-      {!isPaused && (
-        nodeBrowserOpen ? (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <span style={{ fontFamily: VT_OTC, fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)', letterSpacing: 2 }}>add node</span>
-              <button onClick={() => setNodeBrowserOpen(false)} style={{ fontFamily: VT_OTC, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>×</button>
-            </div>
-            <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {browsable.length === 0 && <div style={{ fontFamily: VT_OTC, fontSize: '0.78rem', color: 'rgba(255,255,255,0.15)' }}>nothing to add</div>}
-              {browsable.map(n => (
-                <button key={n.id} onClick={() => addNodeFromBrowser(n.id)} style={{
-                  fontFamily: VT_OTC, fontSize: '0.85rem', letterSpacing: 0.5, textAlign: 'left',
-                  background: 'none', border: '1px solid rgba(255,255,255,0.08)',
-                  color: 'rgba(255,255,255,0.55)', padding: '4px 8px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8,
-                }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
-                >
-                  <span style={{ width: 5, height: 5, background: n.arc_color, flexShrink: 0 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
-                  {n.planned_date && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.7rem', marginLeft: 'auto', flexShrink: 0 }}>{n.planned_date.slice(5)}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <button onClick={openNodeBrowser} style={{
-            fontFamily: VT_OTC, fontSize: '0.82rem', letterSpacing: 1, marginTop: 8, width: '100%',
-            background: 'none', border: '1px dashed rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.25)', padding: '4px 0', cursor: 'pointer',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.color = OTC_ACC; e.currentTarget.style.borderColor = `${OTC_ACC}44`; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.25)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
-          >
-            + add node
-          </button>
-        )
-      )}
     </div>
   );
 }
@@ -695,8 +396,9 @@ const iconBtn: React.CSSProperties = {
 
 const VT = "var(--font-main), var(--font-kr), monospace";
 
-// Flatten all launchable apps from categories, keeping icon + accent color
-const ALL_APPS = CATEGORIES.flatMap((cat) =>
+// Flatten all launchable apps from categories, keeping icon + accent color.
+// Arcade games are excluded — they stay reachable from the home launcher only.
+const ALL_APPS = CATEGORIES.filter((cat) => cat.id !== "arcade").flatMap((cat) =>
   cat.apps
     .filter((app) => app.pluginId)
     .map((app) => ({ ...app, accent: cat.accent }))

@@ -52,6 +52,16 @@ export async function addEntry(e: {
   );
 }
 
+export async function getEntriesForRange(from: string, to: string): Promise<SleepEntry[]> {
+  const db = getDb();
+  return db.select<SleepEntry[]>(
+    `SELECT id, date, sleep_start, wake_time, notes, created_at
+     FROM sleep_entries WHERE is_nap = 0 AND date >= ? AND date <= ?
+     ORDER BY date ASC`,
+    [from, to],
+  );
+}
+
 export async function getEntriesForMonth(year: number, month: number): Promise<SleepEntry[]> {
   const db     = getDb();
   const prefix = `${year}-${month.toString().padStart(2, '0')}`;

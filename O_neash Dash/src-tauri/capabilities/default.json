@@ -44,7 +44,10 @@
         { "url": "https://feeds.bbci.co.uk/*" },
         { "url": "https://www.yna.co.kr/*" },
         { "url": "https://geocoding-api.open-meteo.com/*" },
-        { "url": "https://api.open-meteo.com/*" }
+        { "url": "https://api.open-meteo.com/*" },
+        { "url": "https://ron-swanson-quotes.herokuapp.com/*" },
+        { "url": "https://*.basemaps.cartocdn.com/*" },
+        { "url": "https://nominatim.openstreetmap.org/*" }
       ]
     }
   ]

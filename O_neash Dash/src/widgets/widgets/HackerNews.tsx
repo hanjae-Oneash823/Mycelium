@@ -203,7 +203,7 @@ export function HackerNews({ instanceId }: WidgetProps) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden' }}>
-            <AnimatePresence mode="popLayout" initial={false}>
+            <AnimatePresence mode="popLayout">
               {visible.map((entry, i) => (
                 <motion.button
                   key={entry.id}
