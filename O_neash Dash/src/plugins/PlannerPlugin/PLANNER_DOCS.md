@@ -68,23 +68,18 @@ node_type: 'task' | 'event'
 
 ### Urgency Levels (`ImportanceLevel`)
 
-| Level | Color | Condition |
+`computed_urgency_level` (0-4) is still computed and used internally by `logicEngine.ts` for sorting/scoring/"up next" suggestions, but it is no longer shown as a visual badge or dot color/animation tier — that display was removed. Dot color (`getDotColor`) now reflects the node's **arc color** instead, with status overrides:
+
+| Case | Color | Condition |
 |---|---|---|
-| `0` | Gray `#888` | Event (no urgency concept) |
-| `1` | Teal `#00c4a7` | Task or assignment — not important, due > 3 days |
-| `2` | Green `#4ade80` | Important task or assignment — due > 3 days |
-| `3` | Amber `#f5c842` | Assignment — not important, due ≤ 3 days |
-| `4` | Orange `#ff6b35` | Assignment — important, due ≤ 3 days |
+| default | Node's arc color (`arc_color`), or neutral blue `#7ecfff` if arc-less | — |
+| event | Gray `#888888` | `node_type === 'event'` |
 | overdue | Red `#ff3b3b` | Any node with `due_at < today` |
-| missed | Amber pulse | Flexible task with `planned_start_at < today` |
+| missed | Amber `#f5c842` | Flexible task with `planned_start_at < today` |
 
 ### Dot Size (`getDotDiameter`)
 
-Maps 15 min → 10px, 480 min → 34px on a logarithmic scale:
-
-```
-diameter = 10 + (log(minutes/15) / log(480/15)) * 24
-```
+Uniform fixed diameter (`DOT_DIAMETER = 20`) — no longer scaled by `estimated_duration_minutes`.
 
 ### Organizational Containers
 
@@ -217,7 +212,6 @@ Thresholds: `safe < 26 ≤ loaded < 51 ≤ heavy < 76 ≤ critical`
 | `isSameDay(dateStr, ref)` | Compare date strings to a Date object (handles both `T` and space separators from SQLite) |
 | `toDateString(date)` | Format local date as `YYYY-MM-DD` |
 | `formatDueLabel(dueStr, now)` | "overdue 3d ago" / "today" / "tomorrow" / "in 5d" |
-| `formatEffortLabel(minutes)` | "45m" / "1.5h" / "3h" |
 
 ---
 
@@ -480,11 +474,9 @@ Mode-specific fields:
 
 | Mode | Specific fields |
 |---|---|
-| `task` | Planned date, effort size selector |
-| `assignment` | Planned date, due date, effort size selector |
-| `event` | Date picker, time input (`HH:MM` text, not native time picker due to WebKit bugs), duration (hours), optional recurrence (freq/interval/days/until) |
-
-**Effort selector**: `TaskFormDotStage` shows growing dots visually as user picks size.
+| `task` | Planned date |
+| `assignment` | Planned date, due date |
+| `event` | Date picker, time input (`HH:MM` text, not native time picker due to WebKit bugs), duration (hours) — this is scheduling length, not an "effort estimate"; optional recurrence (freq/interval/days/until) |
 
 **Note linking flow**: type to search notes → results show group badge + title → click to link → linked notes shown with unlink button.
 
@@ -508,16 +500,6 @@ Mode-specific fields:
 - Returns `string[]` of `YYYY-MM-DD`
 
 **`expandRecurring(templates, startDate, endDate)`** — takes recurring template nodes and produces virtual `PlannerNode[]` instances within a date range. Virtual IDs: `"<templateId>:<YYYY-MM-DD>"`. Exceptions (in `recurrence_exceptions`) are skipped.
-
-### `densityCalc.ts`
-
-**`getDensityRatio(nodes, dateStr, capacityMinutes)`** — sum effort of all non-completed nodes on a given date divided by daily capacity.
-
-**`getDensityColor(ratio)`**:
-- `< 0.6` → green `#4ade80`
-- `< 0.8` → amber `#f5c842`
-- `< 1.0` → orange `#ff6b35`
-- `≥ 1.0` → red `#ff3b3b`
 
 ### `arcBuilder.ts`
 
@@ -552,9 +534,7 @@ Mode-specific fields:
 
 | Class | Effect | Used on |
 |---|---|---|
-| `dot-anim-urgent` | Pulsing orange glow | Urgency L4 dots |
 | `dot-anim-red` | Pulsing red glow | Overdue dots |
-| `dot-anim-wiggle` | Rotation wiggle | Urgency L3 dots |
 | `dot-anim-missed` | Amber glow pulse | Missed schedule dots |
 | `arc-dots-arrive` | Fade-in + slide-up | Dots when arc row expands |
 | `task-form-mode-in` | Fade + slide-up | Mode picker entrance |
@@ -668,8 +648,7 @@ PlannerPlugin/
 │   ├── DotTooltip.tsx         Hover popup (portaled)
 │   ├── TaskDetailPanel.tsx    Click popup — full task detail + actions (portaled)
 │   ├── TaskForm.tsx           Task/event create+edit modal (2-step)
-│   ├── TaskFormDotStage.tsx   Visual effort selector (growing dots preview)
-│   ├── DensityBar.tsx         Effort ratio bar for column headers
+│   ├── WeeklyTimetablePanel.tsx  Persistent left timetable, shown across all tabs
 │   ├── DatePickerField.tsx    Calendar date input
 │   ├── HoursInput.tsx         Duration spinner
 │   ├── ViewSwitcher.tsx       Tab bar (today | eisenhower | focus | arc)
@@ -686,7 +665,6 @@ PlannerPlugin/
 │   ├── logicEngine.ts         Pure algorithms: urgency, pressure, scoring, date helpers
 │   ├── useLogicEngine.ts      30-min hook: check + persist urgency/overdue changes
 │   ├── recurrence.ts          Expand recurring rules → date lists + virtual instances
-│   ├── densityCalc.ts         Effort ratio per day + color thresholds
 │   ├── arcBuilder.ts          Timeline bar positioning + congestion detection
 │   ├── noteLinks.ts           Note ↔ task many-to-many link CRUD
 │   ├── noteSearch.ts          Full-text note search + batch load by IDs

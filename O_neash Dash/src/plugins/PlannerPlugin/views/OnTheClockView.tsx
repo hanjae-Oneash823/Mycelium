@@ -4,19 +4,13 @@ import { useSessionStore } from '../store/useSessionStore';
 import { Feather } from 'pixelarticons/react/Feather';
 import { Computer } from 'pixelarticons/react/Computer';
 import { BracesContent } from 'pixelarticons/react/BracesContent';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Dot } from 'recharts';
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
-import {
-  loadAllSessions, loadSessionNodes, loadBrowsableNodes, loadSessionPomoBlocks,
-  endOpenPomoWorkBlock, startPomoBlock, deleteSession, updateSessionEndTime,
-} from '../lib/onTheClockDb';
-import type { WorkSession, SessionNodeWithNode, BrowsableNode, SessionPause, SessionPomoBlock } from '../lib/onTheClockDb';
+import { loadAllSessions, loadSessionNodes, deleteSession, updateSessionEndTime } from '../lib/onTheClockDb';
+import type { WorkSession, SessionNodeWithNode, SessionPause } from '../lib/onTheClockDb';
 
 const VT = "var(--font-main), var(--font-kr), monospace";
 const ACC = '#f59e0b';
-const POMO = '#ef4444';
 
 function fmtTimer(secs: number): string {
   const h = Math.floor(secs / 3600);
@@ -86,15 +80,6 @@ function Skeleton() {
           </div>
         </div>
 
-        {/* Pomo timer box (160px) */}
-        <div style={{ width: 160, border: '1px solid rgba(239,68,68,0.12)', background: '#0d0d0d', padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <SkelBar w={70} h={9} />
-          <SkelBar w={80} h={30} />
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[0,1,2,3].map(i => <div key={i} style={{ width: 6, height: 6, background: 'rgba(239,68,68,0.08)' }} />)}
-          </div>
-        </div>
-
         {/* Node list box (flex: 1) */}
         <div style={{ flex: 1, minWidth: 260, maxWidth: 560, border: '1px solid rgba(255,255,255,0.07)', background: '#0d0d0d', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>
           <SkelBar w={60} h={9} />
@@ -141,29 +126,8 @@ function ActiveStage({
     await endAt(candidate.toISOString());
     setEndMode(false);
   };
-  const [pomoBlocks, setPomoBlocks] = useState<SessionPomoBlock[]>([]);
-  const [pomoReload, setPomoReload] = useState(0);
-
   const isActive = activeSession.status === 'active';
   const isPaused = activeSession.status === 'paused';
-
-  const reloadPomoBlocks = useCallback(() => setPomoReload(n => n + 1), []);
-
-  useEffect(() => {
-    loadSessionPomoBlocks(activeSession.id).then(async blocks => {
-      const openBlock = [...blocks].reverse().find(b => !b.ended_at);
-      if (openBlock) {
-        const elapsed = (Date.now() - new Date(openBlock.started_at).getTime()) / 1000;
-        if (elapsed > 30 * 60) {
-          await endOpenPomoWorkBlock(activeSession.id);
-          const fresh = await loadSessionPomoBlocks(activeSession.id);
-          setPomoBlocks(fresh);
-          return;
-        }
-      }
-      setPomoBlocks(blocks);
-    }).catch(() => {});
-  }, [activeSession.id, activePauses.length, pomoReload]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -184,25 +148,7 @@ function ActiveStage({
     return Math.floor((now - startMs - pauseMs) / 1000);
   }, [tick, activeSession, activePauses]);
 
-  const currentPomoBlock = [...pomoBlocks].reverse().find(b => !b.ended_at) ?? null;
-
-  const pomoBlockElapsed = useMemo(() => {
-    if (!currentPomoBlock) return null;
-    const blockStart = new Date(currentPomoBlock.started_at).getTime();
-    const pauseMs = activePauses.reduce((sum, p) => {
-      if (!p.resumed_at) return sum;
-      const pStart = Math.max(new Date(p.paused_at).getTime(), blockStart);
-      if (pStart >= new Date(p.resumed_at).getTime()) return sum;
-      return sum + (new Date(p.resumed_at).getTime() - pStart);
-    }, 0);
-    const currentPause = activePauses.find(p => !p.resumed_at);
-    const cap = currentPause ? new Date(currentPause.paused_at).getTime() : Date.now();
-    return Math.max(0, Math.floor((cap - blockStart - pauseMs) / 1000));
-  }, [tick, currentPomoBlock, activePauses]);
-
-  const pomoWorkDone = pomoBlocks.filter(b => b.block_type === 'work' && b.ended_at).length;
-
-  // Activity log: manual pauses + pomo blocks, sorted by time
+  // Activity log: manual pauses, sorted by time
   const activityItems = useMemo(() => {
     const now = Date.now();
     type Item = { time: string; label: string; durMs: number; ongoing: boolean; color: string };
@@ -214,15 +160,8 @@ function ActiveStage({
         : now - new Date(p.paused_at).getTime();
       items.push({ time: p.paused_at, label: '⏸ pause', durMs, ongoing: !p.resumed_at, color: '#60a5fa' });
     }
-    for (const b of pomoBlocks) {
-      const durMs = b.ended_at
-        ? new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()
-        : now - new Date(b.started_at).getTime();
-      const label = b.block_type === 'work' ? '● work' : b.block_type === 'short_break' ? '◐ break' : '◑ long brk';
-      items.push({ time: b.started_at, label, durMs, ongoing: !b.ended_at, color: b.block_type === 'work' ? ACC : '#60a5fa' });
-    }
     return items.sort((a, b) => a.time.localeCompare(b.time));
-  }, [activePauses, pomoBlocks, tick]);
+  }, [activePauses, tick]);
 
   const inProgress = activeSessionNodes.filter(n => n.status === 'in_progress');
   const queued     = activeSessionNodes.filter(n => n.status === 'queued');
@@ -297,34 +236,6 @@ function ActiveStage({
                     onClick={openEndMode}
                     style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1, background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.28)', color: '#f87171', padding: '3px 14px', cursor: 'pointer' }}
                   >■ end</button>
-                </div>
-              )}
-            </div>
-            <div style={{ width: 160, border: `1px solid ${POMO}99`, background: '#111', padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ fontFamily: VT, fontSize: '0.78rem', letterSpacing: 3, color: POMO, marginBottom: -4 }}>
-                {currentPomoBlock?.block_type === 'short_break' ? 'BREAK' : currentPomoBlock?.block_type === 'long_break' ? 'LONG BRK' : 'POMODORO'}
-              </div>
-              <div style={{ fontFamily: VT, fontSize: '1.85rem', letterSpacing: 3, color: pomoBlockElapsed !== null ? POMO : `${POMO}44`, lineHeight: 1 }}>
-                {pomoBlockElapsed !== null ? fmtTimer(pomoBlockElapsed) : '--:--'}
-              </div>
-              <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                {[0,1,2,3].map(i => (
-                  <div key={i} style={{ width: 6, height: 6, background: i < Math.min(pomoWorkDone, 4) ? POMO : 'rgba(255,255,255,0.1)' }} />
-                ))}
-              </div>
-              {isActive && !isPaused && (
-                <div style={{ display: 'flex', gap: 5, marginTop: 10 }}>
-                  {pomoBlockElapsed !== null ? (
-                    <button
-                      onClick={async () => { await endOpenPomoWorkBlock(activeSession.id); reloadPomoBlocks(); }}
-                      style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1, background: `${POMO}15`, border: `1px solid ${POMO}55`, color: POMO, padding: '3px 14px', cursor: 'pointer' }}
-                    >■ stop</button>
-                  ) : (
-                    <button
-                      onClick={async () => { await startPomoBlock(activeSession.id, 'work'); reloadPomoBlocks(); }}
-                      style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1, background: 'rgba(255,255,255,0.04)', border: `1px solid ${POMO}55`, color: `${POMO}cc`, padding: '3px 14px', cursor: 'pointer' }}
-                    >▶ start</button>
-                  )}
                 </div>
               )}
             </div>
@@ -603,44 +514,23 @@ function LocationEditorPopup({ onClose }: { onClose: () => void }) {
 // ── Session builder ───────────────────────────────────────────────────────────
 
 function SessionBuilder() {
-  const { locations, activeSession, createPlanned, load } = useSessionStore();
+  const { locations, activeSession, startUnplanned } = useSessionStore();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<Date>(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
-  const [calOpen, setCalOpen] = useState(false);
   const [editingLocations, setEditingLocations] = useState(false);
-  const date = `${selectedDay.getFullYear()}-${String(selectedDay.getMonth()+1).padStart(2,'0')}-${String(selectedDay.getDate()).padStart(2,'0')}`;
-  const [browsableNodes, setBrowsableNodes] = useState<BrowsableNode[]>([]);
-  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState(false);
+  const [starting, setStarting] = useState(false);
 
-  useEffect(() => { loadBrowsableNodes().then(setBrowsableNodes).catch(() => {}); }, [date]);
-
-  const filteredNodes = browsableNodes.filter(n =>
-    n.planned_date === date && n.node_type !== 'event' && !n.is_routine
-  );
-  const grouped = filteredNodes.reduce<Record<string, BrowsableNode[]>>((acc, n) => {
-    const day = n.planned_date ?? 'unscheduled';
-    if (!acc[day]) acc[day] = [];
-    acc[day].push(n);
-    return acc;
-  }, {});
-  const groupKeys = Object.keys(grouped).sort();
-
-  const toggleNode = (id: string) => setSelectedNodeIds(prev => {
-    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
-  });
-
-  const handleSave = async () => {
+  const handleStart = async () => {
     if (!selectedLocationId) return;
-    setSaving(true);
-    await createPlanned(selectedLocationId, date, [...selectedNodeIds]);
-    setSelectedNodeIds(new Set()); setSaving(false); await load();
+    setStarting(true);
+    await startUnplanned(selectedLocationId);
+    setSelectedLocationId(null);
+    setStarting(false);
   };
 
-  const canSave = !!selectedLocationId && !activeSession;
+  const canStart = !!selectedLocationId && !activeSession;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {editingLocations && <LocationEditorPopup onClose={() => setEditingLocations(false)} />}
 
       {/* Locations */}
@@ -659,48 +549,8 @@ function SessionBuilder() {
         </div>
       </div>
 
-      {/* Date */}
-      <div>
-        <div style={{ fontFamily: VT, fontSize: '0.95rem', letterSpacing: 3, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', marginBottom: 8 }}>date</div>
-        <div style={{ paddingLeft: 12 }}><Popover open={calOpen} onOpenChange={setCalOpen}>
-          <PopoverTrigger asChild>
-            <button style={{ fontFamily: VT, fontSize: '0.9rem', letterSpacing: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '4px 14px', cursor: 'pointer', textAlign: 'left' }}>
-              {selectedDay.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.15)', zIndex: 9999 }}>
-            <Calendar
-              mode="single"
-              selected={selectedDay}
-              onSelect={(day) => { if (day) { setSelectedDay(day); setCalOpen(false); } }}
-              disabled={{ before: (() => { const t = new Date(); t.setHours(0,0,0,0); return t; })() }}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover></div>
-      </div>
-
-      {/* Node browser */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ fontFamily: VT, fontSize: '0.95rem', letterSpacing: 3, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', marginBottom: 8, flexShrink: 0 }}>nodes — {selectedNodeIds.size} selected</div>
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 12 }}>
-          {filteredNodes.length === 0 ? (
-            <div style={{ fontFamily: VT, fontSize: '0.82rem', color: 'rgba(255,255,255,0.15)', letterSpacing: 1 }}>no tasks planned for this date</div>
-          ) : filteredNodes.map(n => {
-            const sel = selectedNodeIds.has(n.id);
-            return (
-              <div key={n.id} onClick={() => toggleNode(n.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', cursor: 'pointer', background: sel ? 'rgba(245,158,11,0.08)' : 'none', border: `1px solid ${sel ? `${ACC}44` : 'transparent'}`, transition: 'all 0.1s' }}>
-                <span style={{ width: 6, height: 6, background: n.arc_color, flexShrink: 0 }} />
-                <span style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 0.5, color: sel ? '#fff' : 'rgba(255,255,255,0.5)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
-                {sel && <span style={{ fontFamily: VT, fontSize: '0.75rem', color: ACC, flexShrink: 0 }}>✓</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <button onClick={handleSave} disabled={!canSave || saving} style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 2, background: canSave ? `${ACC}22` : 'none', border: `1px solid ${canSave ? ACC : 'rgba(255,255,255,0.1)'}`, color: canSave ? ACC : 'rgba(255,255,255,0.2)', padding: '6px 0', cursor: canSave ? 'pointer' : 'default', transition: 'all 0.15s', width: '100%' }}>
-        {saving ? 'saving...' : activeSession ? 'end session to plan' : 'plan session'}
+      <button onClick={handleStart} disabled={!canStart || starting} style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 2, background: canStart ? `${ACC}22` : 'none', border: `1px solid ${canStart ? ACC : 'rgba(255,255,255,0.1)'}`, color: canStart ? ACC : 'rgba(255,255,255,0.2)', padding: '6px 0', cursor: canStart ? 'pointer' : 'default', transition: 'all 0.15s', width: '100%' }}>
+        {starting ? 'starting...' : activeSession ? 'end session to start new' : 'start session'}
       </button>
     </div>
   );
@@ -787,13 +637,14 @@ function WorkSparkline({ sessions, activeSession }: { sessions: WorkSession[]; a
           />
           <YAxis hide domain={[0, 'auto']} />
           <ChartTooltip
+            allowEscapeViewBox={{ x: true, y: true }}
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               const pt = payload[0].payload as { ds: string; hours: number };
               const h = Math.floor(pt.hours), m = Math.round((pt.hours - h) * 60);
               return (
-                <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.15)', padding: '3px 10px', fontFamily: VT, fontSize: '0.88rem', color: '#fff' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>{pt.ds}</span>
+                <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.15)', padding: '3px 10px', fontFamily: VT, fontSize: '0.88rem', color: '#fff', whiteSpace: 'nowrap' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>{fmtDate(pt.ds)}</span>
                   {' · '}
                   <span style={{ color: TEAL }}>{h > 0 ? `${h}h ${m}m` : `${m}m`}</span>
                 </div>
@@ -1015,7 +866,7 @@ export default function OnTheClockView() {
       {/* ── Central stage ── */}
       <div style={{
         height: 280, flexShrink: 0,
-        background: activeSession ? 'rgba(255,255,255,0.015)' : 'transparent',
+        background: '#000',
       }}>
         {activeSession
           ? <ActiveStage activeSession={activeSession} activeSessionNodes={activeSessionNodes} activePauses={activePauses} />
@@ -1028,7 +879,7 @@ export default function OnTheClockView() {
 
         {/* Session planner */}
         <div style={{ width: 400, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase', marginBottom: 16 }}><Feather style={{ width: 18, height: 18, flexShrink: 0 }} />Plan New Session</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase', marginBottom: 16 }}><Feather style={{ width: 18, height: 18, flexShrink: 0 }} />Start Session</div>
           <SessionBuilder />
         </div>
 
@@ -1049,7 +900,7 @@ export default function OnTheClockView() {
         </div>
 
         {/* Analytics */}
-        <div style={{ width: 400, flexShrink: 0, overflow: 'hidden', padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: 400, flexShrink: 0, overflow: 'visible', padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase', marginBottom: 14 }}>
             <BracesContent style={{ width: 18, height: 18, flexShrink: 0 }} />analytics
           </div>

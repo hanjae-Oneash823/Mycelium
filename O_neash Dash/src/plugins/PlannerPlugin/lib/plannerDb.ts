@@ -13,10 +13,11 @@ import type {
 // ─── Loaders ────────────────────────────────────────────────────────────────
 
 const NODE_SELECT = `
-  SELECT n.*,
+  SELECT n.*, a.color_hex AS arc_color,
     (SELECT COUNT(*) FROM sub_tasks s WHERE s.node_id = n.id) AS sub_total,
     (SELECT COUNT(*) FROM sub_tasks s WHERE s.node_id = n.id AND s.is_completed = 1) AS sub_done
-  FROM nodes n`;
+  FROM nodes n
+  LEFT JOIN arcs a ON a.id = n.arc_id`;
 
 async function hydrateRows(rows: PlannerNode[]): Promise<PlannerNode[]> {
   const db = getDb();

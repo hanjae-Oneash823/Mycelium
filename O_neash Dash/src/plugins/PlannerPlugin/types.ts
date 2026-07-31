@@ -50,6 +50,7 @@ export interface PlannerNode {
   created_at: string;
   updated_at: string;
   // Computed join fields
+  arc_color?: string | null;
   groups?: PlannerGroup[];
   sub_total?: number;
   sub_done?: number;
@@ -140,16 +141,10 @@ export interface CreateNodeData {
 }
 
 
-export const DOT_COLORS: Record<number, string> = {
-  0: '#7ecfff',
-  1: '#3dbfbf',
-  2: '#4ade80',
-  3: '#f5a623',
-  4: '#ff6b35',
-};
-export const DOT_COLOR_OVERDUE = '#ff3b3b';
-export const DOT_COLOR_MISSED  = '#f5c842';
-export const DOT_COLOR_EVENT   = '#888888';
+export const DOT_COLOR_NEUTRAL  = '#7ecfff';
+export const DOT_COLOR_OVERDUE  = '#ff3b3b';
+export const DOT_COLOR_MISSED   = '#f5c842';
+export const DOT_COLOR_EVENT    = '#888888';
 
 /** A resolved note reference loaded from the filesystem */
 export interface NoteHit {
@@ -170,24 +165,21 @@ export interface LinkedNoteRef {
   linked_at: string;
 }
 
-export function getDotDiameter(minutes: number | null | undefined): number {
-  const m = minutes ?? 60;
-  const clamped = Math.max(m, 1);
-  const t = Math.log(clamped / 15) / Math.log(480 / 15);
-  return 10 + Math.max(0, Math.min(1, t)) * 24;
+export const DOT_DIAMETER = 20;
+
+export function getDotDiameter(): number {
+  return DOT_DIAMETER;
 }
 
 export function getDotColor(node: PlannerNode): string {
   if (node.is_overdue)        return DOT_COLOR_OVERDUE;
   if (node.is_missed_schedule) return DOT_COLOR_MISSED;
   if (node.node_type === 'event') return DOT_COLOR_EVENT;
-  return DOT_COLORS[node.computed_urgency_level] ?? DOT_COLORS[0];
+  return node.arc_color ?? DOT_COLOR_NEUTRAL;
 }
 
 export function getDotAnimClass(node: PlannerNode): string {
   if (node.is_overdue)         return 'dot-anim-red';
   if (node.is_missed_schedule) return 'dot-anim-missed';
-  if (node.computed_urgency_level === 4) return 'dot-anim-urgent';
-  if (node.computed_urgency_level === 3) return 'dot-anim-wiggle';
   return '';
 }

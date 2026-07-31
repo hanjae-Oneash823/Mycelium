@@ -42,15 +42,7 @@ export interface SessionPause {
   session_id: string;
   paused_at: string;
   resumed_at: string | null;
-  pause_type: 'manual' | 'pomo_short' | 'pomo_long';
-}
-
-export interface SessionPomoBlock {
-  id: string;
-  session_id: string;
-  block_type: 'work' | 'short_break' | 'long_break';
-  started_at: string;
-  ended_at: string | null;
+  pause_type: 'manual';
 }
 
 export interface BrowsableNode {
@@ -167,21 +159,15 @@ export async function startSession(sessionId: string): Promise<void> {
      AND node_id IN (SELECT id FROM nodes WHERE is_completed = 1)`,
     [sessionId],
   );
-  // Create first pomo work block
-  const pomoId = crypto.randomUUID();
-  await db.execute(
-    'INSERT INTO session_pomo_blocks (id, session_id, started_at, block_type) VALUES (?, ?, ?, ?)',
-    [pomoId, sessionId, now, 'work'],
-  );
 }
 
-export async function pauseSession(sessionId: string, type: 'manual' | 'pomo_short' | 'pomo_long'): Promise<string> {
+export async function pauseSession(sessionId: string): Promise<string> {
   const now = new Date().toISOString();
   await getDb().execute(`UPDATE work_sessions SET status = 'paused' WHERE id = ?`, [sessionId]);
   const pauseId = crypto.randomUUID();
   await getDb().execute(
     'INSERT INTO session_pauses (id, session_id, paused_at, pause_type) VALUES (?, ?, ?, ?)',
-    [pauseId, sessionId, now, type],
+    [pauseId, sessionId, now, 'manual'],
   );
   return pauseId;
 }
@@ -213,10 +199,6 @@ export async function endSessionAt(sessionId: string, status: 'completed' | 'int
     [endTime, sessionId],
   );
   await db.execute(
-    `UPDATE session_pomo_blocks SET ended_at = ? WHERE session_id = ? AND ended_at IS NULL`,
-    [endTime, sessionId],
-  );
-  await db.execute(
     `UPDATE work_sessions SET status = ?, actual_end = ? WHERE id = ?`,
     [status, endTime, sessionId],
   );
@@ -224,7 +206,6 @@ export async function endSessionAt(sessionId: string, status: 'completed' | 'int
 
 export async function deleteSession(sessionId: string): Promise<void> {
   const db = getDb();
-  await db.execute('DELETE FROM session_pomo_blocks WHERE session_id = ?', [sessionId]);
   await db.execute('DELETE FROM session_pauses WHERE session_id = ?', [sessionId]);
   await db.execute('DELETE FROM session_nodes WHERE session_id = ?', [sessionId]);
   await db.execute('DELETE FROM work_sessions WHERE id = ?', [sessionId]);
@@ -235,39 +216,6 @@ export async function loadSessionPauses(sessionId: string): Promise<SessionPause
     'SELECT * FROM session_pauses WHERE session_id = ? ORDER BY paused_at ASC',
     [sessionId],
   );
-}
-
-export async function loadSessionPomoBlocks(sessionId: string): Promise<SessionPomoBlock[]> {
-  return getDb().select<SessionPomoBlock[]>(
-    'SELECT * FROM session_pomo_blocks WHERE session_id = ? ORDER BY started_at ASC',
-    [sessionId],
-  );
-}
-
-// ── Pomo blocks ───────────────────────────────────────────────────────────────
-
-export async function startPomoBlock(sessionId: string, type: 'work' | 'short_break' | 'long_break'): Promise<string> {
-  const id = crypto.randomUUID();
-  await getDb().execute(
-    'INSERT INTO session_pomo_blocks (id, session_id, started_at, block_type) VALUES (?, ?, ?, ?)',
-    [id, sessionId, new Date().toISOString(), type],
-  );
-  return id;
-}
-
-export async function endPomoBlock(blockId: string): Promise<void> {
-  await getDb().execute(
-    'UPDATE session_pomo_blocks SET ended_at = ? WHERE id = ?',
-    [new Date().toISOString(), blockId],
-  );
-}
-
-export async function endOpenPomoWorkBlock(sessionId: string): Promise<void> {
-  const rows = await getDb().select<{ id: string }[]>(
-    `SELECT id FROM session_pomo_blocks WHERE session_id = ? AND block_type = 'work' AND ended_at IS NULL LIMIT 1`,
-    [sessionId],
-  );
-  if (rows.length) await endPomoBlock(rows[0].id);
 }
 
 // ── Session nodes ─────────────────────────────────────────────────────────────

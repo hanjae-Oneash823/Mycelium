@@ -7,6 +7,7 @@ import { useLogicEngine } from './store/useLogicEngine';
 import ViewSwitcher from './components/ViewSwitcher';
 import TaskForm from './components/TaskForm';
 import CommandPalette from './components/CommandPalette';
+import WeeklyTimetablePanel from './components/WeeklyTimetablePanel';
 import TodayView from './views/TodayView';
 import EisenhowerView from './views/EisenhowerView';
 import RoutinesView from './views/RoutinesView';
@@ -57,8 +58,21 @@ export default function PlannerPlugin() {
   return (
     <div className="planner-plugin">
       <ViewSwitcher />
-      <div className="planner-content">
-        {renderView(activeView)}
+      <div className="planner-content" style={{ display: 'flex', overflow: 'hidden' }}>
+        <div
+          style={{
+            flex: '0 0 22%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+          }}
+        >
+          <WeeklyTimetablePanel />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          {renderView(activeView)}
+        </div>
       </div>
       {taskFormOpen && <TaskForm />}
       {commandPaletteOpen && <CommandPalette />}

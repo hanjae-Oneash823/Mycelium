@@ -93,7 +93,7 @@ function QAPlaceholder({ visible }: { visible: boolean }) {
               }
               style={{ display: "inline-block", color: "rgba(255,255,255,0.55)" }}
             >
-              {ch === " " ? " " : ch}
+              {ch === " " ? " " : ch}
             </motion.span>
           ))}
         </motion.div>

@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckboxOn, PenSquare, SkullSharp } from 'pixelarticons/react';
 import type { PlannerNode } from '../types';
-import { formatDueLabel, formatEffortLabel } from '../lib/logicEngine';
+import { formatDueLabel } from '../lib/logicEngine';
 
 interface TaskDetailPanelProps {
   node:       PlannerNode;
@@ -29,7 +29,6 @@ export default function TaskDetailPanel({
   const now         = new Date();
   const dueLabel    = formatDueLabel(node.due_at, now);
   const whenLabel   = formatDueLabel(node.planned_start_at, now);
-  const effortLabel = formatEffortLabel(node.estimated_duration_minutes);
 
   const [top, setTop] = useState(anchorY - 220);
 
@@ -107,12 +106,6 @@ export default function TaskDetailPanel({
             <span style={{ ...VAL, color: node.is_overdue ? '#ff3b3b' : 'rgba(255,255,255,0.70)' }}>
               {dueLabel}
             </span>
-          </div>
-        )}
-        {effortLabel && (
-          <div style={ROW}>
-            <span style={KEY}>effort</span>
-            <span style={VAL}>{effortLabel}</span>
           </div>
         )}
         {visibleGroups.length > 0 && (

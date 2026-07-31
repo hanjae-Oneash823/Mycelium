@@ -194,13 +194,6 @@ export function formatDueLabel(dueDateStr: string | null | undefined, now: Date)
   return `in ${diff}d`;
 }
 
-export function formatEffortLabel(minutes: number | null | undefined): string {
-  if (!minutes) return '';
-  if (minutes < 60) return `${minutes}m`;
-  const h = minutes / 60;
-  return h === Math.floor(h) ? `${h}h` : `${h.toFixed(1)}h`;
-}
-
 // ─── Task Numbering ───────────────────────────────────────────────────────────
 // Global sequential numbers across all non-completed nodes, sorted by urgency DESC then created_at ASC.
 // Returns Map<nodeId, "N"> for parent nodes.

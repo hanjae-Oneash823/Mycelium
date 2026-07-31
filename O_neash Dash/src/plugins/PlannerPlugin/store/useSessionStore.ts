@@ -18,7 +18,6 @@ interface SessionState {
   load: () => Promise<void>;
   reloadNodes: () => Promise<void>;
 
-  startPlanned: (sessionId: string) => Promise<void>;
   startUnplanned: (locationId: string) => Promise<void>;
   pauseManual: () => Promise<string>;
   resume: (pauseId: string) => Promise<void>;
@@ -35,12 +34,8 @@ interface SessionState {
   removeNode: (nodeId: string) => Promise<void>;
   addNodes: (nodeIds: string[]) => Promise<void>;
 
-  createPlanned: (locationId: string, date: string, nodeIds: string[]) => Promise<void>;
   addLocation: (name: string) => Promise<void>;
   removeLocation: (id: string) => Promise<void>;
-
-  startPomoBreak: (type: 'pomo_short' | 'pomo_long') => Promise<{ pauseId: string; pomoBlockId: string }>;
-  endPomoBreak: (pauseId: string, pomoBlockId: string) => Promise<void>;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
@@ -72,11 +67,6 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     set({ activeSessionNodes: nodes, activePauses: pauses });
   },
 
-  startPlanned: async (sessionId) => {
-    await otc.startSession(sessionId);
-    await get().load();
-  },
-
   startUnplanned: async (locationId) => {
     const id = await otc.createSession(locationId, todayStr());
     await otc.startSession(id);
@@ -86,7 +76,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   pauseManual: async () => {
     const { activeSession } = get();
     if (!activeSession) return '';
-    const pauseId = await otc.pauseSession(activeSession.id, 'manual');
+    const pauseId = await otc.pauseSession(activeSession.id);
     await get().load();
     return pauseId;
   },
@@ -178,12 +168,6 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     await get().reloadNodes();
   },
 
-  createPlanned: async (locationId, date, nodeIds) => {
-    const id = await otc.createSession(locationId, date);
-    await otc.addNodesToSession(id, nodeIds);
-    await get().load();
-  },
-
   addLocation: async (name) => {
     await otc.createLocation(name);
     const locs = await otc.loadLocations();
@@ -194,25 +178,5 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     await otc.deleteLocation(id);
     const locs = await otc.loadLocations();
     set({ locations: locs });
-  },
-
-  startPomoBreak: async (type) => {
-    const { activeSession } = get();
-    if (!activeSession) return { pauseId: '', pomoBlockId: '' };
-    await otc.endOpenPomoWorkBlock(activeSession.id);
-    const pauseId = await otc.pauseSession(activeSession.id, type);
-    const blockType = type === 'pomo_short' ? 'short_break' : 'long_break';
-    const pomoBlockId = await otc.startPomoBlock(activeSession.id, blockType);
-    await get().load();
-    return { pauseId, pomoBlockId };
-  },
-
-  endPomoBreak: async (pauseId, pomoBlockId) => {
-    const { activeSession } = get();
-    if (!activeSession) return;
-    await otc.endPomoBlock(pomoBlockId);
-    await otc.resumeSession(activeSession.id, pauseId);
-    await otc.startPomoBlock(activeSession.id, 'work');
-    await get().load();
   },
 }));

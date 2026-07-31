@@ -30,7 +30,6 @@ import {
 } from "pixelarticons/react";
 import { Checkbox } from "pixelarticons/react/Checkbox";
 import DatePickerField from "./DatePickerField";
-import "./TaskFormDotStage.css";
 
 type Mode = "task" | "assignment" | "event";
 type StepKey = "priority" | "identity" | "scheduling" | "checklist";
@@ -63,7 +62,6 @@ const EFFORT_SIZES = [
 ] as const;
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
-const LEVEL_LABELS = ["seed", "low", "schedule", "delegate", "urgent"];
 const URG_COLORS = ["#7ecfff", "#3dbfbf", "#4ade80", "#f5a623", "#ff6b35"] as const;
 
 const STEPS: Record<Mode, StepKey[]> = {
@@ -219,100 +217,6 @@ function ModeOption({ m, onSelect }: { m: Mode; onSelect: () => void }) {
   );
 }
 
-// ── Dot stage strip ───────────────────────────────────────────────────────────
-
-function dotColorOf(level: number, isEvent: boolean, dueAt: Date | null): string {
-  if (isEvent) return "#888888";
-  if (!dueAt) return "#7ecfff";
-  if ((dueAt.getTime() - Date.now()) / 86400000 < 0) return "#ff3b3b";
-  return (["#7ecfff","#3dbfbf","#4ade80","#f5a623","#ff6b35"][level] ?? "#7ecfff");
-}
-function dotSizeOf(minutes: number): number {
-  if (minutes <= 0) return 32;
-  return 22 + Math.max(0, Math.min(1, Math.log(Math.max(minutes, 1) / 15) / Math.log(32))) * 30;
-}
-function pulseDurOf(level: number, overdue: boolean): string {
-  if (overdue) return "0.9s";
-  if (level >= 4) return "1.2s";
-  if (level >= 3) return "1.8s";
-  if (level >= 2) return "2.4s";
-  return "4s";
-}
-
-function LegendCell({ color, label, active }: { color: string; label: string; active: boolean }) {
-  return (
-    <div style={{ width: 52, border: `1px solid ${active ? color : "rgba(255,255,255,0.1)"}`, background: active ? color + "22" : "transparent", display: "flex", alignItems: "center", gap: 5, padding: "3px 5px", transition: "all 0.2s" }}>
-      <div style={{ width: 7, height: 7, borderRadius: "50%", background: color, opacity: active ? 1 : 0.35, flexShrink: 0 }} />
-      <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: active ? color : "rgba(255,255,255,0.3)", textTransform: "uppercase" }}>{label}</span>
-    </div>
-  );
-}
-
-function DotStageStrip({ importanceLevel, effortMinutes, isEvent, dueAt }: {
-  importanceLevel: number; effortMinutes: number; isEvent: boolean; dueAt: Date | null;
-}) {
-  const [hovering, setHovering] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const color   = dotColorOf(importanceLevel, isEvent, dueAt);
-  const size    = dotSizeOf(effortMinutes);
-  const overdue = !!dueAt && (dueAt.getTime() - Date.now()) / 86400000 < 0;
-  const dur     = pulseDurOf(importanceLevel, overdue);
-  const effortH = effortMinutes > 0 ? (effortMinutes / 60).toFixed(1).replace(/\.0$/, "") : "0";
-  const n       = Math.max(0, Math.min(4, importanceLevel));
-  const label   = isEvent ? `EVENT · ${effortH}h` : !dueAt ? "L0 · seed" : `L${n} · ${LEVEL_LABELS[n]}`;
-
-  const handleMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setOffset({
-      x: Math.max(-20, Math.min(20, (e.clientX - r.left - r.width  / 2) * 0.22)),
-      y: Math.max(-20, Math.min(20, (e.clientY - r.top  - r.height / 2) * 0.22)),
-    });
-  };
-
-  return (
-    <div
-      onMouseEnter={() => setHovering(true)}
-      onMouseMove={handleMove}
-      onMouseLeave={() => { setHovering(false); setOffset({ x: 0, y: 0 }); }}
-      style={{
-        width: "100%", height: 158, position: "relative", flexShrink: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        background: "radial-gradient(circle at center, rgba(255,255,255,0.025) 0%, transparent 60%)",
-        borderBottom: "1px solid rgba(255,255,255,0.1)", cursor: "crosshair",
-      }}
-    >
-      <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.04)", transform: "translateY(-50%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.04)", transform: "translateX(-50%)", pointerEvents: "none" }} />
-
-      <div style={{
-        width: size, height: size, borderRadius: "50%", background: color, position: "absolute",
-        // @ts-expect-error CSS custom properties
-        "--dot-glow": color, "--dot-glow-faint": color + "44", "--pulse-dur": dur,
-        transform: `translate(${offset.x}px, ${offset.y}px)`,
-        animation: "dot-pulse var(--pulse-dur) ease-in-out infinite, dot-wiggle 6s ease-in-out infinite",
-        transition: hovering
-          ? "width 0.3s, height 0.3s, background-color 0.3s, transform 0.08s ease-out"
-          : "width 0.3s, height 0.3s, background-color 0.3s, transform 0.6s ease-out",
-      }} />
-
-      <p style={{ ...mono, fontSize: "0.6rem", letterSpacing: "3px", color: "rgba(255,255,255,0.32)", textTransform: "uppercase", position: "absolute", bottom: 7, pointerEvents: "none" }}>
-        {label}
-      </p>
-
-      <div style={{ position: "absolute", top: 8, right: 8, display: "grid", gridTemplateColumns: "auto 52px 52px", gap: 4, alignItems: "center", pointerEvents: "none" }}>
-        <div /><div />
-        <span style={{ ...mono, fontSize: 8, letterSpacing: 2, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", textAlign: "center" }}>urg</span>
-        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", paddingRight: 4, lineHeight: 1 }}>★</span>
-        <LegendCell color="#4ade80" label="L2" active={importanceLevel === 2} />
-        <LegendCell color="#ff6b35" label="L4" active={importanceLevel === 4} />
-        <div />
-        <LegendCell color="#3dbfbf" label="L1" active={importanceLevel === 1} />
-        <LegendCell color="#f5a623" label="L3" active={importanceLevel === 3} />
-      </div>
-    </div>
-  );
-}
-
 // ── Step nav arrow ────────────────────────────────────────────────────────────
 
 function StepArrow({ dir, onClick, disabled }: { dir: "prev" | "next"; onClick: () => void; disabled: boolean }) {
@@ -464,20 +368,6 @@ function PriorityStep({ mode, isImportant, setIsImportant, dueAt, setDueAt, urge
             />
           </>
         )}
-
-        {/* = */}
-        <EqCol symbol={<span style={{ ...eqChar, color: "rgba(255,255,255,0.32)" }}>=</span>} />
-
-        {/* L{n} — same size as brackets, level label aligned beneath */}
-        <EqCol
-          label={LEVEL_LABELS[urgency]}
-          labelColor={urgColor}
-          symbol={
-            <span style={{ ...eqChar, color: urgColor, letterSpacing: "2px" }}>
-              L{urgency}
-            </span>
-          }
-        />
       </div>
     </div>
   );
@@ -1104,9 +994,6 @@ export default function TaskForm() {
 
             {/* Header */}
             <StepHeader mode={mode} steps={steps} stepIndex={formStep} onBack={() => { setStep("pick"); setFormStep(0); }} />
-
-            {/* Dot stage */}
-            <DotStageStrip importanceLevel={dotUrgency} effortMinutes={effortMinutes} isEvent={isEvent} dueAt={dueAt ?? eventDate} />
 
             {/* Field header — step title + arrows */}
             {(() => {

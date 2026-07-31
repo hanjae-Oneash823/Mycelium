@@ -20,6 +20,9 @@ interface ViewStore {
   openTendrilsHub: () => void;
   suggestionsOn: boolean;
   setSuggestionsOn: (v: boolean) => void;
+  // Cross-panel hover sync — e.g. hovering a task row highlights its event on the timetable
+  hoveredNodeId: string | null;
+  setHoveredNodeId: (id: string | null) => void;
 }
 
 export const useViewStore = create<ViewStore>()(
@@ -41,6 +44,8 @@ export const useViewStore = create<ViewStore>()(
       openTendrilsHub: () => {},
       suggestionsOn: true,
       setSuggestionsOn: (v) => set({ suggestionsOn: v }),
+      hoveredNodeId: null,
+      setHoveredNodeId: (id) => set({ hoveredNodeId: id }),
     }),
     {
       name: 'planner-view-store',

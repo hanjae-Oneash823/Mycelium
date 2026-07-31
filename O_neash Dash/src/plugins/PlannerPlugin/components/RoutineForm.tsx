@@ -49,7 +49,7 @@ function addMins(time: string, mins: number): string {
   const total = h * 60 + m + mins;
   return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
 }
-const vm: React.CSSProperties = { fontFamily: "'VT323UI','HBIOS-SYS',monospace" };
+const vm: React.CSSProperties = { fontFamily: "var(--font-main), var(--font-kr), monospace" };
 const SWATCH_COLORS = [
   '#64c8ff','#3dbfbf','#4ade80','#f5a623','#ff6b35',
   '#c084fc','#f5c842','#ff3b3b','#888888','#00c4a7',

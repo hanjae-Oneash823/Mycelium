@@ -55,7 +55,7 @@ export default function DotNode({ node, scale = 1, noPopups = false, isToday = t
     setPanelOpen(prev => !prev);
   };
 
-  const diameter  = Math.round(getDotDiameter(node.estimated_duration_minutes) * scale);
+  const diameter  = Math.round(getDotDiameter() * scale);
   const color     = getDotColor(node);
   const animClass = getDotAnimClass(node);
 

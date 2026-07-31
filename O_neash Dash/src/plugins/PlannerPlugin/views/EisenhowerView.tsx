@@ -16,9 +16,7 @@ const snapToCursor: Modifier = ({ activatorEvent, draggingNodeRect, transform })
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useArcVisibilityStore } from '../../../store/useArcVisibilityStore';
 import { toDateString, isSameDay } from '../lib/logicEngine';
-import { getDensityRatio } from '../lib/densityCalc';
 import DotCell from '../components/DotCell';
-import DensityBar from '../components/DensityBar';
 import type { PlannerNode } from '../types';
 import { getDotColor, getDotDiameter, getDotAnimClass } from '../types';
 
@@ -56,7 +54,7 @@ interface ColDef {
 }
 
 export default function EisenhowerView() {
-  const { nodes, arcs: allArcs, projects, capacity, rescheduleNode } = usePlannerStore();
+  const { nodes, arcs: allArcs, projects, rescheduleNode } = usePlannerStore();
   const hiddenArcIds = useArcVisibilityStore(s => s.hiddenArcIds);
   const arcs = allArcs.filter(a => !hiddenArcIds.includes(a.id));
   const now = new Date();
@@ -192,15 +190,8 @@ export default function EisenhowerView() {
   const CELL_MIN_W    = 100;
   const ROW_H         = 68;
   const ROW_H_SUB     = 52;
-  const capacityMinutes = capacity?.daily_minutes ?? 480;
-
 
   const todayColIndex = columns.findIndex(c => c.isToday);
-
-  const getDayMinutes = (dateStr: string) =>
-    nodes
-      .filter(n => !n.is_completed && !n.is_overdue && isSameDay(n.planned_start_at, new Date(dateStr + 'T12:00:00')))
-      .reduce((sum, n) => sum + (n.estimated_duration_minutes ?? 0), 0);
 
   const navBtn: React.CSSProperties = {
     background: 'none', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.6)',
@@ -263,19 +254,6 @@ export default function EisenhowerView() {
                 }}>
                   {col.isOverdue || col.isToday ? `[ ${col.dayName} ]` : col.dayName}
                 </div>
-                {!col.isOverdue && (() => {
-                  const mins = getDayMinutes(col.key);
-                  return (
-                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <DensityBar ratio={getDensityRatio(nodes, col.key, capacityMinutes)} />
-                      {mins > 0 && (
-                        <span style={{ fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.82rem', letterSpacing: '0.5px', padding: '0.1rem 0.45rem', background: 'rgba(255,255,255,0.18)', color: '#fff' }}>
-                          {(mins / 60).toFixed(1)}h
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
               </div>
             ))}
           </div>
@@ -436,8 +414,8 @@ export default function EisenhowerView() {
           <div
             className={`dot ${getDotAnimClass(activeDragNode)}`}
             style={{
-              width:  getDotDiameter(activeDragNode.estimated_duration_minutes),
-              height: getDotDiameter(activeDragNode.estimated_duration_minutes),
+              width:  getDotDiameter(),
+              height: getDotDiameter(),
               backgroundColor: getDotColor(activeDragNode),
               opacity: 0.85,
               pointerEvents: 'none',
