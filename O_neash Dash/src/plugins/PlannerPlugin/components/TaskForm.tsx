@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import type { UserImportance } from "../types";
+import { isActiveArc, isActiveProject } from "../types";
 import { usePlannerStore } from "../store/usePlannerStore";
 import { useViewStore } from "../store/useViewStore";
 import { computeUrgencyLevel, toDateString } from "../lib/logicEngine";
@@ -188,28 +189,31 @@ function SubTaskRow({ title, isCompleted, onToggle, onDelete, onTitleCommit }: {
 
 // ── Mode picker option ────────────────────────────────────────────────────────
 
-function ModeOption({ m, onSelect }: { m: Mode; onSelect: () => void }) {
+function ModeOption({ m, onSelect, disabled = false }: { m: Mode; onSelect: () => void; disabled?: boolean }) {
   const cfg = MODE_CONFIG[m];
   const [hovered, setHovered] = useState(false);
+  const active = hovered && !disabled;
   return (
     <button
+      disabled={disabled}
       onClick={onSelect}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         display: "flex", alignItems: "center", gap: "1.25rem",
-        padding: "1rem 1.25rem", width: "100%", cursor: "pointer",
-        border: `1px solid ${hovered ? cfg.accent : "rgba(255,255,255,0.1)"}`,
-        background: hovered ? cfg.bg : "transparent",
-        transition: "border-color 0.12s, background 0.12s",
+        padding: "1rem 1.25rem", width: "100%", cursor: disabled ? "not-allowed" : "pointer",
+        border: `1px solid ${active ? cfg.accent : "rgba(255,255,255,0.1)"}`,
+        background: active ? cfg.bg : "transparent",
+        opacity: disabled ? 0.35 : 1,
+        transition: "border-color 0.12s, background 0.12s, opacity 0.12s",
       }}
     >
       <cfg.Icon size={20} style={{ color: cfg.accent, flexShrink: 0 }} />
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
-        <span style={{ ...mono, fontSize: "1.5rem", letterSpacing: "3px", color: hovered ? "#fff" : "rgba(255,255,255,0.85)", textTransform: "uppercase" }}>
+        <span style={{ ...mono, fontSize: "1.5rem", letterSpacing: "3px", color: active ? "#fff" : "rgba(255,255,255,0.85)", textTransform: "uppercase" }}>
           {cfg.label}
         </span>
-        <span style={{ ...mono, fontSize: "0.85rem", letterSpacing: "1.5px", color: hovered ? cfg.accent : "rgba(255,255,255,0.3)" }}>
+        <span style={{ ...mono, fontSize: "0.85rem", letterSpacing: "1.5px", color: active ? cfg.accent : "rgba(255,255,255,0.3)" }}>
           {MODE_DESCRIPTIONS[m]}
         </span>
       </div>
@@ -406,9 +410,9 @@ function IdentityStep({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const realGroups  = groups.filter((g: any) => !g.is_ungrouped);
-  const arcList     = arcs;
+  const arcList     = arcs.filter(isActiveArc);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const filteredPrj = projects.filter((p: any) => p.arc_id === arcId);
+  const filteredPrj = projects.filter((p: any) => p.arc_id === arcId && isActiveProject(p));
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const tag = (e.target as HTMLElement).tagName;
@@ -982,7 +986,12 @@ export default function TaskForm() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
               {(["task", "assignment", "event"] as Mode[]).map(m => (
-                <ModeOption key={m} m={m} onSelect={() => { setMode(m); setFormStep(0); setStep("form"); }} />
+                <ModeOption
+                  key={m}
+                  m={m}
+                  disabled={m === "event" && taskFormDefaults.importance_level !== undefined}
+                  onSelect={() => { setMode(m); setFormStep(0); setStep("form"); }}
+                />
               ))}
             </div>
           </div>

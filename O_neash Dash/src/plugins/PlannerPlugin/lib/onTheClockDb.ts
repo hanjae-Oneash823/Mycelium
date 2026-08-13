@@ -136,6 +136,16 @@ export async function loadAllSessions(limit = 60): Promise<WorkSession[]> {
   );
 }
 
+export async function loadAllTimedSessions(): Promise<WorkSession[]> {
+  return getDb().select<WorkSession[]>(
+    `SELECT ws.*, wl.name as location_name
+     FROM work_sessions ws
+     LEFT JOIN work_locations wl ON wl.id = ws.location_id
+     WHERE ws.actual_start IS NOT NULL
+     ORDER BY ws.actual_start ASC`,
+  );
+}
+
 export async function createSession(locationId: string, plannedDate: string): Promise<string> {
   const id = crypto.randomUUID();
   const title = await generateTitle(locationId, plannedDate);

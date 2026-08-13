@@ -11,7 +11,8 @@ const PADDLE_W = 8;
 const PADDLE_H = 50;
 const BALL_SIZE = 8;
 const PADDLE_SPEED = 4.5;
-const AI_SPEED = 3.2;
+const AI_SPEED = 2.3;
+const AI_DEADZONE = 16;
 const BALL_SPEED = 3.5;
 const WIN_SCORE = 7;
 const WINS_KEY = 'games-pong-wins';
@@ -114,8 +115,10 @@ export default function PongPlugin() {
       if (keys.down) s.playerY = Math.min(H - PADDLE_H, s.playerY + PADDLE_SPEED);
 
       const aiCenter = s.aiY + PADDLE_H / 2;
-      if (aiCenter < s.ballY - 6) s.aiY = Math.min(H - PADDLE_H, s.aiY + AI_SPEED);
-      else if (aiCenter > s.ballY + 6) s.aiY = Math.max(0, s.aiY - AI_SPEED);
+      if (s.ballVX > 0) {
+        if (aiCenter < s.ballY - AI_DEADZONE) s.aiY = Math.min(H - PADDLE_H, s.aiY + AI_SPEED);
+        else if (aiCenter > s.ballY + AI_DEADZONE) s.aiY = Math.max(0, s.aiY - AI_SPEED);
+      }
 
       if (s.serveAt !== null) {
         if (performance.now() >= s.serveAt) {

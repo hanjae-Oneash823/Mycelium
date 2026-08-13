@@ -5,18 +5,19 @@ import { fillMissingRoutineNodes } from './lib/routineDb';
 import { useViewStore } from './store/useViewStore';
 import { useLogicEngine } from './store/useLogicEngine';
 import ViewSwitcher from './components/ViewSwitcher';
+import PlannerHeader from './components/PlannerHeader';
 import TaskForm from './components/TaskForm';
 import CommandPalette from './components/CommandPalette';
 import WeeklyTimetablePanel from './components/WeeklyTimetablePanel';
 import TodayView from './views/TodayView';
-import EisenhowerView from './views/EisenhowerView';
+import FieldView from './views/FieldView';
 import RoutinesView from './views/RoutinesView';
 import OnTheClockView from './views/OnTheClockView';
 import type { PlannerViewType } from './types';
 
 function renderView(v: PlannerViewType) {
   if (v === 'today')        return <TodayView />;
-  if (v === 'eisenhower')   return <EisenhowerView />;
+  if (v === 'eisenhower')   return <FieldView />;
   if (v === 'routines')     return <RoutinesView />;
   if (v === 'on-the-clock') return <OnTheClockView />;
   return null;
@@ -58,6 +59,7 @@ export default function PlannerPlugin() {
   return (
     <div className="planner-plugin">
       <ViewSwitcher />
+      <PlannerHeader />
       <div className="planner-content" style={{ display: 'flex', overflow: 'hidden' }}>
         <div
           style={{

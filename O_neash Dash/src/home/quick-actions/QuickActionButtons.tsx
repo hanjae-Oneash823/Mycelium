@@ -59,18 +59,33 @@ export function QuickActionButtons() {
   const activeSession = useSessionStore((s) => s.activeSession);
   const loadSessions  = useSessionStore((s) => s.load);
 
-  const refreshRun     = () => fetchRunLogs().then(({ habitId, logs }) => { setRunHabitId(habitId); setRunLogs(logs); });
-  const refreshSession = () => loadSessionsForWeek(DAYS[0], DAYS[DAYS.length - 1]).then(setWeekSessions);
+  const refreshSleep    = () => getEntries().then(setSleepEntries);
+  const refreshRun      = () => fetchRunLogs().then(({ habitId, logs }) => { setRunHabitId(habitId); setRunLogs(logs); });
+  const refreshSession  = () => loadSessionsForWeek(DAYS[0], DAYS[DAYS.length - 1]).then(setWeekSessions);
 
   useEffect(() => {
-    getEntries().then(setSleepEntries);
-    loadSessions();
-    refreshRun();
-    refreshSession();
+    const refreshAll = () => {
+      refreshSleep();
+      loadSessions();
+      refreshRun();
+      refreshSession();
+    };
+
+    refreshAll();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshAll();
+    };
+    window.addEventListener("focus", refreshAll);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("focus", refreshAll);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [loadSessions]);
 
   const yesterdayLogged = sleepEntries.some((e) => e.date === yesterdayStr());
-  const todayRunLogged  = runLogs.some((l) => l.date === todayStr());
+  const todayRunLogged  = runLogs.some((l) => l.habit_id === runHabitId && l.date === todayStr());
   const sessionActive   = activeSession !== null;
 
   const sleepDayValues   = sleepHoursByDay(sleepEntries, DAYS);
@@ -80,7 +95,7 @@ export function QuickActionButtons() {
   async function handleSleepSubmit(entry: { date: string; sleep_start: string; wake_time: string; notes: string }) {
     await addEntry(entry);
     setOpenPopup(null);
-    getEntries().then(setSleepEntries);
+    refreshSleep();
   }
 
   return (

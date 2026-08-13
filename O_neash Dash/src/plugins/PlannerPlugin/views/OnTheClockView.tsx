@@ -4,9 +4,9 @@ import { useSessionStore } from '../store/useSessionStore';
 import { Feather } from 'pixelarticons/react/Feather';
 import { Computer } from 'pixelarticons/react/Computer';
 import { BracesContent } from 'pixelarticons/react/BracesContent';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Dot } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, ReferenceLine, Label } from 'recharts';
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
-import { loadAllSessions, loadSessionNodes, deleteSession, updateSessionEndTime } from '../lib/onTheClockDb';
+import { loadAllSessions, loadAllTimedSessions, loadSessionNodes, deleteSession, updateSessionEndTime } from '../lib/onTheClockDb';
 import type { WorkSession, SessionNodeWithNode, SessionPause } from '../lib/onTheClockDb';
 
 const VT = "var(--font-main), var(--font-kr), monospace";
@@ -52,61 +52,17 @@ const STATUS_COLOR: Record<string, string> = {
   interrupted: '#f87171',
 };
 
-// ── Skeleton ──────────────────────────────────────────────────────────────────
+// ── Session status bar ────────────────────────────────────────────────────────
+// Slim control strip — full detail (node list, activity log) already lives in
+// the Today page's IN SESSION panel, so this only surfaces what's actionable here.
 
-function SkelBar({ w = '100%', h = 12 }: { w?: string | number; h?: number }) {
-  return <div className="skel-shimmer" style={{ width: w, height: h, flexShrink: 0 }} />;
-}
-
-function Skeleton() {
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 22, padding: '18px 24px', justifyContent: 'center' }}>
-
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <span style={{ fontFamily: VT, fontSize: '1.1rem', letterSpacing: 4, color: 'rgba(255,255,255,0.18)', textTransform: 'uppercase' }}>No Session Active</span>
-      </div>
-
-      {/* Boxes row — mirrors the four boxes */}
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', alignItems: 'stretch', flexShrink: 0 }}>
-
-        {/* Session timer box (220px) */}
-        <div style={{ width: 220, border: '1px solid rgba(255,255,255,0.07)', background: '#0d0d0d', padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <SkelBar w={90} h={9} />
-          <SkelBar w={110} h={30} />
-          <div style={{ display: 'flex', gap: 6 }}>
-            <SkelBar w={72} h={22} />
-            <SkelBar w={56} h={22} />
-          </div>
-        </div>
-
-        {/* Node list box (flex: 1) */}
-        <div style={{ flex: 1, minWidth: 260, maxWidth: 560, border: '1px solid rgba(255,255,255,0.07)', background: '#0d0d0d', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <SkelBar w={60} h={9} />
-          {['78%','55%','88%','62%','70%'].map((w, i) => <SkelBar key={i} w={w} h={13} />)}
-        </div>
-
-        {/* Activity box (260px) */}
-        <div style={{ width: 260, border: '1px solid rgba(255,255,255,0.07)', background: '#0d0d0d', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-          <SkelBar w={55} h={9} />
-          {['65%','80%','50%','72%'].map((w, i) => <SkelBar key={i} w={w} h={13} />)}
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-// ── Active session stage ──────────────────────────────────────────────────────
-
-function ActiveStage({
-  activeSession, activeSessionNodes, activePauses,
+function SessionStatusBar({
+  activeSession, activePauses,
 }: {
   activeSession: WorkSession;
-  activeSessionNodes: SessionNodeWithNode[];
   activePauses: SessionPause[];
 }) {
-  const { pauseManual, resume, endClean, endAt } = useSessionStore();
+  const { pauseManual, resume, endAt } = useSessionStore();
   const [tick, setTick] = useState(0);
   const [endMode, setEndMode] = useState(false);
   const [customEndTime, setCustomEndTime] = useState('');
@@ -148,144 +104,72 @@ function ActiveStage({
     return Math.floor((now - startMs - pauseMs) / 1000);
   }, [tick, activeSession, activePauses]);
 
-  // Activity log: manual pauses, sorted by time
-  const activityItems = useMemo(() => {
-    const now = Date.now();
-    type Item = { time: string; label: string; durMs: number; ongoing: boolean; color: string };
-    const items: Item[] = [];
-    for (const p of activePauses) {
-      if (p.pause_type !== 'manual') continue;
-      const durMs = p.resumed_at
-        ? new Date(p.resumed_at).getTime() - new Date(p.paused_at).getTime()
-        : now - new Date(p.paused_at).getTime();
-      items.push({ time: p.paused_at, label: '⏸ pause', durMs, ongoing: !p.resumed_at, color: '#60a5fa' });
-    }
-    return items.sort((a, b) => a.time.localeCompare(b.time));
-  }, [activePauses, tick]);
-
-  const inProgress = activeSessionNodes.filter(n => n.status === 'in_progress');
-  const queued     = activeSessionNodes.filter(n => n.status === 'queued');
-  const done       = activeSessionNodes.filter(n => n.status === 'done' || n.status === 'incomplete');
-  const statusColor = isPaused ? '#60a5fa' : ACC;
+  const SESSION_YELLOW = '#f5c842';
+  const PAUSE_BLUE = '#0055FF';
+  const statusColor = isPaused ? PAUSE_BLUE : '#000';
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 22, padding: '18px 24px', justifyContent: 'center' }}>
+    <div style={{
+      flexShrink: 0,
+      display: 'flex', alignItems: 'center', gap: 16,
+      margin: '16px 20px 0',
+      padding: '6px 24px',
+      background: SESSION_YELLOW,
+    }}>
+      <span style={{ fontFamily: VT, fontSize: '1.5rem', letterSpacing: 3, color: statusColor, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        {isPaused ? '⏸ paused' : <><span className={isActive ? 'otc-live-blink' : ''}>●</span> active</>}
+      </span>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, flexShrink: 0 }}>
-        <span style={{ fontFamily: VT, fontSize: '1.15rem', letterSpacing: 4, color: statusColor, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {isPaused ? '⏸ paused' : <><span className={isActive ? 'otc-live-blink' : ''}>●</span> active</>}
+      {activeSession.location_name && (
+        <span style={{ fontFamily: VT, fontSize: '1.4rem', letterSpacing: 1, color: PAUSE_BLUE, flexShrink: 0 }}>
+          @{activeSession.location_name}
         </span>
-        {activeSession.location_name && (
-          <span style={{ fontFamily: VT, fontSize: '1.1rem', letterSpacing: 2, color: 'rgba(255,255,255,0.9)', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.22)', padding: '1px 12px' }}>
-            @{activeSession.location_name}
-          </span>
-        )}
-        <span style={{ fontFamily: VT, fontSize: '1.1rem', letterSpacing: 2, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320 }}>
-          {activeSession.title}
-        </span>
-      </div>
+      )}
 
-      {/* Body */}
-      <div style={{ display: 'flex', gap: 20, justifyContent: 'center' }}>
+      <span style={{ fontFamily: VT, fontSize: '1.4rem', letterSpacing: 1, color: 'rgba(0,0,0,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+        {activeSession.title}
+      </span>
 
-        {/* Left: timers + node list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <span style={{ fontFamily: VT, fontSize: '1.7rem', letterSpacing: 2, color: isPaused ? PAUSE_BLUE : '#000', flexShrink: 0 }}>
+        {fmtTimer(sessionElapsed)}
+      </span>
 
-          {/* Timers + node list box */}
-          <div style={{ display: 'flex', gap: 12, flexShrink: 0, alignSelf: 'center', alignItems: 'stretch' }}>
-            <div style={{ width: 220, border: '1px solid rgba(255,255,255,0.35)', background: '#111', padding: '16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-              <div style={{ fontFamily: VT, fontSize: '0.78rem', letterSpacing: 3, color: 'rgba(255,255,255,0.6)', marginBottom: -4 }}>CURRENT SESSION</div>
-              <div style={{ fontFamily: VT, fontSize: '1.85rem', letterSpacing: 3, color: isPaused ? '#60a5fa' : '#fff', lineHeight: 1 }}>
-                {fmtTimer(sessionElapsed)}
-              </div>
-              {endMode ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, marginTop: 4 }}>
-                  <div style={{ fontFamily: VT, fontSize: '0.72rem', letterSpacing: 2, color: 'rgba(255,255,255,0.35)' }}>SET END TIME</div>
-                  <input
-                    type="time"
-                    value={customEndTime}
-                    onChange={e => setCustomEndTime(e.target.value)}
-                    style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 2, background: '#0d0d0d', border: '1px solid rgba(248,113,113,0.4)', color: '#f87171', padding: '3px 10px', outline: 'none', width: 100, textAlign: 'center' }}
-                  />
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    <button
-                      onClick={confirmEndAt}
-                      style={{ fontFamily: VT, fontSize: '0.85rem', letterSpacing: 1, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.4)', color: '#f87171', padding: '2px 12px', cursor: 'pointer' }}
-                    >✓ confirm</button>
-                    <button
-                      onClick={() => setEndMode(false)}
-                      style={{ fontFamily: VT, fontSize: '0.85rem', letterSpacing: 1, background: 'none', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.3)', padding: '2px 10px', cursor: 'pointer' }}
-                    >✗</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
-                  {isPaused ? (
-                    <button
-                      onClick={() => { const p = activePauses.find(x => !x.resumed_at); if (p) resume(p.id); }}
-                      style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.35)', color: '#60a5fa', padding: '3px 14px', cursor: 'pointer' }}
-                    >▶ resume</button>
-                  ) : (
-                    <button
-                      onClick={pauseManual}
-                      style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)', padding: '3px 14px', cursor: 'pointer' }}
-                    >⏸ pause</button>
-                  )}
-                  <button
-                    onClick={openEndMode}
-                    style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 1, background: 'rgba(248,113,113,0.07)', border: '1px solid rgba(248,113,113,0.28)', color: '#f87171', padding: '3px 14px', cursor: 'pointer' }}
-                  >■ end</button>
-                </div>
-              )}
-            </div>
-
-            {/* Node list box */}
-            <div style={{ border: '1px solid rgba(255,255,255,0.2)', background: '#111', padding: '12px 14px', display: 'flex', flexDirection: 'column', minWidth: 420, maxWidth: 560, overflow: 'hidden', flex: 1 }}>
-              <div style={{ fontFamily: VT, fontSize: '0.62rem', letterSpacing: 2, color: 'rgba(255,255,255,0.25)', marginBottom: 8, textTransform: 'uppercase', flexShrink: 0 }}>nodes</div>
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {[...inProgress, ...queued, ...done].map(n => {
-                  const nc = n.status === 'done' ? '#4ade80' : n.status === 'incomplete' ? '#f87171' : n.status === 'in_progress' ? ACC : 'rgba(255,255,255,0.28)';
-                  const mins = n.total_minutes != null ? (n.total_minutes < 1 ? '<1m' : `${Math.round(n.total_minutes)}m`) : null;
-                  return (
-                    <div key={n.node_id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ width: 6, height: 6, background: nc, flexShrink: 0 }} />
-                      <span style={{ fontFamily: VT, fontSize: '0.88rem', letterSpacing: 0.5, color: n.status === 'done' ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.72)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: n.status === 'done' ? 'line-through' : 'none' }}>
-                        {n.title}
-                      </span>
-                      {mins && <span style={{ fontFamily: VT, fontSize: '0.72rem', color: 'rgba(255,255,255,0.22)', flexShrink: 0 }}>{mins}</span>}
-                    </div>
-                  );
-                })}
-                {activeSessionNodes.length === 0 && (
-                  <div style={{ fontFamily: VT, fontSize: '0.82rem', color: 'rgba(255,255,255,0.14)', letterSpacing: 1 }}>no nodes</div>
-                )}
-              </div>
-            </div>
-
-
-            {/* Activity box */}
-            <div style={{ border: '1px solid rgba(255,255,255,0.2)', background: '#111', padding: '12px 14px', display: 'flex', flexDirection: 'column', width: 260, flexShrink: 0, overflow: 'hidden' }}>
-              <div style={{ fontFamily: VT, fontSize: '0.62rem', letterSpacing: 2, color: 'rgba(255,255,255,0.25)', marginBottom: 8, textTransform: 'uppercase', flexShrink: 0 }}>activity</div>
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {activityItems.length === 0 && (
-                  <div style={{ fontFamily: VT, fontSize: '0.8rem', color: 'rgba(255,255,255,0.1)', letterSpacing: 1 }}>—</div>
-                )}
-                {activityItems.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6, padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <span style={{ fontFamily: VT, fontSize: '0.85rem', letterSpacing: 1, color: item.ongoing ? item.color : 'rgba(255,255,255,0.38)' }}>
-                      {item.label}{item.ongoing ? ' ···' : ''}
-                    </span>
-                    <span style={{ fontFamily: VT, fontSize: '0.72rem', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>
-                      {fmtMs(item.durMs)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+      {endMode ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <input
+            type="time"
+            value={customEndTime}
+            onChange={e => setCustomEndTime(e.target.value)}
+            style={{ fontFamily: VT, fontSize: '1.05rem', letterSpacing: 1, background: '#0d0d0d', border: '1px solid rgba(0,0,0,0.35)', color: '#f87171', padding: '3px 8px', outline: 'none', width: 100 }}
+          />
+          <button
+            onClick={confirmEndAt}
+            style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 1, background: 'rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.4)', color: '#c0392b', padding: '3px 12px', cursor: 'pointer' }}
+          >✓</button>
+          <button
+            onClick={() => setEndMode(false)}
+            style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 1, background: 'none', border: '1px solid rgba(0,0,0,0.25)', color: 'rgba(0,0,0,0.5)', padding: '3px 10px', cursor: 'pointer' }}
+          >✗</button>
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {isPaused ? (
+            <button
+              onClick={() => { const p = activePauses.find(x => !x.resumed_at); if (p) resume(p.id); }}
+              style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 1, background: 'rgba(0,85,255,0.1)', border: '1px solid rgba(0,85,255,0.4)', color: PAUSE_BLUE, padding: '4px 14px', cursor: 'pointer' }}
+            >▶ resume</button>
+          ) : (
+            <button
+              onClick={pauseManual}
+              style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 1, background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.3)', color: 'rgba(0,0,0,0.6)', padding: '4px 14px', cursor: 'pointer' }}
+            >⏸ pause</button>
+          )}
+          <button
+            onClick={openEndMode}
+            style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 1, background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(192,57,43,0.5)', color: '#c0392b', padding: '4px 14px', cursor: 'pointer' }}
+          >■ end</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -334,7 +218,7 @@ function SessionLogEntry({ session, onDelete }: { session: WorkSession; onDelete
   const statusLabel = session.status === 'completed' ? 'COMPLETED' : session.status === 'interrupted' ? 'INTERRUPTED' : session.status === 'planned' ? 'PLANNED' : session.status.toUpperCase();
 
   return (
-    <div style={{ marginBottom: 18, fontFamily: VT }}>
+    <div style={{ marginBottom: 2, fontFamily: VT }}>
       {/* $ prompt line */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, marginBottom: 2 }}>
         <span style={{ color: '#fff', fontSize: '0.95rem', letterSpacing: 1, marginRight: 6, flexShrink: 0 }}>$</span>
@@ -398,7 +282,7 @@ function SessionLogEntry({ session, onDelete }: { session: WorkSession; onDelete
       </div>
 
       {/* Nodes */}
-      <div style={{ paddingLeft: 16, marginTop: 6 }}>
+      <div style={{ paddingLeft: 16, marginTop: 3 }}>
 {nodes.length === 0 ? (
             <div style={{ color: 'rgba(255,255,255,0.18)', fontSize: '0.85rem', letterSpacing: 1 }}>no nodes</div>
           ) : (
@@ -409,7 +293,7 @@ function SessionLogEntry({ session, onDelete }: { session: WorkSession; onDelete
                 const sym = done ? '✓' : n.status === 'incomplete' ? '✗' : '○';
                 const symColor = done ? '#4ade80' : n.status === 'incomplete' ? '#f87171' : 'rgba(255,255,255,0.3)';
                 return (
-                  <div key={n.node_id} style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
+                  <div key={n.node_id} style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 1 }}>
                     <span style={{ color: symColor, fontSize: '0.85rem', flexShrink: 0, width: 12 }}>{sym}</span>
                     <span style={{ color: done ? `${n.arc_color}66` : n.arc_color, fontSize: '0.88rem', letterSpacing: 0.5, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
                     <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.78rem', flexShrink: 0 }}>{mins}</span>
@@ -421,7 +305,7 @@ function SessionLogEntry({ session, onDelete }: { session: WorkSession; onDelete
         </div>
 
       {/* Delete */}
-      <div style={{ paddingLeft: 16, marginTop: 5, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ paddingLeft: 16, marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ color: 'rgba(255,255,255,0.1)', fontSize: '0.78rem' }}>{'─'.repeat(4)}</span>
         <button
           onClick={handleDelete}
@@ -513,10 +397,9 @@ function LocationEditorPopup({ onClose }: { onClose: () => void }) {
 
 // ── Session builder ───────────────────────────────────────────────────────────
 
-function SessionBuilder() {
-  const { locations, activeSession, startUnplanned } = useSessionStore();
+function SessionBuilder({ onEditLocations }: { onEditLocations: () => void }) {
+  const { locations, startUnplanned } = useSessionStore();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [editingLocations, setEditingLocations] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const handleStart = async () => {
@@ -527,30 +410,41 @@ function SessionBuilder() {
     setStarting(false);
   };
 
-  const canStart = !!selectedLocationId && !activeSession;
+  const canStart = !!selectedLocationId;
+  const selectedLocation = locations.find(loc => loc.id === selectedLocationId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {editingLocations && <LocationEditorPopup onClose={() => setEditingLocations(false)} />}
-
       {/* Locations */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontFamily: VT, fontSize: '0.95rem', letterSpacing: 3, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase' }}>location</div>
-          <button onClick={() => setEditingLocations(true)} style={{ fontFamily: VT, fontSize: '0.7rem', letterSpacing: 2, background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.25)', padding: '2px 8px', cursor: 'pointer', textTransform: 'uppercase' }} onMouseEnter={e => { e.currentTarget.style.color = ACC; e.currentTarget.style.borderColor = `${ACC}55`; }} onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.25)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}>edit list</button>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingLeft: 12 }}>
-          {locations.map(loc => (
-            <button key={loc.id} onClick={() => setSelectedLocationId(loc.id === selectedLocationId ? null : loc.id)} style={{ fontFamily: VT, fontSize: '0.9rem', letterSpacing: 1, background: selectedLocationId === loc.id ? `${ACC}22` : 'none', border: `1px solid ${selectedLocationId === loc.id ? ACC : 'rgba(255,255,255,0.15)'}`, color: selectedLocationId === loc.id ? ACC : 'rgba(255,255,255,0.5)', padding: '3px 10px', cursor: 'pointer', transition: 'all 0.1s' }}>{loc.name}</button>
-          ))}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          {locations.map((loc, i) => {
+            const selected = loc.id === selectedLocationId;
+            return (
+              <span key={loc.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {i > 0 && <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.9rem' }}>·</span>}
+                <button
+                  onClick={() => setSelectedLocationId(selected ? null : loc.id)}
+                  style={{ fontFamily: VT, fontSize: '0.9rem', letterSpacing: 1, background: 'none', border: 'none', color: selected ? ACC : 'rgba(255,255,255,0.5)', padding: 0, cursor: 'pointer', transition: 'color 0.1s' }}
+                  onMouseEnter={e => { if (!selected) e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; }}
+                  onMouseLeave={e => { if (!selected) e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+                >{loc.name}</button>
+              </span>
+            );
+          })}
           {locations.length === 0 && (
-            <span style={{ fontFamily: VT, fontSize: '0.8rem', color: 'rgba(255,255,255,0.18)', letterSpacing: 1 }}>no locations — use edit list to add</span>
+            <button
+              onClick={onEditLocations}
+              style={{ fontFamily: VT, fontSize: '0.8rem', letterSpacing: 1, background: 'none', border: 'none', color: 'rgba(255,255,255,0.22)', cursor: 'pointer', padding: 0, transition: 'color 0.1s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = ACC)}
+              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.22)')}
+            >no locations — edit list to add</button>
           )}
         </div>
       </div>
 
-      <button onClick={handleStart} disabled={!canStart || starting} style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 2, background: canStart ? `${ACC}22` : 'none', border: `1px solid ${canStart ? ACC : 'rgba(255,255,255,0.1)'}`, color: canStart ? ACC : 'rgba(255,255,255,0.2)', padding: '6px 0', cursor: canStart ? 'pointer' : 'default', transition: 'all 0.15s', width: '100%' }}>
-        {starting ? 'starting...' : activeSession ? 'end session to start new' : 'start session'}
+      <button onClick={handleStart} disabled={!canStart || starting} style={{ fontFamily: VT, fontSize: '1rem', letterSpacing: 2, background: canStart ? `${ACC}18` : 'none', border: 'none', color: canStart ? ACC : 'rgba(255,255,255,0.2)', padding: '6px 0', cursor: canStart ? 'pointer' : 'default', transition: 'all 0.15s', width: '100%' }}>
+        {starting ? 'starting...' : selectedLocation ? `start @${selectedLocation.name}` : 'start session'}
       </button>
     </div>
   );
@@ -558,124 +452,268 @@ function SessionBuilder() {
 
 // ── Analytics panel ───────────────────────────────────────────────────────────
 
-const todayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-
-const weekRange = (): { from: string; to: string } => {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun
-  const diffToMon = (day === 0 ? -6 : 1 - day);
-  const mon = new Date(now); mon.setDate(now.getDate() + diffToMon); mon.setHours(0,0,0,0);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  return { from: fmt(mon), to: fmt(sun) };
-};
-
-function StatChip({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', alignItems: 'center', textAlign: 'center' }}>
-      <span style={{ fontFamily: VT, fontSize: '0.7rem', letterSpacing: 3, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>{label}</span>
-      <span style={{ fontFamily: VT, fontSize: '1.6rem', letterSpacing: 2, color: '#fff', lineHeight: 1 }}>{value}</span>
-    </div>
-  );
-}
-
 const TEAL = '#00c4a7';
 
-// ── Work sparkline ────────────────────────────────────────────────────────────
+// ── Session duration histogram ──────────────────────────────────────────────────
 
-function WorkSparkline({ sessions, activeSession }: { sessions: WorkSession[]; activeSession: WorkSession | null }) {
-  const data = useMemo(() => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayDs = todayStr();
-    const days: { ds: string; label: string; hours: number; isToday: boolean }[] = [];
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(today); d.setDate(today.getDate() - i);
-      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const isToday = ds === todayDs;
-      const label = (i % 7 === 0 || isToday)
-        ? isToday ? 'today' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        : '';
-      days.push({ ds, label, hours: 0, isToday });
-    }
+const DURATION_BUCKETS = [
+  { label: '0-1', maxMs: 60 * 60000 },
+  { label: '1-2', maxMs: 120 * 60000 },
+  { label: '2-3', maxMs: 180 * 60000 },
+  { label: '3-4', maxMs: 240 * 60000 },
+  { label: '4-5', maxMs: 300 * 60000 },
+  { label: '5-6', maxMs: 360 * 60000 },
+  { label: '6+', maxMs: Infinity },
+];
+
+type DurationMetric = 'count' | 'hours';
+
+function SessionDurationHistogram({ sessions, activeSession }: { sessions: WorkSession[]; activeSession: WorkSession | null }) {
+  const [metric, setMetric] = useState<DurationMetric>('count');
+
+  const { data, medianMs } = useMemo(() => {
+    const buckets = DURATION_BUCKETS.map(b => ({ label: b.label, count: 0, totalMs: 0, hours: 0 }));
+    const durations: number[] = [];
     for (const s of sessions) {
-      if (!s.actual_start || !s.planned_date) continue;
-      const idx = days.findIndex(d => d.ds === s.planned_date);
-      if (idx === -1) continue;
+      if (!s.actual_start) continue;
       const start = new Date(s.actual_start).getTime();
       const end = s.actual_end ? new Date(s.actual_end).getTime() : s.id === activeSession?.id ? Date.now() : start;
-      days[idx].hours += Math.max(0, end - start) / 3600000;
+      const dur = end - start;
+      if (dur <= 0) continue;
+      durations.push(dur);
+      const idx = DURATION_BUCKETS.findIndex(b => dur <= b.maxMs);
+      const bucket = buckets[idx === -1 ? buckets.length - 1 : idx];
+      bucket.count += 1;
+      bucket.totalMs += dur;
     }
-    return days;
+    for (const b of buckets) b.hours = Math.round((b.totalMs / 3600000) * 10) / 10;
+    durations.sort((a, b) => a - b);
+    const mid = Math.floor(durations.length / 2);
+    const median = durations.length === 0
+      ? 0
+      : durations.length % 2 === 1 ? durations[mid] : (durations[mid - 1] + durations[mid]) / 2;
+    return { data: buckets, medianMs: median };
   }, [sessions, activeSession?.id]);
+
+  const hasData = data.some(d => d.count > 0);
+  if (!hasData) return null;
+  const maxValue = Math.max(1, ...data.map(d => d[metric]));
+  const medianBucketLabel = (DURATION_BUCKETS.find(b => medianMs <= b.maxMs) ?? DURATION_BUCKETS[DURATION_BUCKETS.length - 1]).label;
 
   return (
     <div>
-      <div style={{ fontFamily: VT, fontSize: '0.7rem', letterSpacing: 3, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: 6 }}>14-day pulse</div>
-      <ChartContainer config={{ hours: { label: 'Hours', color: TEAL } }} style={{ width: '100%', height: 120 }}>
-        <ComposedChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <div style={{ fontFamily: VT, fontSize: '0.7rem', letterSpacing: 3, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>session length</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: VT, fontSize: '0.68rem', letterSpacing: 1, textTransform: 'uppercase' }}>
+          <button
+            onClick={() => setMetric('count')}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: metric === 'count' ? ACC : 'rgba(255,255,255,0.3)' }}
+          >
+            sessions
+          </button>
+          <span style={{ color: 'rgba(255,255,255,0.15)' }}>·</span>
+          <button
+            onClick={() => setMetric('hours')}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: metric === 'hours' ? ACC : 'rgba(255,255,255,0.3)' }}
+          >
+            hours
+          </button>
+        </div>
+      </div>
+      <ChartContainer config={{ count: { label: 'Sessions', color: TEAL }, hours: { label: 'Hours', color: TEAL } }} style={{ width: '100%', height: 120 }}>
+        <BarChart data={data} margin={{ top: 20, right: 4, left: 4, bottom: 4 }}>
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
           <XAxis
             dataKey="label"
             axisLine={false}
             tickLine={false}
             interval={0}
-            tick={(props: { x: number; y: number; payload: { value: string }; index: number }) => {
-              const { x, y, payload, index } = props;
-              if (!payload.value) return <g />;
-              const isToday = data[index]?.isToday;
-              return (
-                <g transform={`translate(${x},${y})`}>
-                  <text x={0} y={12} textAnchor="middle" fill={isToday ? ACC : 'rgba(255,255,255,0.25)'} fontSize={10} fontFamily={VT}>
-                    {payload.value}
-                  </text>
-                </g>
-              );
-            }}
+            tick={{ fontFamily: VT, fontSize: 12, fill: 'rgba(255,255,255,0.6)' }}
           />
           <YAxis hide domain={[0, 'auto']} />
           <ChartTooltip
-            allowEscapeViewBox={{ x: true, y: true }}
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
-              const pt = payload[0].payload as { ds: string; hours: number };
-              const h = Math.floor(pt.hours), m = Math.round((pt.hours - h) * 60);
+              const pt = payload[0].payload as { label: string; count: number; hours: number; totalMs: number };
               return (
                 <div style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.15)', padding: '3px 10px', fontFamily: VT, fontSize: '0.88rem', color: '#fff', whiteSpace: 'nowrap' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>{fmtDate(pt.ds)}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>{pt.label}</span>
                   {' · '}
-                  <span style={{ color: TEAL }}>{h > 0 ? `${h}h ${m}m` : `${m}m`}</span>
+                  <span style={{ color: TEAL }}>
+                    {metric === 'count' ? `${pt.count} session${pt.count === 1 ? '' : 's'}` : fmtMs(pt.totalMs)}
+                  </span>
                 </div>
               );
             }}
           />
-          <Bar dataKey="hours" fill={TEAL} opacity={0.18} radius={[2, 2, 0, 0]} />
-          <Line
-            type="monotone"
-            dataKey="hours"
-            stroke={TEAL}
-            strokeWidth={2}
-            dot={(props: { cx: number; cy: number; index: number }) => {
-              const { cx, cy, index } = props;
-              const pt = data[index];
-              if (!pt) return <g />;
-              return (
-                <Dot
-                  key={index}
-                  cx={cx} cy={cy}
-                  r={pt.isToday ? 5 : 3}
-                  fill={pt.isToday ? ACC : TEAL}
-                  stroke={pt.isToday ? '#000' : 'none'}
-                  strokeWidth={pt.isToday ? 1.5 : 0}
-                />
-              );
-            }}
-            activeDot={{ r: 5, fill: ACC, stroke: '#000', strokeWidth: 1.5 }}
-          />
-        </ComposedChart>
+          <ReferenceLine x={medianBucketLabel} stroke={ACC} strokeDasharray="3 3" strokeWidth={1.5}>
+            <Label value={`median ${fmtMs(medianMs)}`} position="top" fill={ACC} fontSize={14} fontFamily={VT} />
+          </ReferenceLine>
+          <Bar dataKey={metric} radius={0}>
+            {data.map((d, i) => (
+              <Cell key={i} fill={d[metric] === maxValue ? ACC : TEAL} fillOpacity={d[metric] === 0 ? 0.08 : 0.35 + (d[metric] / maxValue) * 0.55} />
+            ))}
+          </Bar>
+        </BarChart>
       </ChartContainer>
+    </div>
+  );
+}
+
+// ── Work heatmap (day × hour, all-time) ─────────────────────────────────────────
+
+const DOW_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const HEATMAP_HOUR_MARKS = new Set([0, 6, 12, 18]);
+const HEATMAP_GAP = 2;
+
+// Viridis: perceptually-uniform, colorblind-safe colormap — monotonic luminance ramp
+// so intensity reads correctly even for viewers who can't distinguish hue.
+const VIRIDIS_STOPS: [number, number, number][] = [
+  [68, 1, 84],
+  [72, 40, 120],
+  [62, 74, 137],
+  [49, 104, 142],
+  [38, 130, 142],
+  [31, 158, 137],
+  [53, 183, 121],
+  [109, 205, 89],
+  [180, 222, 44],
+  [253, 231, 37],
+];
+
+function viridisRgb(t: number): string {
+  const scaled = Math.min(1, Math.max(0, t)) * (VIRIDIS_STOPS.length - 1);
+  const i = Math.min(VIRIDIS_STOPS.length - 2, Math.floor(scaled));
+  const frac = scaled - i;
+  const [r0, g0, b0] = VIRIDIS_STOPS[i];
+  const [r1, g1, b1] = VIRIDIS_STOPS[i + 1];
+  const r = Math.round(r0 + (r1 - r0) * frac);
+  const g = Math.round(g0 + (g1 - g0) * frac);
+  const b = Math.round(b0 + (b1 - b0) * frac);
+  return `${r},${g},${b}`;
+}
+
+function hourLabel(hour: number): string {
+  if (hour === 0) return '12a';
+  if (hour === 12) return '12p';
+  return hour < 12 ? `${hour}a` : `${hour - 12}p`;
+}
+
+function WorkHeatmap({ sessions, activeSession }: { sessions: WorkSession[]; activeSession: WorkSession | null }) {
+  const [now, setNow] = useState(() => new Date());
+  const [hovered, setHovered] = useState<{ dow: number; hour: number } | null>(null);
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  const nowDow = (now.getDay() + 6) % 7;
+  const nowHour = now.getHours();
+
+  const grid = useMemo(() => {
+    const cells = Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
+    for (const s of sessions) {
+      if (!s.actual_start) continue;
+      const start = new Date(s.actual_start).getTime();
+      const end = s.actual_end
+        ? new Date(s.actual_end).getTime()
+        : s.id === activeSession?.id ? Date.now() : start;
+      if (end <= start) continue;
+
+      let cursor = start;
+      while (cursor < end) {
+        const d = new Date(cursor);
+        const dow = (d.getDay() + 6) % 7; // 0=Mon .. 6=Sun
+        const hour = d.getHours();
+        const hourEnd = new Date(d);
+        hourEnd.setMinutes(0, 0, 0);
+        hourEnd.setHours(hour + 1);
+        const boundary = Math.min(hourEnd.getTime(), end);
+        cells[dow][hour] += boundary - cursor;
+        cursor = boundary;
+      }
+    }
+    return cells;
+  }, [sessions, activeSession?.id]);
+
+  const maxMs = Math.max(1, ...grid.flatMap(row => row));
+  const hasData = grid.some(row => row.some(ms => ms > 0));
+  if (!hasData) return null;
+
+  return (
+    <div>
+      <div style={{ fontFamily: VT, fontSize: '0.7rem', letterSpacing: 3, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', marginBottom: 10 }}>
+        by day / hour
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: HEATMAP_GAP }}>
+        {DOW_LABELS.map((label, dow) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: '3ch', flexShrink: 0, fontFamily: VT, fontSize: '0.75rem', letterSpacing: 1, color: 'rgba(255,255,255,0.6)' }}>
+              {label}
+            </span>
+            <div style={{ display: 'flex', flex: 1, minWidth: 0, gap: HEATMAP_GAP }}>
+              {grid[dow].map((ms, hour) => {
+                const intensity = ms / maxMs;
+                const rgb = viridisRgb(0.12 + intensity * 0.88);
+                const bg = ms === 0 ? 'rgba(255,255,255,0.05)' : `rgba(${rgb},0.9)`;
+                const glow = intensity > 0.75 ? `0 0 6px rgba(${rgb},0.6)` : 'none';
+                const isNow = dow === nowDow && hour === nowHour;
+                const isHovered = hovered?.dow === dow && hovered?.hour === hour;
+                const align = hour < 4 ? 'left' : hour > 19 ? 'right' : 'center';
+                return (
+                  <div
+                    key={hour}
+                    onMouseEnter={() => setHovered({ dow, hour })}
+                    onMouseLeave={() => setHovered(prev => (prev?.dow === dow && prev?.hour === hour ? null : prev))}
+                    style={{
+                      position: 'relative',
+                      flex: '1 1 0%', minWidth: 0, aspectRatio: '1', background: bg, borderRadius: 2, boxShadow: glow,
+                      outline: isNow ? `1px solid ${ACC}` : isHovered ? '1px solid rgba(255,255,255,0.5)' : 'none',
+                      outlineOffset: isNow || isHovered ? 1 : 0,
+                      transform: isHovered ? 'scale(1.25)' : 'scale(1)',
+                      transition: 'transform 0.08s ease-out',
+                      zIndex: isHovered ? 2 : 1,
+                    }}
+                  >
+                    {isHovered && (
+                      <div
+                        style={{
+                          position: 'absolute', bottom: '100%', marginBottom: 6,
+                          left: align === 'left' ? 0 : align === 'center' ? '50%' : 'auto',
+                          right: align === 'right' ? 0 : 'auto',
+                          transform: align === 'center' ? 'translateX(-50%)' : 'none',
+                          background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.15)', padding: '4px 9px',
+                          fontFamily: VT, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 10,
+                        }}
+                      >
+                        <div style={{ fontSize: '0.6rem', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+                          {label} {hourLabel(hour)}{isNow ? ' · now' : ''}
+                        </div>
+                        <div style={{ fontSize: '0.82rem', color: ms > 0 ? `rgb(${rgb})` : 'rgba(255,255,255,0.3)' }}>
+                          {ms > 0 ? fmtMs(ms) : 'no activity'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: HEATMAP_GAP, marginLeft: 'calc(3ch + 6px)', marginTop: 2 }}>
+          {Array.from({ length: 24 }, (_, hour) => (
+            <span
+              key={hour}
+              style={{
+                flex: '1 1 0%', minWidth: 0, textAlign: 'center', overflow: 'visible', whiteSpace: 'nowrap',
+                fontFamily: VT, fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)',
+              }}
+            >
+              {HEATMAP_HOUR_MARKS.has(hour) ? hourLabel(hour) : ''}
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -777,67 +815,12 @@ function LocationRank({ sessions }: { sessions: WorkSession[] }) {
 
 // ── Analytics panel ── (stat chips + charts) ──────────────────────────────────
 
-function AnalyticsPanel({ sessions, activeSession }: { sessions: WorkSession[]; activeSession: WorkSession | null }) {
-  const [tasksDoneToday, setTasksDoneToday] = useState(0);
-  const [tick, setTick] = useState(0);
-
-  // Live tick for active session time
-  useEffect(() => {
-    if (!activeSession?.actual_start) return;
-    const id = setInterval(() => setTick(t => t + 1), 10000);
-    return () => clearInterval(id);
-  }, [activeSession?.actual_start]);
-
-  // Load done tasks for today's sessions
-  useEffect(() => {
-    const today = todayStr();
-    const todaySessions = sessions.filter(s => s.planned_date === today);
-    if (!todaySessions.length) { setTasksDoneToday(0); return; }
-    Promise.all(todaySessions.map(s => loadSessionNodes(s.id)))
-      .then(results => {
-        const done = results.flat().filter(n => n.status === 'done').length;
-        setTasksDoneToday(done);
-      })
-      .catch(() => {});
-  }, [sessions]);
-
-  // Time today (ms)
-  const timeToday = useMemo(() => {
-    const today = todayStr();
-    return sessions
-      .filter(s => s.planned_date === today)
-      .reduce((sum, s) => {
-        if (!s.actual_start) return sum;
-        const start = new Date(s.actual_start).getTime();
-        const end = s.actual_end ? new Date(s.actual_end).getTime() : (s.id === activeSession?.id ? Date.now() : start);
-        return sum + Math.max(0, end - start);
-      }, 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, activeSession?.id, tick]);
-
-  // Sessions this week
-  const sessionsThisWeek = useMemo(() => {
-    const { from, to } = weekRange();
-    return sessions.filter(s => s.planned_date >= from && s.planned_date <= to).length;
-  }, [sessions]);
-
-  const fmtMs = (ms: number) => {
-    const totalMin = Math.floor(ms / 60000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    if (h > 0) return `${h}h ${String(m).padStart(2,'0')}m`;
-    return `${m}m`;
-  };
-
+function AnalyticsPanel({ allTimeSessions, activeSession }: { allTimeSessions: WorkSession[]; activeSession: WorkSession | null }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', flexDirection: 'row', gap: 8 }}>
-        <StatChip label="time today" value={timeToday > 0 ? fmtMs(timeToday) : '—'} />
-        <StatChip label="sessions this week" value={String(sessionsThisWeek)} />
-        <StatChip label="tasks done today" value={String(tasksDoneToday)} />
-      </div>
-      <WorkSparkline sessions={sessions} activeSession={activeSession} />
-      <LocationRank sessions={sessions} />
+      <SessionDurationHistogram sessions={allTimeSessions} activeSession={activeSession} />
+      <WorkHeatmap sessions={allTimeSessions} activeSession={activeSession} />
+      <LocationRank sessions={allTimeSessions} />
     </div>
   );
 }
@@ -846,14 +829,17 @@ function AnalyticsPanel({ sessions, activeSession }: { sessions: WorkSession[]; 
 
 export default function OnTheClockView() {
   const store = useSessionStore();
-  const { activeSession, activeSessionNodes, activePauses } = store;
+  const { activeSession, activePauses, locations } = store;
   const [sessions, setSessions] = useState<WorkSession[]>([]);
+  const [allTimeSessions, setAllTimeSessions] = useState<WorkSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
+  const [editingLocations, setEditingLocations] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
-    const all = await loadAllSessions();
+    const [all, allTimed] = await Promise.all([loadAllSessions(), loadAllTimedSessions()]);
     setSessions(all);
+    setAllTimeSessions(allTimed);
     setLoadingSessions(false);
   }, []);
 
@@ -863,28 +849,16 @@ export default function OnTheClockView() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
 
-      {/* ── Central stage ── */}
-      <div style={{
-        height: 280, flexShrink: 0,
-        background: '#000',
-      }}>
-        {activeSession
-          ? <ActiveStage activeSession={activeSession} activeSessionNodes={activeSessionNodes} activePauses={activePauses} />
-          : <Skeleton />
-        }
-      </div>
+      {/* ── Session status bar (active session only) ── */}
+      {activeSession && (
+        <SessionStatusBar activeSession={activeSession} activePauses={activePauses} />
+      )}
 
       {/* ── Bottom two columns ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* Session planner */}
-        <div style={{ width: 400, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase', marginBottom: 16 }}><Feather style={{ width: 18, height: 18, flexShrink: 0 }} />Start Session</div>
-          <SessionBuilder />
-        </div>
-
-        {/* Session log */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+        {/* Left: Session log */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px 14px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase' }}><Computer style={{ width: 18, height: 18, flexShrink: 0 }} />session log</div>
           </div>
@@ -899,12 +873,32 @@ export default function OnTheClockView() {
           </div>
         </div>
 
-        {/* Analytics */}
-        <div style={{ width: 400, flexShrink: 0, overflow: 'visible', padding: '20px 24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase', marginBottom: 14 }}>
-            <BracesContent style={{ width: 18, height: 18, flexShrink: 0 }} />analytics
+        {/* Right: Start Session + Analytics stacked */}
+        <div style={{ width: 400, flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.08)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {editingLocations && <LocationEditorPopup onClose={() => setEditingLocations(false)} />}
+          {!activeSession && (
+            <div style={{ padding: '20px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase' }}><Feather style={{ width: 18, height: 18, flexShrink: 0 }} />Start Session</div>
+                {locations.length > 0 && (
+                  <button
+                    onClick={() => setEditingLocations(true)}
+                    style={{ fontFamily: VT, fontSize: '0.75rem', letterSpacing: 1, background: 'none', border: 'none', color: 'rgba(255,255,255,0.22)', cursor: 'pointer', padding: 0, textTransform: 'uppercase', transition: 'color 0.1s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = ACC)}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.22)')}
+                  >edit list</button>
+                )}
+              </div>
+              <SessionBuilder onEditLocations={() => setEditingLocations(true)} />
+            </div>
+          )}
+
+          <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: VT, fontSize: '1.1rem', letterSpacing: 3, color: '#fff', textTransform: 'uppercase', marginBottom: 14 }}>
+              <BracesContent style={{ width: 18, height: 18, flexShrink: 0 }} />analytics
+            </div>
+            <AnalyticsPanel allTimeSessions={allTimeSessions} activeSession={activeSession} />
           </div>
-          <AnalyticsPanel sessions={sessions} activeSession={activeSession} />
         </div>
       </div>
     </div>

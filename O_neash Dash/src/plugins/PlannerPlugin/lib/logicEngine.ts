@@ -166,6 +166,25 @@ export function computePressureScore(
   };
 }
 
+// ─── Today / overdue selectors (shared by PlannerHeader + TodayView) ─────────
+export function getTodayNodes(nodes: PlannerNode[], now: Date): PlannerNode[] {
+  return nodes.filter(n =>
+    n.node_type !== 'event' &&
+    !n.is_overdue &&
+    !n.is_missed_schedule &&
+    !n.is_completed &&
+    (isSameDay(n.planned_start_at, now) || isSameDay(n.due_at, now)),
+  );
+}
+
+export function getOverdueNodes(nodes: PlannerNode[]): PlannerNode[] {
+  return nodes
+    .filter(n => (n.is_overdue || n.is_missed_schedule) && !n.is_completed)
+    .sort((a, b) =>
+      (a.due_at ?? a.planned_start_at ?? '').localeCompare(b.due_at ?? b.planned_start_at ?? ''),
+    );
+}
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 export function isSameDay(dateStr: string | null | undefined, ref: Date): boolean {
   if (!dateStr) return false;

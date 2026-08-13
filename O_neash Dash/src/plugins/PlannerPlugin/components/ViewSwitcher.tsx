@@ -5,7 +5,7 @@ import type { PlannerViewType } from '../types';
 
 const VIEWS: { id: PlannerViewType; label: string; icon: React.ReactNode }[] = [
   { id: 'today',        label: 'today',        icon: <Zap      size={18} /> },
-  { id: 'eisenhower',   label: 'eisenhower',   icon: <Grid2x22 size={18} /> },
+  { id: 'eisenhower',   label: 'field',        icon: <Grid2x22 size={18} /> },
   { id: 'routines',     label: 'routines',     icon: <Reload   size={18} /> },
   { id: 'on-the-clock', label: 'on the clock', icon: <Clock    size={18} /> },
 ];

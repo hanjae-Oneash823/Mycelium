@@ -30,6 +30,15 @@ export interface Project {
   created_at: string;
 }
 
+/** No status recorded means active; anything other than 'active' (archived, finished, …) is not. */
+export function isActiveArc(arc: Arc): boolean {
+  return !arc.status || arc.status === 'active';
+}
+
+export function isActiveProject(project: Project): boolean {
+  return !project.status || project.status === 'active';
+}
+
 export interface PlannerNode {
   id: string;
   project_id?: string | null;
@@ -141,7 +150,7 @@ export interface CreateNodeData {
 }
 
 
-export const DOT_COLOR_NEUTRAL  = '#7ecfff';
+export const DOT_COLOR_NEUTRAL  = '#9a9a9a';
 export const DOT_COLOR_OVERDUE  = '#ff3b3b';
 export const DOT_COLOR_MISSED   = '#f5c842';
 export const DOT_COLOR_EVENT    = '#888888';
