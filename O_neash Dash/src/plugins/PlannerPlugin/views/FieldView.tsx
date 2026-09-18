@@ -9,7 +9,7 @@ import type { PlannerNode, CreateNodeData } from '../types';
 import DotTooltip from '../components/DotTooltip';
 import TaskDetailPanel from '../components/TaskDetailPanel';
 import {
-  buildColumns, bucketColumn, seedParticle, tick, columnAt, bandAt, TOP_BOUND, launchParticle,
+  buildColumns, bucketColumn, seedParticle, tick, columnAt, bandAt, rowAt, TOP_BOUND, launchParticle,
 } from '../lib/fieldPhysics';
 import type { FieldColumn, FieldParticle } from '../lib/fieldPhysics';
 import { draw } from '../lib/fieldRender';
@@ -79,6 +79,8 @@ export default function FieldView() {
   const hoverIdRef = useRef<string | null>(null);
   const hoverZoneRef = useRef(-1);
   const hoverBandRef = useRef(-1);
+  const hoverCellZoneRef = useRef(-1);
+  const hoverCellRowRef = useRef(-1);
   const cursorRef = useRef({ x: 0, y: 0, active: false });
 
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,6 +142,8 @@ export default function FieldView() {
           selectedNodeId: selectedIdRef.current,
           hoverZone: hoverZoneRef.current,
           hoverBand: hoverBandRef.current,
+          hoverCellZone: hoverCellZoneRef.current,
+          hoverCellRow: hoverCellRowRef.current,
           cursor: cursorRef.current,
           reducedMotion,
           fontStack: fontStackRef.current,
@@ -162,6 +166,12 @@ export default function FieldView() {
     const hit = findNodeAt(Array.from(particleMapRef.current.values()), x, y);
     hoverIdRef.current = hit ? hit.node.id : null;
     setTooltip(hit ? { node: hit.node, x: rect.left + hit.x, y: rect.top + hit.y } : null);
+    if (y < TOP_BOUND) {
+      hoverCellZoneRef.current = -1; hoverCellRowRef.current = -1;
+    } else {
+      hoverCellZoneRef.current = columnAt(x, canvas.clientWidth, columns.length);
+      hoverCellRowRef.current = rowAt(y, canvas.clientHeight);
+    }
     if (selectedId) {
       hoverZoneRef.current = columnAt(x, canvas.clientWidth, columns.length);
       hoverBandRef.current = bandAt(y, canvas.clientHeight) ?? -1;
@@ -176,6 +186,8 @@ export default function FieldView() {
     hoverIdRef.current = null;
     hoverZoneRef.current = -1;
     hoverBandRef.current = -1;
+    hoverCellZoneRef.current = -1;
+    hoverCellRowRef.current = -1;
     cursorRef.current = { ...cursorRef.current, active: false };
     setTooltip(null);
   };

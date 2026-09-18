@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus } from 'pixelarticons/react/Plus';
 import { useRoutineStore } from '../store/useRoutineStore';
 import { usePlannerStore } from '../store/usePlannerStore';
 import { useArcVisibilityStore } from '../../../store/useArcVisibilityStore';
@@ -47,7 +46,7 @@ function addMins(time: string, mins: number): string {
   return `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`;
 }
 
-// ── RoutineRow — dense list row w/ inline habit heatmap ────────────────────────
+// ── RoutineCard — card w/ inline habit heatmap ──────────────────────────────
 
 const HEATMAP_DAYS = 21;
 const VT = "var(--font-main), var(--font-kr), monospace";
@@ -56,7 +55,6 @@ interface RowProps {
   routine:      Routine;
   nodes:        PlannerNode[];
   done:         number;
-  arcName?:     string;
   arcColor?:    string;
   projectName?: string;
   dayMap?:      Map<string, boolean>;
@@ -64,7 +62,7 @@ interface RowProps {
   onDelete:     () => void;
 }
 
-function RoutineRow({ routine, nodes, done, arcName, arcColor, projectName, dayMap, onEdit, onDelete }: RowProps) {
+function RoutineCard({ routine, nodes, done, arcColor, projectName, dayMap, onEdit, onDelete }: RowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [hov, setHov] = useState(false);
 
@@ -74,10 +72,11 @@ function RoutineRow({ routine, nodes, done, arcName, arcColor, projectName, dayM
     .map(n => (n.planned_start_at ?? '').slice(0, 10))
     .filter(d => d >= today)
     .sort()[0];
+  const isToday = nextDate === today;
 
   let statusLabel = '';
   let statusColor = 'rgba(255,255,255,0.25)';
-  if (nextDate === today) {
+  if (isToday) {
     statusLabel = 'TODAY';
     statusColor = 'var(--teal)';
   } else if (nextDate === tomorrow) {
@@ -101,106 +100,119 @@ function RoutineRow({ routine, nodes, done, arcName, arcColor, projectName, dayM
 
   const infoLine = [recurrenceLabel(routine), timeRange].filter(Boolean).join(' · ');
   const rowColor = routine.node_type === 'event' ? '#c084fc' : 'var(--teal)';
+  const cornerColor = arcColor ?? 'rgba(255,255,255,0.3)';
 
   const days = Array.from({ length: HEATMAP_DAYS }, (_, i) => toDateStr(addDays(new Date(), -(HEATMAP_DAYS - 1 - i))));
+
+  const corner = (pos: 'tl' | 'tr' | 'bl' | 'br', glyph: string) => (
+    <span style={{
+      position: 'absolute', ...({
+        tl: { top: -8, left: -1 }, tr: { top: -8, right: -1 },
+        bl: { bottom: -8, left: -1 }, br: { bottom: -8, right: -1 },
+      }[pos]),
+      fontSize: '0.9rem', lineHeight: 1, color: cornerColor, background: '#0a0a0a', padding: '0 1px',
+    }}>{glyph}</span>
+  );
 
   return (
     <div
       onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
+      onMouseLeave={() => { setHov(false); setMenuOpen(false); }}
       style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '5px 10px',
-        border: `1px solid ${hov ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.13)'}`,
-        background: nextDate === today ? 'rgba(0,196,167,0.03)' : hov ? 'rgba(255,255,255,0.02)' : 'transparent',
-        fontFamily: VT, fontSize: '1rem', letterSpacing: 0.5,
+        position: 'relative', display: 'flex', flexDirection: 'column', gap: 6,
+        padding: '10px 12px',
+        border: `1px solid ${hov ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.14)'}`,
+        background: isToday ? 'rgba(0,196,167,0.04)' : 'rgba(0,0,0,0.3)',
+        fontFamily: VT, letterSpacing: 0.3,
         transition: 'border-color 0.15s, background 0.15s',
       }}
     >
-      {/* Status dot */}
-      <span
-        className={nextDate === today ? 'routine-today-blink' : undefined}
-        title={statusLabel}
-        style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, flexShrink: 0 }}
-      />
+      {corner('tl', '┌')}{corner('tr', '┐')}{corner('bl', '└')}{corner('br', '┘')}
 
-      {/* Title */}
-      <span style={{
-        flex: '1 1 140px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        color: routine.importance_level ? 'var(--yellow)' : '#fff',
-      }}>
-        {routine.importance_level ? '★ ' : ''}{routine.title}
-      </span>
-
-      {/* Recurrence + time */}
-      <span style={{
-        flexShrink: 0, width: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        color: 'rgba(255,255,255,0.32)', fontSize: '0.85rem',
-      }}>
-        {infoLine}
-      </span>
-
-      {/* Arc / project */}
-      <span style={{ flexShrink: 0, width: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
-        {arcName && <span style={{ color: arcColor ?? 'rgba(255,255,255,0.35)' }}>{arcName}</span>}
-        {arcName && projectName && <span style={{ color: 'rgba(255,255,255,0.2)' }}> › </span>}
-        {projectName && <span style={{ color: arcColor ? `${arcColor}99` : 'rgba(255,255,255,0.25)' }}>{projectName}</span>}
-      </span>
-
-      {/* Habit heatmap — last 21 days */}
-      <span style={{ display: 'flex', gap: 2, flexShrink: 0 }} title={`${HEATMAP_DAYS}-day history`}>
-        {days.map(d => {
-          const completed = dayMap?.get(d) === true;
-          const scheduled = dayMap?.has(d) ?? false;
-          const isToday = d === today;
-          const color = completed ? rowColor : scheduled ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.06)';
-          return (
-            <span
-              key={d}
-              title={d}
-              style={{
-                width: 5, height: 14, background: color, flexShrink: 0,
-                outline: isToday ? '1px solid rgba(255,255,255,0.4)' : 'none',
-                outlineOffset: -1,
-              }}
-            />
-          );
-        })}
-      </span>
-
-      {/* Done / total */}
-      <span style={{ flexShrink: 0, width: 48, textAlign: 'right', color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem' }}>
-        {done}/{total}
-      </span>
-
-      {/* Actions */}
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <button onClick={onEdit} className="routine-edit-btn" style={{
-          background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 8px',
-          color: 'rgba(255,255,255,0.4)', fontFamily: VT,
-          fontSize: '0.85rem', cursor: 'pointer', letterSpacing: 1,
-          transition: 'border-color 0.15s, color 0.15s',
-        }}>edit</button>
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => setMenuOpen(p => !p)} style={{
-            background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '1px 8px',
-            color: 'rgba(255,255,255,0.28)', fontFamily: VT,
-            fontSize: '0.9rem', cursor: 'pointer',
-          }}>▼</button>
-          {menuOpen && (
-            <div style={{
-              position: 'absolute', top: '100%', right: 0, zIndex: 50,
-              background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', minWidth: 100,
-            }}>
-              <button onClick={() => { setMenuOpen(false); onDelete(); }} style={{
-                display: 'block', width: '100%', background: 'none', border: 'none',
-                color: 'var(--cr)', fontFamily: VT,
-                fontSize: '1rem', padding: '5px 10px', cursor: 'pointer', textAlign: 'left',
-              }}>delete</button>
-            </div>
-          )}
+      {/* Title row — a live status blinks like a shell prompt; a resolved one just sits there */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <span style={{
+          flexShrink: 0, fontSize: '1rem', color: isToday ? 'var(--teal)' : 'rgba(255,255,255,0.25)',
+          marginTop: 1,
+        }} className={isToday ? 'routine-today-blink' : undefined}>&gt;</span>
+        <span title={statusLabel} style={{
+          flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+          fontSize: '1.05rem', lineHeight: 1.25,
+          color: routine.importance_level ? 'var(--yellow)' : '#fff',
+        }}>
+          {routine.importance_level ? '★ ' : ''}{routine.title}
+          {hov && <span className="routine-today-blink" style={{ marginLeft: 3, color: 'rgba(255,255,255,0.6)' }}>▌</span>}
+        </span>
+        <span style={{
+          flexShrink: 0, fontSize: '0.72rem', letterSpacing: 1, color: statusColor,
+          marginTop: 2,
+        }}>{statusLabel && `[${statusLabel}]`}</span>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
+          opacity: hov ? 1 : 0, transition: 'opacity 0.15s', pointerEvents: hov ? 'auto' : 'none',
+        }}>
+          <button onClick={onEdit} className="routine-icon-btn" style={{
+            background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontFamily: VT,
+            fontSize: '0.78rem', cursor: 'pointer', padding: 0, letterSpacing: 0.5,
+          }}>[edit]</button>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setMenuOpen(p => !p)} className="routine-icon-btn" style={{
+              background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontFamily: VT,
+              fontSize: '0.78rem', cursor: 'pointer', padding: 0, letterSpacing: 0.5,
+            }}>[del]</button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, zIndex: 50,
+                background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', minWidth: 100,
+              }}>
+                <button onClick={() => { setMenuOpen(false); onDelete(); }} style={{
+                  display: 'block', width: '100%', background: 'none', border: 'none',
+                  color: 'var(--cr)', fontFamily: VT,
+                  fontSize: '0.85rem', padding: '5px 10px', cursor: 'pointer', textAlign: 'left',
+                }}>[confirm]</button>
+              </div>
+            )}
+          </div>
         </div>
-      </span>
+      </div>
+
+      {/* Meta: project + schedule, styled like a code comment / path */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.76rem', color: 'rgba(255,255,255,0.3)' }}>
+        {projectName && (
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: arcColor ? `${arcColor}99` : 'rgba(255,255,255,0.3)' }}>
+            <span style={{ opacity: 0.6 }}>#</span> {projectName}
+          </span>
+        )}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.75 }}>
+          <span style={{ opacity: 0.6 }}>//</span> {infoLine}
+        </span>
+      </div>
+
+      {/* Footer: habit heatmap (analytic — placeholder for now) + done/total */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 2 }}>
+        <span style={{ display: 'flex', gap: 2, flexWrap: 'wrap', flex: 1, minWidth: 0 }} title={`${HEATMAP_DAYS}-day history`}>
+          {days.map(d => {
+            const completed = dayMap?.get(d) === true;
+            const scheduled = dayMap?.has(d) ?? false;
+            const dIsToday = d === today;
+            const color = completed ? rowColor : scheduled ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.06)';
+            return (
+              <span
+                key={d}
+                title={d}
+                style={{
+                  width: 5, height: 14, background: color, flexShrink: 0,
+                  outline: dIsToday ? '1px solid rgba(255,255,255,0.4)' : 'none',
+                  outlineOffset: -1,
+                }}
+              />
+            );
+          })}
+        </span>
+        <span style={{ flexShrink: 0, color: 'rgba(255,255,255,0.6)', fontSize: '1rem' }}>
+          {done}/{total}
+        </span>
+      </div>
     </div>
   );
 }
@@ -287,7 +299,7 @@ export default function RoutinesView() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <style>{`
-        .routine-edit-btn:hover { border-color: rgba(255,255,255,0.3) !important; color: rgba(255,255,255,0.85) !important; }
+        .routine-icon-btn:hover { color: rgba(255,255,255,0.9) !important; }
         .routine-add-btn:hover { border-color: rgba(0,196,167,0.75) !important; background: rgba(0,196,167,0.06) !important; }
         @keyframes routine-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.12; } }
         .routine-today-blink { animation: routine-blink 1.1s infinite; }
@@ -304,11 +316,11 @@ export default function RoutinesView() {
           style={{
             background: 'none', border: '1px solid rgba(0,196,167,0.4)',
             color: 'var(--teal)', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem',
-            padding: '2px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            padding: '2px 14px', cursor: 'pointer',
             transition: 'border-color 0.15s, background 0.15s',
           }}
         >
-          <Plus size={14} /> new routine
+          [ + new_routine ]
         </button>
       </div>
 
@@ -317,7 +329,7 @@ export default function RoutinesView() {
         <div className="routine-scroll" style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
           {visibleRoutines.length === 0 && (
             <div style={{ color: 'rgba(255,255,255,0.2)', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '1rem' }}>
-              no routines yet — create one with [ new routine ]
+              $ no routines yet — create one with [ + new_routine ]
             </div>
           )}
           {(() => {
@@ -334,12 +346,11 @@ export default function RoutinesView() {
               const arc     = arcs.find(a => a.id === r.arc_id);
               const project = projects.find(p => p.id === r.project_id);
               return (
-                <RoutineRow
+                <RoutineCard
                   key={r.id}
                   routine={r}
                   nodes={nodesByRoutine.get(r.id) ?? []}
                   done={completedCounts[r.id] ?? 0}
-                  arcName={arc?.name}
                   arcColor={arc?.color_hex}
                   projectName={project?.name}
                   dayMap={heatmapByRoutine.get(r.id)}
@@ -389,12 +400,12 @@ export default function RoutinesView() {
                       fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.82rem',
                       color: 'rgba(255,255,255,0.22)', letterSpacing: 1,
                     }}>[{items.length}]</span>
-                    <span style={{ marginLeft: 'auto', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.9rem', color: 'rgba(255,255,255,0.28)' }}>
-                      {collapsed ? '▶' : '▼'}
+                    <span style={{ marginLeft: 'auto', fontFamily: "var(--font-main), var(--font-kr), monospace", fontSize: '0.85rem', color: 'rgba(255,255,255,0.28)' }}>
+                      {collapsed ? '[+]' : '[-]'}
                     </span>
                   </button>
                   {!collapsed && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 8 }}>
                       {items.map(renderRow)}
                     </div>
                   )}

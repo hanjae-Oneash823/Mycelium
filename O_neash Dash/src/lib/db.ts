@@ -290,6 +290,98 @@ export async function setupDb(): Promise<Database> {
   );
   CREATE INDEX IF NOT EXISTS idx_links_target ON note_links(target_id);
 
+  -- ─────────────────── PKM PLUGIN (cards + whiteboards) ────────────────────
+
+  CREATE TABLE IF NOT EXISTS pkm_cards (
+    id            TEXT PRIMARY KEY,
+    title         TEXT,
+    content_plain TEXT,
+    content_json  TEXT,
+    status        TEXT NOT NULL DEFAULT 'active'
+                      CHECK(status IN('active','archived')),
+    arc_id        TEXT,
+    project_id    TEXT,
+    color_hex     TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(arc_id)     REFERENCES arcs(id)     ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+  );
+
+  CREATE TRIGGER IF NOT EXISTS pkm_cards_ts AFTER UPDATE ON pkm_cards
+  BEGIN
+    UPDATE pkm_cards SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE INDEX IF NOT EXISTS idx_pkm_cards_status  ON pkm_cards(status);
+  CREATE INDEX IF NOT EXISTS idx_pkm_cards_arc     ON pkm_cards(arc_id);
+  CREATE INDEX IF NOT EXISTS idx_pkm_cards_project ON pkm_cards(project_id);
+
+  CREATE TABLE IF NOT EXISTS pkm_tags (
+    id        TEXT PRIMARY KEY,
+    name      TEXT NOT NULL UNIQUE,
+    color_hex TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS pkm_card_tags (
+    card_id TEXT NOT NULL,
+    tag_id  TEXT NOT NULL,
+    PRIMARY KEY(card_id, tag_id),
+    FOREIGN KEY(card_id) REFERENCES pkm_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY(tag_id)  REFERENCES pkm_tags(id)  ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_pkm_card_tags_tag ON pkm_card_tags(tag_id);
+
+  CREATE TABLE IF NOT EXISTS pkm_card_links (
+    source_id TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    PRIMARY KEY (source_id, target_id),
+    FOREIGN KEY (source_id) REFERENCES pkm_cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_id) REFERENCES pkm_cards(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_pkm_card_links_target ON pkm_card_links(target_id);
+
+  CREATE TABLE IF NOT EXISTS pkm_whiteboards (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    arc_id     TEXT,
+    project_id TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(arc_id)     REFERENCES arcs(id)     ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+  );
+
+  CREATE TRIGGER IF NOT EXISTS pkm_whiteboards_ts AFTER UPDATE ON pkm_whiteboards
+  BEGIN
+    UPDATE pkm_whiteboards SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+  END;
+
+  CREATE TABLE IF NOT EXISTS pkm_whiteboard_cards (
+    whiteboard_id TEXT NOT NULL,
+    card_id       TEXT NOT NULL,
+    x             REAL NOT NULL DEFAULT 0,
+    y             REAL NOT NULL DEFAULT 0,
+    width         REAL NOT NULL DEFAULT 280,
+    height        REAL NOT NULL DEFAULT 180,
+    z_index       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (whiteboard_id, card_id),
+    FOREIGN KEY (whiteboard_id) REFERENCES pkm_whiteboards(id) ON DELETE CASCADE,
+    FOREIGN KEY (card_id)       REFERENCES pkm_cards(id)       ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_pkm_wc_card ON pkm_whiteboard_cards(card_id);
+
+  CREATE TABLE IF NOT EXISTS pkm_whiteboard_edges (
+    whiteboard_id TEXT NOT NULL,
+    from_card_id  TEXT NOT NULL,
+    to_card_id    TEXT NOT NULL,
+    label         TEXT,
+    PRIMARY KEY (whiteboard_id, from_card_id, to_card_id),
+    FOREIGN KEY (whiteboard_id) REFERENCES pkm_whiteboards(id) ON DELETE CASCADE,
+    FOREIGN KEY (from_card_id)  REFERENCES pkm_cards(id)       ON DELETE CASCADE,
+    FOREIGN KEY (to_card_id)    REFERENCES pkm_cards(id)       ON DELETE CASCADE
+  );
+
   -- ─────────────────── SLEEP TRACKER ───────────────────────────────────────
 
   CREATE TABLE IF NOT EXISTS sleep_entries (

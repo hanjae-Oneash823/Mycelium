@@ -18,6 +18,8 @@ import AsteroidsPlugin from "./AsteroidsPlugin/AsteroidsPlugin";
 import LunarLanderPlugin from "./LunarLanderPlugin/LunarLanderPlugin";
 import ArtilleryDuelPlugin from "./ArtilleryDuelPlugin/ArtilleryDuelPlugin";
 import BattleshipPlugin from "./BattleshipPlugin/BattleshipPlugin";
+import TerminalPlugin from "./TerminalPlugin/TerminalPlugin";
+import PKMPlugin from "./PKMPlugin/PKMPlugin";
 import type { PluginItem } from "@/types";
 
 export const plugins: PluginItem[] = [
@@ -30,6 +32,8 @@ export const plugins: PluginItem[] = [
   { id: "journal",      name: "Journal",         component: JournalPlugin        },
   { id: "projects",     name: "Arcs & Projects", component: ProjectsPlugin       },
   { id: "academic",     name: "Deep Planner",    component: AcademicPlugin,      section: "lab"   },
+  { id: "terminal",     name: "Terminal",        component: TerminalPlugin,      section: "lab"   },
+  { id: "pkm",          name: "Cards",           component: PKMPlugin,           section: "lab"   },
   { id: "analytics",   name: "Analytics",       component: AnalyticsPlugin                           },
   { id: "wardrobe",    name: "Wardrobe",        component: WardrobePlugin,      section: "studio" },
   { id: "filmneg",     name: "Film Neg Lab",    component: FilmNegLabPlugin,    section: "studio" },

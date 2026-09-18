@@ -163,6 +163,14 @@ export function bandAt(y: number, H: number): 0 | 1 | null {
   return null;
 }
 
+/** y -> grid row for hover highlighting; unlike bandAt, always resolves to one of the three visible rows. */
+export function rowAt(y: number, H: number): 0 | 1 | 2 {
+  const { importantBoundary, normalBoundary } = rowBoundaries(H);
+  if (y < importantBoundary) return 1;
+  if (y < normalBoundary) return 0;
+  return 2;
+}
+
 export function columnAt(x: number, W: number, columnCount: number): number {
   const colW = W / columnCount;
   return Math.min(columnCount - 1, Math.max(0, Math.floor(x / colW)));

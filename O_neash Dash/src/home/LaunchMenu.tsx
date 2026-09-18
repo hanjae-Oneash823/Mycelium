@@ -142,6 +142,20 @@ export const CATEGORIES: Category[] = [
         icon: <StickyNoteText size={14} />,
         desc: "papers database & RSS feed",
       },
+      {
+        id: "terminal",
+        label: "Terminal",
+        icon: <Terminal size={14} />,
+        desc: "shell access — run codex, claude code, anything",
+        pluginId: "terminal",
+      },
+      {
+        id: "pkm",
+        label: "Cards",
+        icon: <Notes size={14} />,
+        desc: "atomic cards, wiki-links, whiteboards",
+        pluginId: "pkm",
+      },
     ],
   },
   {

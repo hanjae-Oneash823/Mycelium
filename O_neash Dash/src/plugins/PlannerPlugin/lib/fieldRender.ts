@@ -64,6 +64,9 @@ export interface DrawOptions {
   selectedNodeId: string | null;
   hoverZone: number;
   hoverBand: number;
+  /** Column/row under the cursor for the plain cell-hover highlight (independent of move-selection). -1 when not hovering a cell. */
+  hoverCellZone: number;
+  hoverCellRow: number;
   cursor: { x: number; y: number; active: boolean };
   reducedMotion: boolean;
   fontStack: string;
@@ -77,7 +80,7 @@ export function draw(ctx: CanvasRenderingContext2D, W: number, H: number, partic
   const selected = opts.selectedNodeId ? particles.find(p => p.node.id === opts.selectedNodeId) ?? null : null;
 
   const colW = W / opts.columns.length;
-  const { topBound, importantBoundary, normalBoundary } = rowBoundaries(H);
+  const { topBound, bottomBound, importantBoundary, normalBoundary } = rowBoundaries(H);
   const todayIdx = opts.columns.findIndex(c => c.isToday);
   if (todayIdx >= 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.035)';
@@ -117,6 +120,18 @@ export function draw(ctx: CanvasRenderingContext2D, W: number, H: number, partic
   ctx.fillStyle = '#b366f5';
   ctx.fillText('EVENTS', 8, normalBoundary + 18);
   ctx.textAlign = 'center';
+
+  if (opts.hoverCellZone >= 0 && opts.hoverCellZone < opts.columns.length && opts.hoverCellRow >= 0) {
+    const cellX = colW * opts.hoverCellZone;
+    const cellY = opts.hoverCellRow === 1 ? topBound : opts.hoverCellRow === 0 ? importantBoundary : normalBoundary;
+    const cellH = opts.hoverCellRow === 1
+      ? (importantBoundary - topBound)
+      : opts.hoverCellRow === 0
+        ? (normalBoundary - importantBoundary)
+        : (bottomBound - normalBoundary);
+    ctx.fillStyle = 'rgba(255,255,255,0.045)';
+    ctx.fillRect(cellX, cellY, colW, cellH);
+  }
 
   if (selected && opts.hoverZone >= 0 && opts.hoverZone < opts.columns.length && !opts.columns[opts.hoverZone].isOverdue && opts.hoverBand >= 0) {
     const boxX = colW * opts.hoverZone;

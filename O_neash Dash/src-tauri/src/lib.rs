@@ -1,6 +1,8 @@
 use tauri::Manager;
 use std::fs;
 
+mod terminal;
+
 // ── macOS: native WKWebView PDF export ───────────────────────────────────────
 //
 // Uses NSPrintOperation to generate a properly paginated multi-page A4 PDF.
@@ -108,6 +110,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .manage(terminal::TerminalState::default())
         .setup(|app| {
             let mut db_dir = app
                 .path()
@@ -119,7 +122,14 @@ pub fn run() {
             println!("Database directory ready at: {:?}", db_dir);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![export_pdf_native])
+        .invoke_handler(tauri::generate_handler![
+            export_pdf_native,
+            terminal::spawn_terminal,
+            terminal::terminal_snapshot,
+            terminal::write_terminal,
+            terminal::resize_terminal,
+            terminal::kill_terminal,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
